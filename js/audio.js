@@ -2,6 +2,9 @@
 const SAMPLES = ['knock', 'bang', 'creak', 'drawer', 'unlock', 'pop', 'static', 'steps', 'chime', 'giggle', 'giggle2',
   'whisper', 'whisper2', 'scare', 'scare2', 'curtain', 'buzz', 'tvloop', 'music_room', 'music_chase'];
 
+const VOICES = ['g_intro', 'g_found', 'g_wait', 'g_why', 'g_clock', 'g_three', 'g_turn', 'g_look', 'g_stay', 'g_end',
+  'm_tape1', 'm_tape2', 'm_tape3', 'n_news'];
+
 export class Sound {
   constructor() {
     this.ctx = null; this.enabled = true; this.buf = {}; this.raw = {};
@@ -11,9 +14,20 @@ export class Sound {
 
   // fetch the encoded files early (during the loading screen); decoding needs the AudioContext
   prefetch() {
-    return Promise.all(SAMPLES.map(async n => {
-      try { const r = await fetch(`assets/audio/${n}.mp3`); if (r.ok) this.raw[n] = await r.arrayBuffer(); } catch { }
+    const list = [...SAMPLES.map(n => [n, `assets/audio/${n}.mp3`]), ...VOICES.map(n => [n, `assets/voice/${n}.mp3`])];
+    return Promise.all(list.map(async ([n, url]) => {
+      try { const r = await fetch(url); if (r.ok) this.raw[n] = await r.arrayBuffer(); } catch { }
     }));
+  }
+  // ElevenLabs voice line; positional when pos is given. Returns duration (s) or 0.
+  voice(id, pos, gain = 1.6) {
+    if (!this.ctx || !this.buf[id]) return 0;
+    const dest = pos ? (() => { const p = this.panner(pos); p.connect(this.master); return p; })() : this.master;
+    const s = this.ctx.createBufferSource(); s.buffer = this.buf[id];
+    const g = this.ctx.createGain(); g.gain.value = gain;
+    s.connect(g).connect(dest); s.start();
+    this.duck(0.45, this.buf[id].duration + 0.5);
+    return this.buf[id].duration;
   }
   async decodeAll() {
     await Promise.all(Object.entries(this.raw).map(async ([n, ab]) => {

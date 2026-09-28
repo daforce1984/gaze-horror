@@ -202,3 +202,113 @@ export class TVScreen {
     return this.c;
   }
 }
+
+// ---------------------------------------------------------------- story documents
+const CRAYON = '"Nanum Pen Script", cursive';
+function paperBg(g, w, h, base = [222, 212, 184], seed = 3) {
+  const r = rnd(seed);
+  g.fillStyle = `rgb(${base})`; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 1400; i++) { g.fillStyle = `rgba(90,70,40,${r() * 0.06})`; g.fillRect(r() * w, r() * h, 2 + r() * 10, 2 + r() * 10); }
+  // stains
+  for (let i = 0; i < 5; i++) {
+    const x = r() * w, y = r() * h, rr = 20 + r() * 80;
+    const grd = g.createRadialGradient(x, y, rr * 0.3, x, y, rr);
+    grd.addColorStop(0, 'rgba(120,90,40,0.12)'); grd.addColorStop(0.9, 'rgba(110,80,30,0.2)'); grd.addColorStop(1, 'rgba(110,80,30,0)');
+    g.fillStyle = grd; g.beginPath(); g.arc(x, y, rr, 0, Math.PI * 2); g.fill();
+  }
+}
+function crayonX(g, x, y, s, r, col = 'rgba(170,20,20,0.85)') {
+  g.strokeStyle = col; g.lineCap = 'round';
+  for (let k = 0; k < 2; k++) {
+    g.lineWidth = 3 + r() * 2; g.beginPath();
+    g.moveTo(x - s + r() * 4, y - s + r() * 4); g.lineTo(x + s + r() * 4, y + s + r() * 4);
+    g.moveTo(x + s + r() * 4, y - s + r() * 4); g.lineTo(x - s + r() * 4, y + s + r() * 4); g.stroke();
+  }
+}
+
+export function calendarTex() {
+  const W = 512, H = 700, c = canvas(W, H), g = c.getContext('2d'), r = rnd(19);
+  paperBg(g, W, H, [232, 226, 212], 5);
+  g.fillStyle = '#7a1010'; g.fillRect(0, 0, W, 110);
+  g.fillStyle = '#f1e6d6'; g.font = 'bold 64px Georgia, serif'; g.textAlign = 'center'; g.fillText('12', W / 2, 78);
+  g.font = '22px Georgia, serif'; g.fillText('1999  DECEMBER', W / 2, 104);
+  const days = ['일', '월', '화', '수', '목', '금', '토'];
+  g.font = 'bold 20px sans-serif'; g.fillStyle = '#333';
+  days.forEach((d, i) => { g.fillStyle = i === 0 ? '#a01818' : '#333'; g.fillText(d, 40 + i * 72, 145); });
+  const cellW = 72, cellH = 88, x0 = 4, y0 = 160, first = 3; // 1999-12-01 was a Wednesday
+  g.font = '24px Georgia, serif';
+  for (let d = 1; d <= 31; d++) {
+    const k = first + d - 1, cx = x0 + (k % 7) * cellW, cy = y0 + Math.floor(k / 7) * cellH;
+    g.strokeStyle = 'rgba(0,0,0,0.15)'; g.strokeRect(cx, cy, cellW, cellH);
+    g.fillStyle = k % 7 === 0 ? '#a01818' : '#222'; g.textAlign = 'left'; g.fillText(String(d), cx + 8, cy + 28);
+    if (d >= 4) crayonX(g, cx + 38, cy + 52, 20, r, d > 24 ? 'rgba(20,20,120,0.8)' : 'rgba(170,20,20,0.85)');
+    if (d === 24) {
+      g.strokeStyle = 'rgba(200,30,30,0.9)'; g.lineWidth = 5; g.beginPath(); g.ellipse(cx + 36, cy + 44, 40, 36, 0.1, 0, Math.PI * 2); g.stroke();
+    }
+  }
+  g.fillStyle = 'rgba(190,30,30,0.9)'; g.font = `44px ${CRAYON}`; g.textAlign = 'left';
+  g.save(); g.translate(250, 640); g.rotate(-0.08); g.fillText('엄마 오는 날?', 0, 0); g.restore();
+  g.fillStyle = 'rgba(20,20,110,0.85)'; g.font = `34px ${CRAYON}`;
+  g.save(); g.translate(20, 680); g.rotate(0.03); g.fillText('엄마 엄마 엄마 엄마 엄마 엄마', 0, 0); g.restore();
+  return c;
+}
+
+export function noteTex() {
+  const W = 512, H = 640, c = canvas(W, H), g = c.getContext('2d');
+  paperBg(g, W, H, [236, 232, 214], 9);
+  g.strokeStyle = 'rgba(80,110,170,0.25)'; g.lineWidth = 1;
+  for (let y = 90; y < H; y += 48) { g.beginPath(); g.moveTo(20, y); g.lineTo(W - 20, y); g.stroke(); }
+  g.fillStyle = 'rgba(25,25,35,0.92)'; g.font = `40px ${CRAYON}`; g.textAlign = 'left';
+  const lines = ['수아야', '엄마 일 갔다 올게.', 'TV 보면서 얌전히 기다려.', '문 두드리면 엄마 진짜 화낸다.', '밥은 컵라면 먹고.', '11번(뉴스)은 보지 마.', '무서운 거 나와.', '— 엄마'];
+  lines.forEach((l, i) => { g.save(); g.translate(40 + (i % 2) * 6, 80 + i * 48); g.rotate((i % 3 - 1) * 0.012); g.fillText(l, 0, 0); g.restore(); });
+  // a child's crayon answer squeezed at the bottom
+  g.fillStyle = 'rgba(190,30,30,0.9)'; g.font = `36px ${CRAYON}`;
+  g.save(); g.translate(250, 612); g.rotate(-0.06); g.fillText('안 두드릴게 빨리 와', 0, 0); g.restore();
+  return c;
+}
+
+export function drawingTex(img) {
+  const W = 512, H = 512, c = canvas(W, H), g = c.getContext('2d'), r = rnd(4);
+  if (img) g.drawImage(img, 0, 0, W, H);
+  else {
+    paperBg(g, W, H, [236, 230, 210], 12);
+    g.lineWidth = 6; g.lineCap = 'round';
+    g.strokeStyle = '#222'; g.strokeRect(60, 90, 390, 330);                       // room
+    g.strokeStyle = '#2244aa'; g.strokeRect(280, 250, 110, 130); g.fillStyle = '#2244aa22'; g.fillRect(280, 250, 110, 130); // TV
+    g.strokeStyle = '#111'; g.beginPath(); g.arc(200, 300, 22, 0, Math.PI * 2); g.stroke(); // girl
+    g.beginPath(); g.moveTo(200, 322); g.lineTo(200, 380); g.stroke();
+    g.strokeStyle = '#b01818'; g.strokeRect(430, 200, 20, 60);                       // lock
+  }
+  g.fillStyle = 'rgba(180,20,20,0.9)'; g.font = `54px ${CRAYON}`; g.textAlign = 'center';
+  g.save(); g.translate(W / 2 + r() * 10, 480); g.rotate(-0.05); g.fillText('엄마 언제 와?', 0, 0); g.restore();
+  return c;
+}
+
+export function newsTex(img) {
+  const W = 640, H = 480, c = canvas(W, H), g = c.getContext('2d');
+  if (img) g.drawImage(img, 0, 0, W, H); else paperBg(g, W, H, [214, 206, 180], 21);
+  g.fillStyle = 'rgba(226,218,196,0.95)'; g.fillRect(28, 12, W - 150, 62);
+  g.fillStyle = '#161410'; g.font = 'bold 30px "Nanum Myeongjo", serif'; g.textAlign = 'left';
+  g.fillText('빌라 303호 7세 여아 숨진 채 발견', 40, 55);
+  g.fillStyle = 'rgba(226,218,196,0.95)'; g.fillRect(28, 336, W - 56, 70);
+  g.fillStyle = '#2b2720'; g.font = '17px "Nanum Myeongjo", serif';
+  g.fillText('밖에서 잠긴 방… 달력엔 날짜마다 X 표시가 남아 있었다', 40, 364);
+  g.fillText('경찰, 3주째 연락 끊긴 어머니 행방 추적  (2000. 1. 14)', 40, 392);
+  return c;
+}
+
+export function scratchTex() {
+  const c = canvas(256, 512), g = c.getContext('2d'), r = rnd(33);
+  g.lineCap = 'round';
+  for (let k = 0; k < 70; k++) {
+    const x = 20 + r() * 216, y = 150 + r() * 350, len = 20 + r() * 90;
+    for (let f = 0; f < 4; f++) {  // four fingers
+      g.strokeStyle = `rgba(${200 + r() * 40},${180 + r() * 30},${150 + r() * 30},${0.25 + r() * 0.35})`;
+      g.lineWidth = 1 + r() * 2;
+      g.beginPath(); g.moveTo(x + f * 7, y); g.lineTo(x + f * 7 + (r() - 0.5) * 12, y + len); g.stroke();
+    }
+  }
+  // dried blood near the bottom
+  for (let k = 0; k < 18; k++) { g.fillStyle = `rgba(70,5,5,${0.2 + r() * 0.3})`; g.fillRect(20 + r() * 216, 380 + r() * 120, 2 + r() * 5, 6 + r() * 30); }
+  return c;
+}

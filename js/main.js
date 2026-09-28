@@ -13,6 +13,7 @@ const ASSETS = {
   wall: 'assets/wall.webp', floor: 'assets/floor.webp', ceiling: 'assets/ceiling.webp', curtain: 'assets/curtain.webp',
   wood: 'assets/wood.webp', door: 'assets/door.webp', face: 'assets/ghost_face.webp', window: 'assets/window.webp',
   fabric: 'assets/fabric.webp', plastic: 'assets/plastic.webp', paper: 'assets/paper.webp',
+  drawing: 'assets/child_drawing.webp', newspaper: 'assets/newspaper.webp',
 };
 const GLB = {};
 
@@ -48,7 +49,7 @@ const S = {
   tv: { mode: 'static', channel: 3, on: true },
   curtainOpen: 0, curtainTarget: 0, drawerOpen: 0, doorLight: 0,
   ghost: null, // {spot, alpha, reveal, revealed, onReveal, lingering}
-  decoys: [], pending: null, insanity: 0, stare: 0, invert: 0, hallucT: 3,
+  decoys: [], pending: null, insanity: 0, stare: 0, invert: 0, hallucT: 3, records: new Set(), tape: 0,
   decals: {}, timers: [], unlock: 0, holding: false, chase: null, ending: false,
   lastScare: -99, clock: { h: 12, m: 0 }, events: 0,
 };
@@ -74,12 +75,12 @@ const digitSpots = spotOrder.slice(0, 4);
 const digitOrder = SOL.order; // which code position each appearance reveals
 const clockSpots = spotOrder.slice(4, 6);
 function checkpoint(stage, i = 0) {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ sol: SOL, stage, i, memo: S.memo, time: S.time })); } catch { }
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ sol: SOL, stage, i, memo: S.memo, time: S.time, records: [...S.records], tape: S.tape })); } catch { }
 }
 function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch { } }
 // rebuild the world state for a checkpoint and resume from it
 function restore(sv) {
-  S.memo = sv.memo || []; S.time = sv.time || 0;
+  S.memo = sv.memo || []; S.time = sv.time || 0; S.records = new Set(sv.records || []); S.tape = sv.tape || 0;
   const order = ['digits', 'drawer', 'clock', 'clockSet', 'real', 'chase'];
   const at = order.indexOf(sv.stage);
   S.tv.mode = 'broadcast'; tvScreen.mode = 'broadcast'; tvScreen.lines = ['찾아줘']; tvScreen.channel = SOL.channel;
@@ -244,6 +245,60 @@ function buildScene() {
   decal('glass', TX.glassTextTex(['나를 보면', '멈춰']), 'glass');
   decal('stop', TX.bloodTextTex(['나를 보면', '멈춰'], 21, 170), 'A');
   S.decals.glass.o.flags = [0, 1, 0, 0];
+
+  // ---- story documents: the hidden backstory, told by objects
+  const doc = (key, canvas, model, pipe = 'opaque') => {
+    O.docCanvas = O.docCanvas || {}; O.docCanvas[key] = canvas;
+    return (O[key + 'Obj'] = add(R.object(quad, R.texture(canvas), { pipe, model, clamp: true, flags: [0.3, 0, 0.15, 0], tint: [0.95, 0.95, 0.95, 1] })));
+  };
+  doc('calendar', TX.calendarTex(), m4.trs([0.85, 1.55, -2.486], 0, [0.38, 0.52, 1]));
+  doc('drawing', TX.drawingTex(IMG.drawing), m4.trs([2.186, 1.22, 0.56], -PI / 2, [0.42, 0.42, 1], 0, 0.04));
+  doc('note', TX.noteTex(), m4.trs([1.95, 0.762, -0.1], 1.9, [0.15, 0.19, 1], -PI / 2));
+  doc('news', TX.newsTex(IMG.newspaper), m4.trs([0.02, 0.006, 1.92], 0.5, [0.36, 0.27, 1], -PI / 2));
+  const sc = doc('scratch', TX.scratchTex(), m4.trs([0.62, 0.42, 2.527], PI, [0.34, 0.68, 1]), 'blend');
+  sc.tint = [1, 1, 1, 0.9];
+  O.led = (O.nodes.am_led || [])[0];
+}
+
+// ---- hidden backstory records
+const RECORD_TOTAL = 7;
+function record(key, html) {
+  if (S.records.has(key)) return false;
+  S.records.add(key);
+  addMemo(`<b class="rec">기록 ${S.records.size}/${RECORD_TOTAL}</b> — ${html}`);
+  return true;
+}
+function openDoc(key, title, caption, wide = false) {
+  const src = O.docCanvas[key];
+  openModal(`<h2>${title}</h2><img class="docimg${wide ? ' wide' : ''}" src="${src.toDataURL('image/jpeg', 0.85)}" alt="">
+    <p class="hint doc">${caption}</p><div class="row"><button class="primary" data-close>닫기</button></div>`, 'docCard');
+}
+const TAPES = [
+  ['m_tape1', '“수아야, 엄마야. 엄마 오늘도 좀 늦어. TV 켜 놨지? 채널 돌리지 말고… 얌전히 보고 있어.”'],
+  ['m_tape2', '“문 두드리지 말라고 했지. 옆집에서 또 뭐라 그러잖아. …금방 갈게. 금방.”'],
+  ['m_tape3', '“수아야… 엄마 너무 힘들어. …조금만, 조금만 더 기다려. 미안해.”'],
+];
+function playTape() {
+  const i = Math.min(S.tape, TAPES.length - 1);
+  const [id, text] = TAPES[i];
+  snd.play('click', [1.81, 0.8, 0.12]);
+  const n = ['첫', '두', '세'][i];
+  after(0.4, () => {
+    const d = snd.voice(id, [1.81, 0.8, 0.12], 1.1);
+    sayNow(`📼 ${n} 번째 메시지 — ${text}`, Math.max(5, d + 1));
+  });
+  if (S.tape < TAPES.length) {
+    S.tape++;
+    if (S.tape === 1) record('tape', '자동응답기 — 엄마가 남긴 메시지들. 밤마다 “금방 갈게.”');
+    if (S.tape === 3) after(10, () => say('…마지막 메시지의 날짜는 1999년 12월 24일.', 4));
+  }
+}
+function playNews() {
+  S.tv.mode = 'broadcast'; tvScreen.mode = 'broadcast'; tvScreen.showFace = false; tvScreen.lines = ['뉴스 속보', '303호 여아…'];
+  const d = snd.voice('n_news', O.tvCenter, 1.2);
+  sayNow('📺 “…빌라 303호에서 일곱 살 여자아이가 숨진 채 발견됐습니다. 아이는 밖에서 잠긴 방 안에 혼자 있었으며, 경찰은 3주째 연락이 닿지 않는 아이의 어머니를 찾고 있습니다.”', Math.max(8, d + 1));
+  record('news', 'TV 11번 뉴스 — 밖에서 잠긴 방, 연락이 끊긴 어머니.');
+  after(Math.max(8, d + 1), () => { if (S.stage === 'tv') { S.tv.mode = 'static'; tvScreen.mode = 'static'; } });
 }
 
 function placeDecal(key, spot) {
@@ -297,7 +352,7 @@ const STAGES = {
     S.blackout = 1; S.blackoutTarget = 0;
     after(1.2, () => say('…어디지. 몸이 의자에 묶인 것처럼 무겁다.', 4));
     after(5.2, () => say('일어날 수가 없다. 고개만 돌릴 수 있다.', 3.5));
-    after(9, () => { snd.play('giggle', [-2, 1.2, 0.3]); say('…방금, 왼쪽에서 무슨 소리가.', 3.5); });
+    after(9, () => { snd.voice('g_intro', [-2, 1.2, 0.3], 2.2); say('“엄마…? 왔어?” …왼쪽에서, 아이 목소리.', 4); });
     after(10, () => STAGES.tv());
   },
   tv() {
@@ -315,6 +370,7 @@ const STAGES = {
   },
   broadcast() {
     S.stage = 'broadcast'; objective('');
+    after(14.5, () => snd.voice('g_wait', O.tvCenter, 2.0));
     hideGhost(); S.tv.mode = 'broadcast';
     tvScreen.mode = 'broadcast'; tvScreen.showFace = true; tvScreen.lines = ['…'];
     snd.play('sting');
@@ -342,6 +398,8 @@ const STAGES = {
       const pos = digitOrder[i], dots = [0, 1, 2, 3].map(k => k === pos ? '●' : '○').join('');
       addMemo(`<b>피로 쓴 숫자</b> — <span class="dots">${dots}</span> <span class="big">${SOL.code[pos]}</span>`);
       say(`피로 쓴 숫자 ${SOL.code[pos]}… 아래에 점 네 개. ${pos + 1}번째가 칠해져 있다.`, 4.5);
+      if (i === 0) snd.voice('g_found', [S.ghost.p[0], 1.1, S.ghost.p[2]], 2.4);
+      if (i === 2) after(3, () => { snd.voice('g_why', [S.ghost ? S.ghost.p[0] : 0, 1.1, S.ghost ? S.ghost.p[2] : 0], 2.2); say('“엄마… 왜 안 왔어?”', 3.5); });
       after(2.5, () => { hideGhost(); after(1.2, () => STAGES.digits(i + 1)); });
     } }, i === 0 ? 3 : rnd(6, 10));
   },
@@ -371,6 +429,7 @@ const STAGES = {
     S.stage = 'curtain'; objective('');
     snd.play('chime', [2.1, 1.85, -0.3]);
     say('시계가 다시 움직이기 시작했다…', 3.5);
+    after(1.5, () => { snd.voice('g_clock', [2.0, 1.8, -0.3], 2.2); say('“시계가 멈췄을 때… 나도 멈췄어.”', 4); });
     after(4, () => { snd.play('curtain', [-2.1, 1.5, -0.6]); S.curtainTarget = 1; say('커튼이… 저절로 열린다.', 3.5); });
     after(10, () => STAGES.real());
   },
@@ -398,6 +457,7 @@ const STAGES = {
         S.decoys = pool.slice(1, 3).map((sp, k) => ({ spot: sp, p: SPOTS[sp].p.slice(), kind: SPOTS[sp].kind, alpha: 0, target: 1, stare: 0, objs: O.decoys[k][SPOTS[sp].kind] }));
         snd.play('giggle', [SPOTS[pool[1]].p[0], 1, SPOTS[pool[1]].p[2]]);
         after(1.5, () => say('…셋이다. 방 안에 그 애가 셋.', 4));
+        after(3.5, () => { snd.voice('g_three', null, 1.6); say('“누가 진짜 나게?”', 3); });
       });
     });
   },
@@ -407,7 +467,9 @@ const STAGES = {
     snd.playMusic('music_chase', 1.5);
     S.tv.mode = 'static'; tvScreen.mode = 'static';
     objective('문을 연다 — 문을 향해 길게 눌러 열쇠를 돌린다');
-    say('전구가 터졌다. 창가에… 그 애가 서 있다. 문을 열어야 한다. 등 뒤를 조심해.', 5.5);
+    say('전구가 터졌다. 창가에… 그 애가 서 있다.', 3);
+    after(2.5, () => { snd.voice('g_turn', SPOTS.glass.p.map((v, k) => k === 1 ? 1.2 : v), 2.4); say('“이번엔… 엄마가 기다려.”', 3.5); });
+    after(6.5, () => say('엄마…? 나를 보고 하는 말이다. 문을 열어야 한다. 등 뒤를 조심해.', 5));
     S.chase = { p: SPOTS.glass.p.slice(), stepT: 0, steps: 0 };
     showGhost('glass', { chase: true });
   },
@@ -432,8 +494,13 @@ function showZoomTip() {
 // ---------------------------------------------------------------- interactions
 const INTERACT = [
   { id: 'tv', label: 'TV', min: [-0.45, 0.5, -2.47], max: [0.45, 1.1, -1.94] },
-  { id: 'drawer', label: '책상 서랍', min: [1.5, 0.45, -0.9], max: [2.2, 0.8, 0.3] },
-  { id: 'desk', label: '책상', min: [1.5, 0, -0.9], max: [2.2, 0.45, 0.3] },
+  { id: 'drawer', label: '책상 서랍', min: [1.5, 0.52, -0.56], max: [1.66, 0.74, -0.04] },
+  { id: 'desk', label: '책상', min: [1.5, 0, -0.9], max: [2.2, 0.5, 0.3] },
+  { id: 'machine', label: '자동응답기', min: [1.68, 0.74, 0.02], max: [1.94, 0.87, 0.22] },
+  { id: 'note', label: '쪽지', min: [1.84, 0.74, -0.22], max: [2.06, 0.8, 0.02] },
+  { id: 'calendar', label: '달력', min: [0.63, 1.27, -2.5], max: [1.07, 1.83, -2.4] },
+  { id: 'drawing', label: '크레용 그림', min: [2.08, 0.99, 0.33], max: [2.2, 1.45, 0.79] },
+  { id: 'news', label: '신문 조각', min: [-0.22, 0, 1.76], max: [0.26, 0.12, 2.08] },
   { id: 'clock', label: '벽시계', min: [2.05, 1.62, -0.53], max: [2.2, 2.08, -0.07] },
   { id: 'door', label: '문', min: [0.12, 0, 2.4], max: [1.28, 2.12, 2.62] },
   { id: 'curtain', label: '커튼', min: [-2.2, 0.55, -1.45], max: [-1.98, 2.2, 0.25] },
@@ -473,7 +540,29 @@ function interact(it) {
       else if (S.flags.clockDone) say('시계가 다시 째깍거린다.', 2.5);
       else say(`멈춘 벽시계. ${S.clock.h}시 ${String(S.clock.m).padStart(2, '0')}분에서 움직이지 않는다.`, 3.5);
       break;
+    case 'machine': playTape(); break;
+    case 'note':
+      openDoc('note', '책상 위의 쪽지', '어른의 글씨. 맨 아래에 크레용으로 작게 — “안 두드릴게 빨리 와”');
+      record('note', '엄마의 쪽지 — “문 두드리면 엄마 진짜 화낸다. 11번(뉴스)은 보지 마.”');
+      break;
+    case 'calendar':
+      openDoc('calendar', '1999년 12월', '4일부터 하루도 빠짐없이 X. 24일엔 동그라미 — “엄마 오는 날?” 25일부터는 파란 X.');
+      record('calendar', '달력 — 12월 4일부터 매일 X. 24일 “엄마 오는 날?”');
+      break;
+    case 'drawing':
+      openDoc('drawing', '크레용 그림', '의자에 앉은 여자아이, TV, 자물쇠가 달린 문. 문밖으로 걸어가는 얼굴 없는 여자.');
+      record('drawing', '크레용 그림 — “엄마 언제 와?” 문에는 자물쇠, 문밖엔 떠나는 여자.');
+      break;
+    case 'news':
+      openDoc('news', '신문 조각', '2000년 1월 14일자. 사진 속 현관문에… 이 방 번호가 보인다.', true);
+      record('newspaper', '신문 — “빌라 303호 7세 여아 숨진 채 발견”');
+      break;
     case 'door':
+      if (!S.records.has('scratch') && S.stage !== 'chase') {
+        say('문 안쪽, 아이 키 높이까지… 손톱자국이 빼곡하다. 밖에서 잠긴 문이었다.', 5);
+        record('scratch', '문 안쪽의 손톱자국 — 아이 키 높이. 문은 밖에서 잠겨 있었다.');
+        break;
+      }
       if (S.stage === 'chase') say('문을 향한 채로 길게 누르고 있으면 열쇠를 돌린다.', 3);
       else if (S.inventory.includes('key')) { snd.play('knock', [0.7, 1.2, 2.6]); say('열쇠 구멍이 녹슬어 있다. 아직은… 무언가 문을 막고 있다.', 4); }
       else { snd.play('bang', [0.7, 1.2, 2.6]); say('잠긴 문. 반대편에서 누군가 쾅 쳤다.', 3.5); addFear(0.1); }
@@ -514,6 +603,7 @@ function openChannel() {
     closeModal();
     tvScreen.channel = ch; tvScreen.osd = 3;
     if (ch === SOL.channel && S.stage === 'tv') STAGES.broadcast();
+    else if (ch === 11) playNews();
     else { snd.play('static', O.tvCenter); S.glitch = 0.6; addFear(0.08); say(pick(['지직… 아무것도 없다.', '화면 속에서 누가 웃은 것 같다.', '모래 폭풍 같은 화면뿐.']), 3); }
   });
 }
@@ -612,16 +702,18 @@ function showEnding() {
   const mins = Math.floor(S.time / 60), secs = Math.floor(S.time % 60);
   ui.ending.innerHTML = `
     <div class="endtext">
-      <p>복도는 끝없이 길었다.</p>
-      <p>등 뒤에서, 꺼져 있어야 할 TV가 켜지는 소리가 났다.</p>
+      <p>문밖 현관의 깨진 거울 속에, 스무 해만큼 늙은 여자가 서 있었다.</p>
+      <p>수아의 엄마. — 나였다.</p>
+      ${S.records.size >= RECORD_TOTAL ? '<p class="truth">1999년 12월 24일 밤, 나는 밖에서 문을 잠그고 나갔다. 금방 올 생각이었다.</p>' : ''}
       <p class="ch">CH ${String(SOL.channel).padStart(2, '0')}</p>
-      <p class="whisper">“또 와줘.”</p>
+      <p class="whisper">“엄마… 또 와줘.”</p>
       <h1>응시</h1>
-      <p class="stat">탈출 시간 ${mins}분 ${String(secs).padStart(2, '0')}초</p>
+      <p class="stat">탈출 시간 ${mins}분 ${String(secs).padStart(2, '0')}초 · 찾은 기록 ${S.records.size}/${RECORD_TOTAL}${S.records.size < RECORD_TOTAL ? ' — 방 안엔 아직 숨겨진 것이 있다' : ''}</p>
       <button class="primary" onclick="localStorage.removeItem('gaze-save-v1'); location.reload()">다시 하기</button>
     </div>`;
   ui.ending.classList.add('show');
-  snd.play('static'); after(0, () => { });
+  snd.play('static');
+  setTimeout(() => snd.voice('g_end', null, 2.2), 7200);
 }
 
 // ---------------------------------------------------------------- input
@@ -901,7 +993,8 @@ function update(dt) {
         ui.halluc.textContent = w;
         ui.halluc.style.left = rnd(18, 82) + '%'; ui.halluc.style.top = rnd(18, 78) + '%';
         ui.halluc.classList.remove('go'); void ui.halluc.offsetWidth; ui.halluc.classList.add('go');
-        snd.play('whisper', v3.add(EYE, [rnd(-1, 1), 0, rnd(-1, 1)]));
+        if (Math.random() < 0.35) snd.voice(pick(['g_look', 'g_stay']), v3.add(EYE, [rnd(-1, 1), 0, rnd(-1, 1)]), 1.8);
+        else snd.play('whisper', v3.add(EYE, [rnd(-1, 1), 0, rnd(-1, 1)]));
       }
     }
     if (I > 0.78 && Math.random() < dt * 0.7) S.invert = 1;
@@ -1034,6 +1127,9 @@ function frame(dt) {
   const dO = S.drawerOpen * 0.3;
   { const b0 = O.nodes.drawer[0].base; setModel(O.nodes.drawer, m4.trs([b0[12] - dO, b0[13], b0[14]])); }
   setVisible(O.nodes.drawer_lock, !S.flags.drawer);
+  // answering machine LED blinks while messages are unheard
+  if (O.led) { const on = S.tape < 3 && Math.sin(time * 5) > 0; O.led.emissive = on ? [3, 0.15, 0.08, 0] : [0.05, 0, 0, 0]; }
+  if (O.scratchObj) O.scratchObj.visible = !(S.doorOpen > 0.02);
 
   // door swings outwards around the hinge
   { const b0 = O.nodes.door[0].base; setModel(O.nodes.door, m4.trs([b0[12], b0[13], b0[14]], -smooth(0, 1, S.doorOpen || 0) * 1.3)); }

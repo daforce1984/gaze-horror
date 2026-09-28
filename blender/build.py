@@ -469,6 +469,19 @@ def build_room():
     cl = join('desk_clutter', clutter)
     world_uv(cl, 0.3)
 
+    # answering machine (mother's messages) — LED is its own node so the engine can blink it
+    ax, ay, az = dx - 0.05, top + 0.018, dz + 0.42
+    am = [box('am_body', (ax, ay + 0.03, az), (0.2, 0.06, 0.15), M['plastic'], 0.008),
+          box('am_top', (ax, ay + 0.061, az), (0.19, 0.004, 0.14), mat('M_amtop', (0.12, 0.12, 0.13), 0.4), 0.002),
+          box('am_window', (ax + 0.01, ay + 0.064, az - 0.02), (0.1, 0.004, 0.06), mat('M_amglass', (0.02, 0.025, 0.03), 0.05)),
+          cyl('am_reel1', (ax - 0.015, ay + 0.066, az - 0.02), 0.012, 0.004, M['metal'], seg=12),
+          cyl('am_reel2', (ax + 0.035, ay + 0.066, az - 0.02), 0.012, 0.004, M['metal'], seg=12)]
+    for k in range(4):
+        am.append(box('am_btn', (ax - 0.06 + k * 0.03, ay + 0.066, az + 0.045), (0.022, 0.008, 0.018), M['metal'], 0.002))
+    am.append(box('am_cord', (ax + 0.08, ay + 0.004, az + 0.1), (0.006, 0.006, 0.14), M['cord']))
+    join('answering_machine', am)
+    box('am_led', (ax + 0.07, ay + 0.066, az - 0.045), (0.012, 0.006, 0.012), mat('M_led', (0.8, 0.05, 0.03), 0.3))
+
     # ---- wall clock
     cb = cyl('clock_body', (RX - 0.03, 1.85, dz), 0.2, 0.05, M['wooddark'], seg=40, axis='x')
     world_uv(cb, 0.4)

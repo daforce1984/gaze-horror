@@ -11,6 +11,7 @@ MAP = {  # out name: (src, max size, crop box as fractions or None, quality)
     'door': ('horror_door', 1024, (0.068, 0.018, 0.93, 1.0), 85), 'window': ('horror_window', 1024, None, 85),
     'ghost_face': ('horror_ghost_face', 768, None, 85), 'key': ('horror_key', 512, None, 85),
     'polaroid': ('horror_polaroid_v2', 768, None, 85),
+    'child_drawing': ('horror_child_drawing', 768, None, 85), 'newspaper': ('horror_newspaper', 768, None, 82),
     'keyart_portrait': ('horror_keyart_portrait', 1200, None, 80), 'keyart_land': ('horror_keyart_land', 1600, None, 80),
 }
 for out, (src, mx, crop, q) in MAP.items():

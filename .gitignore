@@ -5,3 +5,4 @@ __pycache__/
 *.blend1
 audio-source/pixabay/*.mp3
 audio-source/music/*/*.flac
+tools/el/.el_tab.json
