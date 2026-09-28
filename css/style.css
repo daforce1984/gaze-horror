@@ -47,6 +47,11 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
 .icon { background: rgba(0,0,0,.45); border: 1px solid var(--line); border-radius: 4px; height: 38px; min-width: 38px; padding: 0 10px; font-size: 14px; }
 .icon.memo.new { border-color: var(--blood-hi); box-shadow: 0 0 12px rgba(194,29,29,.6); animation: pulse 1.4s infinite; }
 @keyframes pulse { 50% { box-shadow: 0 0 2px rgba(194,29,29,.2); } }
+.icon.gyro { display: none; white-space: nowrap; }
+.has-gyro .icon.gyro { display: inline-block; }
+.icon.gyro.on { background: rgba(139,14,14,.55); border-color: var(--blood-hi); }
+.gyrotip { display: none; }
+.has-gyro .gyrotip { display: list-item; }
 #objective { flex: 1; min-width: 0; font-size: 13px; color: #b3ab9d; opacity: 0; transition: opacity .8s; text-shadow: 0 1px 3px #000;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 4px; }
 #objective.show { opacity: .9; }

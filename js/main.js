@@ -32,7 +32,7 @@ const SPOTS = {
 const $ = (s) => document.querySelector(s);
 const ui = {
   title: $('#title'), start: $('#startBtn'), load: $('#loadText'), hud: $('#hud'), sub: $('#subtitle'),
-  action: $('#actionBtn'), zoom: $('#zoomBtn'), memoBtn: $('#memoBtn'), pauseBtn: $('#pauseBtn'),
+  action: $('#actionBtn'), zoom: $('#zoomBtn'), memoBtn: $('#memoBtn'), pauseBtn: $('#pauseBtn'), gyroBtn: $('#gyroBtn'),
   ring: $('#revealRing'), ringArc: $('#revealArc'), cross: $('#cross'), fear: $('#fearFill'),
   modal: $('#modal'), card: $('#modalCard'), scare: $('#scare'), ending: $('#ending'), fade: $('#fade'),
   nogpu: $('#nogpu'), canvas: $('#gl'), objective: $('#objective'),
@@ -623,6 +623,71 @@ function showEnding() {
 // ---------------------------------------------------------------- input
 const pointers = new Map();
 let pinchDist = 0, dragInfo = null;
+// ---------------------------------------------------------------- gyroscope
+// Device orientation is turned into a camera forward vector; only the change between events is
+// applied, so gyro and finger dragging can be used together.
+const GYRO_KEY = 'gaze-gyro';
+const gyro = { on: false, last: null, got: false };
+function deviceForward(e) {
+  const d = Math.PI / 180;
+  const a = (e.alpha || 0) * d, b = (e.beta || 0) * d, g = (e.gamma || 0) * d;
+  const orient = ((screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0) * d;
+  // quaternion from euler (b, a, -g) order YXZ
+  const c1 = Math.cos(b / 2), c2 = Math.cos(a / 2), c3 = Math.cos(-g / 2);
+  const s1 = Math.sin(b / 2), s2 = Math.sin(a / 2), s3 = Math.sin(-g / 2);
+  let q = [s1 * c2 * c3 + c1 * s2 * s3, c1 * s2 * c3 - s1 * c2 * s3, c1 * c2 * s3 - s1 * s2 * c3, c1 * c2 * c3 + s1 * s2 * s3];
+  const qm = (p, r) => [
+    p[3] * r[0] + p[0] * r[3] + p[1] * r[2] - p[2] * r[1],
+    p[3] * r[1] - p[0] * r[2] + p[1] * r[3] + p[2] * r[0],
+    p[3] * r[2] + p[0] * r[1] - p[1] * r[0] + p[2] * r[3],
+    p[3] * r[3] - p[0] * r[0] - p[1] * r[1] - p[2] * r[2]];
+  q = qm(q, [-Math.SQRT1_2, 0, 0, Math.SQRT1_2]);          // camera looks out of the back of the screen
+  q = qm(q, [0, 0, Math.sin(-orient / 2), Math.cos(-orient / 2)]); // screen rotation
+  // rotate (0,0,-1)
+  const [x, y, z, w] = q;
+  const f = [-(2 * (x * z + w * y)), -(2 * (y * z - w * x)), -(1 - 2 * (x * x + y * y))];
+  return { yaw: Math.atan2(f[0], -f[2]), pitch: Math.asin(clamp(f[1], -1, 1)) };
+}
+function onOrientation(e) {
+  if (!gyro.on || e.alpha == null) return;
+  gyro.got = true;
+  const cur = deviceForward(e);
+  if (gyro.last && !S.paused) {
+    let dy = cur.yaw - gyro.last.yaw;
+    if (dy > Math.PI) dy -= 2 * Math.PI; else if (dy < -Math.PI) dy += 2 * Math.PI;
+    // yaw is unstable when the phone points straight up/down
+    if (Math.abs(cur.pitch) < 1.35 && Math.abs(dy) < 1.2) S.yaw += dy;
+    const dp = cur.pitch - gyro.last.pitch;
+    if (Math.abs(dp) < 1.2) S.pitch = clamp(S.pitch + dp, -1.2, 1.1);
+  }
+  gyro.last = cur;
+}
+async function setGyro(on) {
+  if (on && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try {
+      if (await DeviceOrientationEvent.requestPermission() !== 'granted') { say('자이로 센서 권한이 거부되었다.', 3); on = false; }
+    } catch { say('자이로 센서를 켤 수 없다.', 3); on = false; }
+  }
+  gyro.on = on; gyro.last = null;
+  ui.gyroBtn.classList.toggle('on', on); ui.gyroBtn.setAttribute('aria-pressed', String(on));
+  try { localStorage.setItem(GYRO_KEY, on ? '1' : '0'); } catch { }
+  if (on) {
+    gyro.got = false;
+    say('자이로 켜짐 — 폰을 움직여 둘러본다. 드래그도 함께 쓸 수 있다.', 3.5);
+    setTimeout(() => { if (gyro.on && !gyro.got) { say('이 기기에서는 자이로 센서 값이 들어오지 않는다.', 3.5); setGyro(false); } }, 1500);
+  }
+}
+function setupGyro() {
+  const capable = typeof DeviceOrientationEvent !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+  if (!capable) return;
+  document.documentElement.classList.add('has-gyro');
+  addEventListener('deviceorientation', onOrientation);
+  ui.gyroBtn.addEventListener('click', () => setGyro(!gyro.on));
+  // re-anchor after rotating the screen so the view doesn't jump
+  addEventListener('orientationchange', () => { gyro.last = null; });
+  screen.orientation?.addEventListener?.('change', () => { gyro.last = null; });
+}
+
 function setupInput() {
   const cv = ui.canvas;
   cv.addEventListener('contextmenu', e => e.preventDefault());
@@ -1044,11 +1109,16 @@ async function main() {
   await loadAll();
   buildScene();
   setupInput();
+  setupGyro();
   resize(); addEventListener('resize', resize);
   ui.load.textContent = '헤드폰을 권장합니다';
   ui.start.disabled = false;
   ui.start.addEventListener('click', () => {
     snd.init();
+    // the start tap is a user gesture, so iOS can ask for motion permission here
+    let pref = null; try { pref = localStorage.getItem(GYRO_KEY); } catch { }
+    if (document.documentElement.classList.contains('has-gyro') && pref === '1') setGyro(true);
+    else if (document.documentElement.classList.contains('has-gyro') && pref === null) after(14, () => say('📱 위의 [자이로] 버튼을 누르면 폰을 움직여 둘러볼 수 있다.', 5));
     ui.title.classList.add('hidden'); ui.hud.classList.add('show');
     S.started = true; S.paused = false;
     try { document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => { }); } catch { }
