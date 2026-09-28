@@ -1,0 +1,5 @@
+blender/preview/
+blender/build.log
+tools/.tab.json
+__pycache__/
+*.blend1
