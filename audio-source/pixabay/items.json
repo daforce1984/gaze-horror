@@ -1,0 +1,20 @@
+[
+ {"name":"knock","query":"door knock","match":"^Wooden Door Knock$"},
+ {"name":"bang","query":"door slam","match":"^Wood Door Slam$"},
+ {"name":"creak","query":"door creak open","match":"^Door Creak 02$"},
+ {"name":"drawer","query":"drawer open","match":"^Desk Slide Drawer Open and Close$"},
+ {"name":"unlock","query":"key unlock door","match":"^Key Twist in lock$"},
+ {"name":"pop","query":"light bulb pop","match":"^Exploding Light Bulb$"},
+ {"name":"buzz","query":"light bulb pop","match":"^Room with Buzz Incandescent light bulb$"},
+ {"name":"static","query":"tv static","match":"^TV glitch$"},
+ {"name":"tvloop","query":"tv static","match":"^CRT TV - Low Buzzing - Static$"},
+ {"name":"steps","query":"footsteps wooden floor","match":"^Footsteps with floor creak$"},
+ {"name":"chime","query":"clock chime","match":"^Old Clock Chimes$"},
+ {"name":"giggle","query":"creepy girl laugh","match":"^creepy distant laughter$"},
+ {"name":"giggle2","query":"creepy girl laugh","match":"^LittleEvilLaugh$"},
+ {"name":"whisper","query":"whisper horror","match":"^Creepy Female Ghost Whispers$"},
+ {"name":"whisper2","query":"whisper horror","match":"^Ghost Whisper$"},
+ {"name":"scare","query":"horror scream","match":"^Scream \\(with echo\\)$"},
+ {"name":"scare2","query":"horror scream","match":"^Scary Scream$"},
+ {"name":"curtain","query":"curtain","match":"^Curtain opening$"}
+]

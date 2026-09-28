@@ -1,0 +1,82 @@
+{
+ "knock": {
+  "file": "assets/audio/knock.mp3",
+  "seconds": 1.0
+ },
+ "bang": {
+  "file": "assets/audio/bang.mp3",
+  "seconds": 0.85
+ },
+ "creak": {
+  "file": "assets/audio/creak.mp3",
+  "seconds": 2.12
+ },
+ "drawer": {
+  "file": "assets/audio/drawer.mp3",
+  "seconds": 2.45
+ },
+ "unlock": {
+  "file": "assets/audio/unlock.mp3",
+  "seconds": 0.45
+ },
+ "pop": {
+  "file": "assets/audio/pop.mp3",
+  "seconds": 1.2
+ },
+ "static": {
+  "file": "assets/audio/static.mp3",
+  "seconds": 1.55
+ },
+ "steps": {
+  "file": "assets/audio/steps.mp3",
+  "seconds": 2.05
+ },
+ "chime": {
+  "file": "assets/audio/chime.mp3",
+  "seconds": 8.9
+ },
+ "giggle": {
+  "file": "assets/audio/giggle.mp3",
+  "seconds": 3.7
+ },
+ "giggle2": {
+  "file": "assets/audio/giggle2.mp3",
+  "seconds": 4.67
+ },
+ "whisper": {
+  "file": "assets/audio/whisper.mp3",
+  "seconds": 5.4
+ },
+ "whisper2": {
+  "file": "assets/audio/whisper2.mp3",
+  "seconds": 4.65
+ },
+ "scare": {
+  "file": "assets/audio/scare.mp3",
+  "seconds": 2.5
+ },
+ "scare2": {
+  "file": "assets/audio/scare2.mp3",
+  "seconds": 2.42
+ },
+ "curtain": {
+  "file": "assets/audio/curtain.mp3",
+  "seconds": 3.15
+ },
+ "buzz": {
+  "file": "assets/audio/buzz.mp3",
+  "seconds": 8.5
+ },
+ "tvloop": {
+  "file": "assets/audio/tvloop.mp3",
+  "seconds": 9.5
+ },
+ "music_room": {
+  "file": "assets/audio/music_room.mp3",
+  "seconds": 57.916
+ },
+ "music_chase": {
+  "file": "assets/audio/music_chase.mp3",
+  "seconds": 83.39
+ }
+}

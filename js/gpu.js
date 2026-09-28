@@ -194,6 +194,8 @@ struct Post {
   flash: vec4f,  // rgb, amount
   cue: vec4f,    // dir xy (screen), strength, heartbeat pulse
   b: vec4f,      // chroma, warp, vignette, noiseBands
+  ins: vec4f,    // insanity amount, ghost screen uv xy, ghost on screen
+  ins2: vec4f,   // x: invert flash, y: stare time
 };
 @group(0) @binding(0) var<uniform> P: Post;
 @group(0) @binding(1) var hdr: texture_2d<f32>;
@@ -208,6 +210,16 @@ struct VO { @builtin(position) pos: vec4f, @location(0) uv: vec2f };
   return o;
 }
 fn h(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 43758.5453); }
+fn vnoise(p: vec2f) -> f32 {
+  let i = floor(p); let f = fract(p); let u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h(i), h(i + vec2f(1.0, 0.0)), u.x), mix(h(i + vec2f(0.0, 1.0)), h(i + vec2f(1.0, 1.0)), u.x), u.y);
+}
+fn fbm(p0: vec2f) -> f32 {
+  var p = p0; var a = 0.5; var s = 0.0;
+  for (var k = 0; k < 4; k++) { s += vnoise(p) * a; p = p * 2.03 + vec2f(3.1, 1.7); a *= 0.5; }
+  return s;
+}
+fn rot2(v: vec2f, a: f32) -> vec2f { let c = cos(a); let s = sin(a); return vec2f(c * v.x - s * v.y, s * v.x + c * v.y); }
 fn aces(x: vec3f) -> vec3f {
   let a = 2.51; let b = 0.03; let c = 2.43; let d = 0.59; let e = 0.14;
   return clamp((x * (a * x + b)) / (x * (c * x + d) + e), vec3f(0.0), vec3f(1.0));
@@ -217,26 +229,66 @@ fn aces(x: vec3f) -> vec3f {
   var uv = i.uv;
   var d = uv - 0.5;
   let r2 = dot(d, d);
-  uv = 0.5 + d * (1.0 + P.b.y * r2);
+  let ins = P.ins.x;
+  let asp = P.res.w;
+  // ---- insanity: the room breathes
+  let breath = sin(time * 1.9) * 0.5 + 0.5;
+  uv = 0.5 + d * (1.0 + P.b.y * r2 + ins * 0.07 * sin(time * 2.1 + r2 * 9.0) - ins * 0.03 * breath);
+  if (ins > 0.001) {
+    // swirl that drags the view towards her
+    let gp = select(vec2f(0.5), P.ins.yz, P.ins.w > 0.5);
+    var q = (uv - gp) * vec2f(asp, 1.0);
+    let dist = length(q);
+    let ang = ins * ins * 1.4 * exp(-dist * 2.4) * sin(time * 0.6 + dist * 3.0);
+    q = rot2(q, ang);
+    uv = gp + q / vec2f(asp, 1.0);
+    uv = mix(uv, gp, ins * 0.08 * exp(-dist * 1.5) * (0.5 + 0.5 * sin(time * 3.0)));
+    // melting horizontal waves
+    uv.x += sin(uv.y * 23.0 + time * 4.0) * 0.005 * ins * ins;
+    uv.y += sin(uv.x * 17.0 - time * 2.7) * 0.003 * ins * ins;
+  }
   // tearing bands under stress
   let band = step(0.985 - P.b.w * 0.05, h(vec2f(floor(uv.y * 40.0), floor(time * 18.0))));
   uv.x += band * (h(vec2f(time, uv.y)) - 0.5) * 0.04 * P.b.w;
   d = uv - 0.5;
-  let ca = P.b.x;
+  let ca = P.b.x + ins * 0.012;
   var col = vec3f(
     textureSampleLevel(hdr, samp, uv - d * ca, 0.0).r,
     textureSampleLevel(hdr, samp, uv, 0.0).g,
     textureSampleLevel(hdr, samp, uv + d * ca, 0.0).b);
+  if (ins > 0.05) {
+    // double vision: a drifting, slightly rotated second image
+    let off = vec2f(cos(time * 0.9), sin(time * 1.3)) * 0.018 * ins;
+    let uv2 = 0.5 + rot2(uv - 0.5 + off, 0.02 * ins * sin(time * 0.7));
+    let ghostImg = textureSampleLevel(hdr, samp, uv2, 0.0).rgb;
+    col = mix(col, max(col, ghostImg), 0.55 * ins);
+  }
   col *= P.a.x;
   col = aces(col);
   // grade: crush, desaturate, cold shadows
   let l = dot(col, vec3f(0.299, 0.587, 0.114));
   col = mix(vec3f(l), col, 0.62);
   col = col * vec3f(0.92, 1.0, 1.04) + vec3f(0.0, 0.004, 0.008) * (1.0 - l);
-  // vignette (aspect aware)
+  // insanity grade: drained, sickly, red-soaked shadows
+  if (ins > 0.001) {
+    let ll = dot(col, vec3f(0.299, 0.587, 0.114));
+    let sick = vec3f(ll * 1.1, ll * 0.92, ll * 0.8) + vec3f(0.016, 0.0, 0.0) * (1.0 - ll) * ins;
+    col = mix(col, sick, ins * 0.7);
+    col *= 1.0 - 0.3 * ins * P.cue.w;  // pulses with the heartbeat
+  }
+  // vignette (aspect aware) closes into a tunnel
   let dv = d * vec2f(max(P.res.w, 1.0), max(1.0 / P.res.w, 1.0));
-  let vig = 1.0 - smoothstep(0.3, 1.05, length(dv) * P.b.z);
+  let vig = 1.0 - smoothstep(0.3 - ins * 0.12, 1.05 - ins * 0.3, length(dv) * P.b.z);
   col *= vig;
+  // veins creeping in from the edges
+  if (ins > 0.15) {
+    let pol = vec2f(atan2(dv.y, dv.x) * 2.5, length(dv) * 5.0 - time * 0.15);
+    let n = fbm(pol * vec2f(1.0, 1.4) + vec2f(0.0, time * 0.05));
+    let vein = 1.0 - smoothstep(0.02, 0.07, abs(n - 0.5));
+    let reach = smoothstep(0.95 - ins * 0.6, 1.1 - ins * 0.4, length(dv) * 1.25);
+    col = mix(col, vec3f(0.035, 0.0, 0.004), vein * reach * smoothstep(0.15, 0.6, ins));
+    col = mix(col, vec3f(0.006, 0.0, 0.0), reach * 0.6 * smoothstep(0.3, 1.0, ins));
+  }
   // direction cue: faint red pulse at the screen edge towards the ghost
   if (P.cue.z > 0.001) {
     let dn = normalize(dv + vec2f(1e-5));
@@ -250,6 +302,8 @@ fn aces(x: vec3f) -> vec3f {
   col *= 0.96 + 0.04 * sin(i.uv.y * P.res.y * 1.3);
   col *= 1.0 - P.a.z;
   col = mix(col, P.flash.rgb, P.flash.w);
+  // brief negative flashes at the edge of sanity
+  col = mix(col, vec3f(0.9, 0.85, 0.8) - col * 1.2, P.ins2.x);
   col = pow(max(col, vec3f(0.0)), vec3f(1.0 / 2.2));
   return vec4f(col, 1.0);
 }

@@ -35,7 +35,7 @@ const ui = {
   action: $('#actionBtn'), zoom: $('#zoomBtn'), memoBtn: $('#memoBtn'), pauseBtn: $('#pauseBtn'), gyroBtn: $('#gyroBtn'),
   ring: $('#revealRing'), ringArc: $('#revealArc'), cross: $('#cross'), fear: $('#fearFill'),
   modal: $('#modal'), card: $('#modalCard'), scare: $('#scare'), ending: $('#ending'), fade: $('#fade'),
-  nogpu: $('#nogpu'), canvas: $('#gl'), objective: $('#objective'),
+  nogpu: $('#nogpu'), canvas: $('#gl'), objective: $('#objective'), halluc: $('#halluc'),
 };
 
 // ---------------------------------------------------------------- state
@@ -48,7 +48,7 @@ const S = {
   tv: { mode: 'static', channel: 3, on: true },
   curtainOpen: 0, curtainTarget: 0, drawerOpen: 0, doorLight: 0,
   ghost: null, // {spot, alpha, reveal, revealed, onReveal, lingering}
-  decoys: [], pending: null,
+  decoys: [], pending: null, insanity: 0, stare: 0, invert: 0, hallucT: 3,
   decals: {}, timers: [], unlock: 0, holding: false, chase: null, ending: false,
   lastScare: -99, clock: { h: 12, m: 0 }, events: 0,
 };
@@ -150,7 +150,7 @@ async function loadAll() {
     IMG[k] = await loadImage(ASSETS[k]);
     n++; ui.load.textContent = `불러오는 중… ${Math.round(n / keys.length * 100)}%`;
   }));
-  const [room, ghost] = await Promise.all([loadGLB('assets/room.glb'), loadGLB('assets/ghost.glb')]);
+  const [room, ghost] = await Promise.all([loadGLB('assets/room.glb'), loadGLB('assets/ghost.glb'), snd.prefetch()]);
   GLB.room = room; GLB.ghost = ghost;
   try { await document.fonts.load('bold 60px "Nanum Pen Script"'); } catch { }
 }
@@ -285,7 +285,7 @@ function jumpscare(after_) {
   snd.play('scare');
   ui.scare.classList.remove('go'); void ui.scare.offsetWidth; ui.scare.classList.add('go');
   S.shake = 1; S.flash = 0.6; S.flashCol = [0.5, 0.05, 0.05]; S.glitch = 1;
-  S.fear = 0.45;
+  S.fear = 0.45; S.insanity = Math.min(S.insanity, 0.35); S.stare = 0;
   if (navigator.vibrate) try { navigator.vibrate([80, 40, 200]); } catch { }
   after_ && after(1.2, after_);
 }
@@ -404,6 +404,7 @@ const STAGES = {
   chase() {
     S.stage = 'chase'; checkpoint('chase'); S.flags.glassSeen = 1; S.decoys = [];
     snd.play('pop', [0, 2.1, -0.6]); S.bulbDead = true; S.flash = 0.4; S.flashCol = [1, 0.8, 0.5];
+    snd.playMusic('music_chase', 1.5);
     S.tv.mode = 'static'; tvScreen.mode = 'static';
     objective('문을 연다 — 문을 향해 길게 눌러 열쇠를 돌린다');
     say('전구가 터졌다. 창가에… 그 애가 서 있다. 문을 열어야 한다. 등 뒤를 조심해.', 5.5);
@@ -411,7 +412,7 @@ const STAGES = {
     showGhost('glass', { chase: true });
   },
   end() {
-    S.stage = 'end'; clearSave(); S.ending = true; objective('');
+    S.stage = 'end'; clearSave(); snd.stopMusic(3); S.ending = true; objective('');
     hideGhost(true); S.chase = null;
     snd.play('unlock', [0.7, 1, 2.4]); after(0.5, () => snd.play('creak', [0.7, 1, 2.4]));
     say('딸깍.', 2);
@@ -599,8 +600,11 @@ function openMemo() {
 function openPause() {
   openModal(`<h2>일시정지</h2>
     <p class="hint">드래그: 둘러보기 · 길게 누르기/👁/우클릭/휠/두 손가락: 확대<br>물건을 탭하거나 가운데로 보고 버튼: 살펴보기</p>
+    <div class="vols">${[['master', '전체'], ['music', '음악'], ['sfx', '효과음']].map(([k, l]) =>
+      `<label><span>${l}</span><input type="range" min="0" max="1" step="0.05" value="${snd.vol[k]}" data-vol="${k}"></label>`).join('')}</div>
     <div class="row"><button class="ghostbtn" id="restartBtn">처음부터</button><button class="primary" data-close>계속</button></div>`);
   $('#restartBtn').addEventListener('click', () => { clearSave(); location.reload(); });
+  ui.card.querySelectorAll('[data-vol]').forEach(r => r.addEventListener('input', () => snd.setVolume(r.dataset.vol, +r.value)));
 }
 
 function showEnding() {
@@ -882,6 +886,29 @@ function update(dt) {
   }
   S.decoys = S.decoys.filter(d => d.target > 0 || d.alpha > 0.02);
 
+  // ---- insanity: staring at her slowly breaks the mind; looking away lets it heal
+  if (!S.paused) {
+    const seeing = inView || S.decoys.some(d => d.target > 0 && d.alpha > 0.3 && spotVisible(d.p, d.kind, 0.9).inView);
+    S.stare = seeing ? S.stare + dt : Math.max(0, S.stare - dt * 2);
+    const rate = seeing ? (0.03 + 0.05 * Math.min(S.stare / 5, 1)) * (0.7 + 0.3 * S.zoom) : -0.085;
+    S.insanity = clamp(S.insanity + rate * dt, 0, 1);
+    const I = S.insanity;
+    if (I > 0.5 && S.started && !S.ending) {
+      S.hallucT -= dt;
+      if (S.hallucT <= 0) {
+        S.hallucT = rnd(2, 4.5) * (1.4 - I);
+        const w = pick(['보지 마', '뒤에 있어', '나를 봐', '같이 있자', '눈 감지 마', '수아야', '여기야', '왜 나를 봤어']);
+        ui.halluc.textContent = w;
+        ui.halluc.style.left = rnd(18, 82) + '%'; ui.halluc.style.top = rnd(18, 78) + '%';
+        ui.halluc.classList.remove('go'); void ui.halluc.offsetWidth; ui.halluc.classList.add('go');
+        snd.play('whisper', v3.add(EYE, [rnd(-1, 1), 0, rnd(-1, 1)]));
+      }
+    }
+    if (I > 0.78 && Math.random() < dt * 0.7) S.invert = 1;
+    if (I > 0.85 && Math.random() < dt * 0.3) { ui.scare.classList.remove('sub', 'go'); void ui.scare.offsetWidth; ui.scare.classList.add('sub'); }
+  }
+  S.invert = damp(S.invert, 0, 14, dt);
+
   // ---- chase: she steps closer whenever unseen
   if (S.stage === 'chase' && S.chase && S.ghost && !S.paused) {
     const c = S.chase;
@@ -1074,13 +1101,26 @@ function frame(dt) {
   PST.set([...S.flashCol, S.flash], 8);
   PST.set([cueX, cueY, cueS, beat], 12);
   PST.set([0.0025 + S.fear * 0.01 + S.glitch * 0.02, 0.07, 1.0 + S.fear * 0.35 - (S.zoom - 1) * 0.05, S.fear > 0.6 ? (S.fear - 0.6) * 2.5 + S.glitch : S.glitch], 16);
+  // ghost head on screen, for the insanity swirl
+  let gsx = 0.5, gsy = 0.5, gOn = 0;
+  if (g && g.alpha > 0.2) {
+    const VP = G, x = gpos[0], y = gpos[1], z = gpos[2];
+    const cw = VP[3] * x + VP[7] * y + VP[11] * z + VP[15];
+    if (cw > 0.05) {
+      const cx = (VP[0] * x + VP[4] * y + VP[8] * z + VP[12]) / cw, cy = (VP[1] * x + VP[5] * y + VP[9] * z + VP[13]) / cw;
+      if (Math.abs(cx) < 1.3 && Math.abs(cy) < 1.3) { gsx = cx * 0.5 + 0.5; gsy = 0.5 - cy * 0.5; gOn = 1; }
+    }
+  }
+  const I = smooth(0.08, 1, S.insanity);
+  PST.set([I, gsx, gsy, gOn], 20);
+  PST.set([S.invert * 0.85, S.stare, 0, 0], 24);
   R.render(G, PST, objects, shadowLight);
 
   // audio listener
   snd.listener(EYE, f, u);
   snd.update(dt, {
     bulb: B, tvStatic: S.tv.mode === 'static' ? 1 : S.tv.mode === 'broadcast' ? 0.35 : 0, tvHum: S.tv.mode === 'broadcast' ? 1 : 0,
-    ghost: g ? g.alpha : 0, ghostPos: gpos, fear: S.fear,
+    ghost: g ? g.alpha : 0, ghostPos: gpos, fear: S.fear, insanity: S.insanity,
   });
 }
 
@@ -1114,7 +1154,7 @@ async function main() {
   ui.load.textContent = '헤드폰을 권장합니다';
   ui.start.disabled = false;
   ui.start.addEventListener('click', () => {
-    snd.init();
+    snd.init(); snd.decodeAll(); snd.playMusic('music_room', 6);
     // the start tap is a user gesture, so iOS can ask for motion permission here
     let pref = null; try { pref = localStorage.getItem(GYRO_KEY); } catch { }
     if (document.documentElement.classList.contains('has-gyro') && pref === '1') setGyro(true);
@@ -1139,6 +1179,6 @@ async function main() {
   };
   requestAnimationFrame(loop);
   // debug hooks for automated checks
-  window.__game = { S, SOL, STAGES, interact, showGhost, SPOTS, EYE, INTERACT };
+  window.__game = { S, SOL, STAGES, interact, showGhost, SPOTS, EYE, INTERACT, snd };
 }
 main();

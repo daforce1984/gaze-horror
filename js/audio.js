@@ -1,15 +1,46 @@
 // Procedural horror soundscape (WebAudio). No audio files needed.
+const SAMPLES = ['knock', 'bang', 'creak', 'drawer', 'unlock', 'pop', 'static', 'steps', 'chime', 'giggle', 'giggle2',
+  'whisper', 'whisper2', 'scare', 'scare2', 'curtain', 'buzz', 'tvloop', 'music_room', 'music_chase'];
+
 export class Sound {
-  constructor() { this.ctx = null; this.enabled = true; }
+  constructor() {
+    this.ctx = null; this.enabled = true; this.buf = {}; this.raw = {};
+    this.vol = { master: 0.9, music: 0.55, sfx: 1 };
+    try { Object.assign(this.vol, JSON.parse(localStorage.getItem('gaze-vol') || '{}')); } catch { }
+  }
+
+  // fetch the encoded files early (during the loading screen); decoding needs the AudioContext
+  prefetch() {
+    return Promise.all(SAMPLES.map(async n => {
+      try { const r = await fetch(`assets/audio/${n}.mp3`); if (r.ok) this.raw[n] = await r.arrayBuffer(); } catch { }
+    }));
+  }
+  async decodeAll() {
+    await Promise.all(Object.entries(this.raw).map(async ([n, ab]) => {
+      try { this.buf[n] = await this.ctx.decodeAudioData(ab.slice(0)); } catch (e) { console.warn('audio decode failed', n, e); }
+    }));
+    this.raw = {};
+    this.startLoops();
+  }
+  setVolume(k, v) {
+    this.vol[k] = v;
+    try { localStorage.setItem('gaze-vol', JSON.stringify(this.vol)); } catch { }
+    if (!this.ctx) return;
+    this.main.gain.value = this.vol.master; this.master.gain.value = this.vol.sfx; this.musicBus.gain.value = this.vol.music;
+  }
 
   init() {
     if (this.ctx) { this.ctx.resume(); return; }
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) { this.enabled = false; return; }
     const ctx = this.ctx = new C();
-    this.master = ctx.createGain(); this.master.gain.value = 0.9;
+    // buses: sfx (this.master) + music -> main -> compressor
+    this.main = ctx.createGain(); this.main.gain.value = this.vol.master;
+    this.master = ctx.createGain(); this.master.gain.value = this.vol.sfx;
+    this.musicBus = ctx.createGain(); this.musicBus.gain.value = this.vol.music;
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
-    this.master.connect(comp); comp.connect(ctx.destination);
+    this.master.connect(this.main); this.musicBus.connect(this.main); this.main.connect(comp); comp.connect(ctx.destination);
+    document.addEventListener('visibilitychange', () => { document.hidden ? ctx.suspend() : ctx.resume(); });
     this.white = this.noiseBuf('white'); this.brown = this.noiseBuf('brown');
 
     // room tone + drone
@@ -58,7 +89,63 @@ export class Sound {
     breath.connect(bl).connect(bAmp).connect(this.ghostGain);
     this.ghostGain.connect(this.ghostPan).connect(this.master);
 
+    // tinnitus + warped drone for the insanity effect
+    const tin = ctx.createOscillator(); tin.type = 'sine'; tin.frequency.value = 6900;
+    const tl = ctx.createOscillator(); tl.frequency.value = 0.3; const tlg = ctx.createGain(); tlg.gain.value = 40;
+    tl.connect(tlg).connect(tin.frequency); tl.start();
+    this.tinGain = ctx.createGain(); this.tinGain.gain.value = 0;
+    tin.connect(this.tinGain).connect(this.master); tin.start();
+    const warp = ctx.createOscillator(); warp.type = 'sawtooth'; warp.frequency.value = 55;
+    const wlfo = ctx.createOscillator(); wlfo.frequency.value = 0.17; const wlg2 = ctx.createGain(); wlg2.gain.value = 9;
+    wlfo.connect(wlg2).connect(warp.frequency); wlfo.start();
+    const wf = ctx.createBiquadFilter(); wf.type = 'lowpass'; wf.frequency.value = 300;
+    this.warpGain = ctx.createGain(); this.warpGain.gain.value = 0;
+    warp.connect(wf).connect(this.warpGain).connect(this.master); warp.start();
     this.nextBeat = 0;
+  }
+
+  // recorded loops replace the synthetic bulb buzz / TV hiss once decoded
+  startLoops() {
+    const ctx = this.ctx;
+    if (this.buf.buzz) {
+      const s = ctx.createBufferSource(); s.buffer = this.buf.buzz; s.loop = true;
+      this.buzzRec = ctx.createGain(); this.buzzRec.gain.value = 0;
+      s.connect(this.buzzRec).connect(this.bulbPan); s.start();
+    }
+    if (this.buf.tvloop) {
+      const s = ctx.createBufferSource(); s.buffer = this.buf.tvloop; s.loop = true;
+      this.tvRec = ctx.createGain(); this.tvRec.gain.value = 0;
+      s.connect(this.tvRec).connect(this.tvPan); s.start();
+    }
+    if (this.wantMusic) this.playMusic(this.wantMusic);
+  }
+  playMusic(name, fade = 3) {
+    this.wantMusic = name;
+    if (!this.ctx || !this.buf[name]) return;
+    if (this.musicName === name) return;
+    const t = this.ctx.currentTime;
+    if (this.musicNode) {
+      const old = this.musicNode; old.g.gain.cancelScheduledValues(t); old.g.gain.setTargetAtTime(0, t, fade / 3); old.s.stop(t + fade * 2);
+    }
+    this.musicName = name;
+    if (!name) { this.musicNode = null; this.music = null; return; }
+    const s = this.ctx.createBufferSource(); s.buffer = this.buf[name]; s.loop = true;
+    const g = this.ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(1, t, fade / 3);
+    s.connect(g).connect(this.musicBus); s.start();
+    this.musicNode = { s, g }; this.music = { rate: s.playbackRate };
+  }
+  stopMusic(fade = 2) { this.wantMusic = null; if (this.ctx) this.playMusic(null, fade); }
+  duck(amount = 0.25, sec = 2) {
+    if (!this.ctx) return;
+    const g = this.musicBus.gain, t = this.ctx.currentTime;
+    g.cancelScheduledValues(t); g.setTargetAtTime(this.vol.music * amount, t, 0.03); g.setTargetAtTime(this.vol.music, t + sec, 0.8);
+  }
+  sample(name, dest, { gain = 1, rate = 1 } = {}) {
+    const b = this.buf[name]; if (!b) return false;
+    const s = this.ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = rate * (0.96 + Math.random() * 0.08);
+    const g = this.ctx.createGain(); g.gain.value = gain;
+    s.connect(g).connect(dest); s.start();
+    return true;
   }
 
   noiseBuf(kind) {
@@ -92,12 +179,19 @@ export class Sound {
 
   update(dt, s) {
     if (!this.ctx) return;
-    this.set(this.buzzGain.gain, s.bulb * 0.035);
-    this.set(this.tvGain.gain, s.tvStatic * 0.09);
+    const recBuzz = !!this.buzzRec, recTv = !!this.tvRec;
+    this.set(this.buzzGain.gain, recBuzz ? s.bulb * 0.008 : s.bulb * 0.035);
+    recBuzz && this.set(this.buzzRec.gain, s.bulb * 0.22, 0.03);
+    this.set(this.tvGain.gain, s.tvStatic * (recTv ? 0.03 : 0.09));
+    recTv && this.set(this.tvRec.gain, s.tvStatic * 0.5);
     this.set(this.humGain.gain, s.tvHum * 0.01);
     this.set(this.ghostGain.gain, s.ghost * 0.55, 0.3);
     this.set(this.droneGain.gain, 0.15 + s.fear * 0.5, 0.5);
     this.setPos(this.ghostPan, s.ghostPos);
+    const ins = s.insanity || 0;
+    this.set(this.tinGain.gain, Math.max(0, ins - 0.35) ** 2 * 0.05, 0.4);
+    this.set(this.warpGain.gain, ins * ins * 0.12, 0.4);
+    if (this.music) this.set(this.music.rate, 1 - ins * 0.06, 0.5);
     // heartbeat
     const t = this.ctx.currentTime;
     if (s.fear > 0.25 && t > this.nextBeat) {
@@ -126,6 +220,18 @@ export class Sound {
     if (!this.ctx) return;
     const ctx = this.ctx, t = ctx.currentTime;
     const dest = pos ? (() => { const p = this.panner(pos); p.connect(this.master); return p; })() : this.master;
+    // recorded Pixabay samples first; synthetic versions remain as fallbacks and layers
+    const REC = {
+      knock: ['knock', 1.2], bang: ['bang', 1.1], creak: ['creak', 1.0], drawer: ['drawer', 1.2], unlock: ['unlock', 1.3],
+      pop: ['pop', 1.2], static: ['static', 0.45], steps: ['steps', 1.1], chime: ['chime', 1.0], curtain: ['curtain', 1.0],
+      giggle: [Math.random() < 0.5 ? 'giggle' : 'giggle2', 0.9], whisper: [Math.random() < 0.5 ? 'whisper' : 'whisper2', 0.9],
+    };
+    if (REC[name] && this.sample(REC[name][0], dest, { gain: REC[name][1] })) return;
+    if (name === 'scare' && this.buf.scare2) {
+      this.sample(Math.random() < 0.6 ? 'scare2' : 'scare', this.master, { gain: 1.1 }); this.thump(t, 1.4); this.duck(0.15, 2.5);
+      this.noiseHit(t, { freq: 2500, q: 0.5, v: 0.6, d: 0.9 });
+      return;
+    }
     switch (name) {
       case 'scare': {
         for (const [f, det] of [[180, 0], [187, 30], [260, -20], [523, 10]]) {
