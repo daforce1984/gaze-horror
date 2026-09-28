@@ -548,6 +548,7 @@ def build_room():
 
     # ---- trash piles by rigid body simulation
     build_trash(M)
+    build_props(M)
 
 
 def crumple(bm, amt, freq, seed):
@@ -672,6 +673,169 @@ def build_trash(M):
 
 
 # ------------------------------------------------------------------------------------------
+def torus(name, c, R, r, material, seg=24, rseg=8, rot=(0, 0, 0)):
+    bm = bmesh.new()
+    rings = []
+    for i in range(seg):
+        a = i / seg * 2 * PI
+        ring = []
+        for j in range(rseg):
+            b = j / rseg * 2 * PI
+            ring.append(bm.verts.new(((R + r * math.cos(b)) * math.cos(a), (R + r * math.cos(b)) * math.sin(a), r * math.sin(b))))
+        rings.append(ring)
+    for i in range(seg):
+        for j in range(rseg):
+            a, b = rings[i], rings[(i + 1) % seg]
+            bm.faces.new((a[j], b[j], b[(j + 1) % rseg], a[(j + 1) % rseg]))
+    ob = from_bm(name, bm, material, E(*c))
+    ob.rotation_euler = rot
+    return ob
+
+
+def item_origin(ob, engine_pt=None):
+    """put an item's origin at its bounding-box centre (or a given engine point)"""
+    bpy.context.view_layer.update()
+    if engine_pt is None:
+        mw = ob.matrix_world
+        cs = [mw @ Vector(v) for v in ob.bound_box]
+        mn = Vector((min(c.x for c in cs), min(c.y for c in cs), min(c.z for c in cs)))
+        mx = Vector((max(c.x for c in cs), max(c.y for c in cs), max(c.z for c in cs)))
+        c = (mn + mx) / 2
+        engine_pt = (c.x, c.z, -c.y)
+    set_origin(ob, engine_pt)
+    return ob
+
+
+def build_props(M):
+    rnd = random.Random(5)
+    wood, dark, plastic, metal, brass = M['wood'], M['wooddark'], M['plastic'], M['metal'], M['brass']
+    red = mat('M_redbtn', (0.5, 0.04, 0.03), 0.4)
+    rubber = mat('M_rubber', (0.08, 0.08, 0.09), 0.7)
+    # ---- TV remote on the cabinet
+    rx, ry, rz = 0.36, 0.53, -2.06
+    parts = [box('rm_body', (rx, ry, rz), (0.052, 0.02, 0.17), plastic, 0.008),
+             box('rm_ir', (rx, ry + 0.004, rz - 0.084), (0.03, 0.012, 0.006), mat('M_irglass', (0.1, 0.02, 0.02), 0.1))]
+    parts.append(cyl('rm_power', (rx + 0.012, ry + 0.011, rz - 0.06), 0.006, 0.004, red, seg=10))
+    for r_ in range(4):
+        for c_ in range(3):
+            parts.append(cyl('rm_btn', (rx - 0.014 + c_ * 0.014, ry + 0.011, rz - 0.03 + r_ * 0.018), 0.0048, 0.004, rubber, seg=8))
+    for k in range(2):
+        parts.append(box('rm_rocker', (rx - 0.012 + k * 0.024, ry + 0.011, rz + 0.055), (0.012, 0.004, 0.03), rubber, 0.002))
+    item_origin(join('item_remote', parts))
+    # ---- music box (hidden under the player's chair; seen only on the CCTV)
+    mx, my, mz = 0.05, 0.0, 0.42
+    parts = [box('mb_body', (mx, my + 0.035, mz), (0.15, 0.07, 0.1), wood, 0.004),
+             box('mb_inner', (mx, my + 0.068, mz), (0.13, 0.006, 0.08), mat('M_velvet', (0.35, 0.03, 0.05), 0.9)),
+             cyl('mb_drum', (mx - 0.02, my + 0.06, mz), 0.012, 0.07, brass, seg=16, axis='x'),
+             box('mb_comb', (mx + 0.02, my + 0.06, mz), (0.03, 0.004, 0.06), metal),
+             cyl('mb_hole', (mx + 0.076, my + 0.035, mz), 0.006, 0.004, mat('M_hole', (0.01, 0.01, 0.01), 0.9), seg=10, axis='x')]
+    for fx in (-0.06, 0.06):
+        for fz in (-0.04, 0.04):
+            parts.append(sphere('mb_foot', (mx + fx, my + 0.004, mz + fz), 0.006, brass, seg=8, ring=6))
+    item_origin(join('item_musicbox', parts))
+    lid = box('item_musicbox_lid', (mx, my + 0.078, mz), (0.152, 0.014, 0.102), wood, 0.004)
+    lid = join('item_musicbox_lid', [lid, box('mb_mirror', (mx, my + 0.0705, mz), (0.12, 0.002, 0.07), mat('M_mirror', (0.6, 0.62, 0.65), 0.05, 1.0))])
+    set_origin(lid, (mx, my + 0.071, mz + 0.051))  # hinge on the back edge
+    # ---- winding key for the music box (in the drawer)
+    parts = [cyl('ck_shaft', (0, 0, 0), 0.003, 0.03, brass, seg=8, axis='x'),
+             box('ck_wing', (-0.02, 0, 0), (0.004, 0.028, 0.012), brass, 0.002)]
+    ck = join('item_crank', parts)
+    ck.location = E(1.84, 0.62, -0.3)
+    # ---- scissors (in the drawer)
+    sc = []
+    for side in (1, -1):
+        bm = bmesh.new()
+        pts = [(0.0, 0.004 * side), (0.09, 0.002 * side), (0.095, -0.001 * side), (0.0, -0.006 * side)]
+        v = [bm.verts.new((x, y, 0)) for x, y in pts]
+        bm.faces.new(v)
+        bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=0.002)
+        b = from_bm('sc_blade', bm, metal, E(1.84, 0.62, -0.3))
+        b.rotation_euler = (0, 0, 0.12 * side)
+        sc.append(b)
+        t = torus('sc_ring', (1.84 - 0.03, 0.62, -0.3 + 0.018 * side), 0.013, 0.0035, mat('M_redplastic', (0.45, 0.03, 0.03), 0.4), seg=16, rseg=6)
+        sc.append(t)
+    sc.append(cyl('sc_pivot', (1.84, 0.62, -0.3), 0.003, 0.006, metal, seg=8))
+    join('item_scissors', sc)
+    # ---- kitchen knife (bait: she brings it blade first)
+    bm = bmesh.new()
+    v = [bm.verts.new(E(x, 0, z)) for x, z in ((0, -0.012), (0.17, -0.004), (0.2, 0.0), (0.17, 0.008), (0, 0.016))]
+    bm.faces.new(v)
+    bmesh.ops.solidify(bm, geom=bm.faces[:], thickness=0.0025)
+    blade = from_bm('kn_blade', bm, metal, E(1.95, 0.76, -0.62))
+    blade.rotation_euler = (PI / 2, 0, 0.6)
+    handle = box('kn_handle', (1.95 - 0.06 * math.cos(0.6), 0.768, -0.62 - 0.06 * math.sin(0.6)), (0.1, 0.018, 0.024), dark, 0.004, rot=0.6)
+    item_origin(join('item_knife', [blade, handle]))
+    # ---- bookshelf (back-left corner) with books and the rag doll on top
+    bx, bz = -1.55, 2.33
+    sh = [box('bs_side1', (bx - 0.34, 0.6, bz), (0.03, 1.2, 0.3), wood, 0.004), box('bs_side2', (bx + 0.34, 0.6, bz), (0.03, 1.2, 0.3), wood, 0.004),
+          box('bs_back', (bx, 0.6, bz + 0.14), (0.7, 1.2, 0.015), dark)]
+    for k, y in enumerate((0.02, 0.4, 0.8, 1.19)):
+        sh.append(box('bs_shelf', (bx, y, bz), (0.66, 0.025, 0.28), wood, 0.003))
+    cols = [(0.35, 0.1, 0.08), (0.1, 0.2, 0.35), (0.55, 0.45, 0.2), (0.15, 0.3, 0.15), (0.6, 0.55, 0.5), (0.3, 0.15, 0.3)]
+    for y0 in (0.035, 0.415):
+        x = bx - 0.3
+        while x < bx + 0.28:
+            w = rnd.uniform(0.02, 0.045); h = rnd.uniform(0.2, 0.3)
+            b = box('book', (x + w / 2, y0 + h / 2, bz + rnd.uniform(-0.02, 0.03)), (w, h, rnd.uniform(0.16, 0.2)), mat('M_book%d' % rnd.randrange(6), cols[rnd.randrange(6)], 0.8), 0.002)
+            if rnd.random() < 0.15:
+                b.rotation_euler = (0, 0.25, 0)
+            sh.append(b)
+            x += w + 0.003
+    shelf = join('bookshelf', sh)
+    world_uv(shelf, 0.6)
+    build_doll(M, (bx, 1.2, bz - 0.02))
+    # ---- family photo frame on the front wall
+    fr = [box('pf_back', (-0.78, 1.55, -2.49), (0.36, 0.44, 0.012), dark)]
+    for (cx, cy, w, h) in ((0, 0.21, 0.4, 0.04), (0, -0.21, 0.4, 0.04), (-0.18, 0, 0.04, 0.46), (0.18, 0, 0.04, 0.46)):
+        fr.append(box('pf_bar', (-0.78 + cx, 1.55 + cy, -2.478), (w, h, 0.03), mat('M_gilt', (0.45, 0.33, 0.12), 0.35, 0.8), 0.006))
+    item_origin(join('item_frame', fr))
+    # ---- ankle chain + padlock around the chair legs (visible when looking down)
+    ch = []
+    for k in range(22):
+        a = k / 22 * 2 * PI
+        cx, cz = 0.0 + math.cos(a) * 0.3, 0.12 + math.sin(a) * 0.07
+        t = torus('link', (cx, 0.09 + 0.012 * math.sin(a * 3), cz), 0.014, 0.0035, metal, seg=10, rseg=5, rot=(PI / 2 if k % 2 else 0, 0, a))
+        ch.append(t)
+    join('chain', ch)
+    pl = [box('pl_body', (0.0, 0.07, 0.05), (0.05, 0.05, 0.02), brass, 0.005),
+          torus('pl_shackle', (0.0, 0.1, 0.05), 0.017, 0.004, metal, seg=14, rseg=5, rot=(PI / 2, 0, 0)),
+          cyl('pl_hole', (0.0, 0.062, 0.039), 0.004, 0.004, mat('M_hole', (0.01, 0.01, 0.01), 0.9), seg=8, axis='z')]
+    item_origin(join('padlock', pl))
+    # ---- ankle key (hidden inside the doll) and door key are engine-side small meshes
+
+
+def build_doll(M, seat):
+    cloth = mat('M_dollcloth', (0.62, 0.52, 0.45), 0.9)
+    dress = mat('M_dolldress', (0.45, 0.12, 0.14), 0.85)
+    sx, sy, sz = seat
+    V = [(0, 0, 0.06), (0, 0, 0.12), (0, 0, 0.17), (0.035, -0.01, 0.055), (0.04, -0.09, 0.05), (0.045, -0.12, 0.03),
+         (0.05, 0, 0.15), (0.075, -0.02, 0.1), (0.08, -0.05, 0.07)]
+    Rr = [(0.045, 0.035), (0.04, 0.03), 0.02, 0.022, 0.018, 0.016, 0.017, 0.015, 0.014]
+    Ed = [(0, 1), (1, 2), (0, 3), (3, 4), (4, 5), (1, 6), (6, 7), (7, 8)]
+    mirror_limb(V, Rr, Ed, [3, 4, 5], 0)
+    mirror_limb(V, Rr, Ed, [6, 7, 8], 1)
+    body = skin_body('dl_body', V, Ed, Rr, cloth)
+    head = sphere('dl_head', (0, 0, 0), 0.045, cloth, seg=18, ring=12)
+    head.location = (0, 0, 0.215)
+    head.rotation_euler = (0.1, 0.25, 0)
+    dr = dress_mesh('dl_dress', [(0.16, 0.035, 0.03, 0), (0.12, 0.05, 0.04, 0), (0.06, 0.075, 0.06, -0.01)], dress, 4, folds=7)
+    eyes = [sphere('dl_eye', (0, 0, 0), 0.006, M['plastic'], seg=8, ring=6) for _ in range(2)]
+    eyes[0].location = (0.016, -0.042, 0.225); eyes[1].location = (-0.016, -0.042, 0.225)
+    st = []
+    for k in range(5):  # stitched belly (X marks)
+        for sgn in (1, -1):
+            b = box('dl_stitch', (0, 0, 0), (0.012, 0.0025, 0.0025), mat('M_thread', (0.05, 0.02, 0.02), 0.9))
+            b.location = (0.0, -0.043, 0.075 + k * 0.012)
+            b.rotation_euler = (0, 0.8 * sgn, 0)
+            st.append(b)
+    hr = hair('dl_hair', (0, 0, 0.215), (0.045, 0.045, 0.045), [((0, 0, 0.12), (0.06, 0.05, 0.07))], M['dollhair'], 13, count=90,
+              length=(0.08, 0.16), front_len=(0.03, 0.05))
+    doll = join('item_doll', [body, head, dr, hr] + eyes + st)
+    doll.location = E(sx, sy, sz)
+    doll.rotation_euler = (0, 0, 0)
+    item_origin(doll)
+
+
 def skin_body(name, verts, edges, radii, material):
     me = bpy.data.meshes.new(name)
     me.from_pydata([Vector(v) for v in verts], edges, [])
@@ -893,12 +1057,22 @@ def bake_ao():
             apply_mods(o)
         ca = o.data.color_attributes.new('AO', 'BYTE_COLOR', 'CORNER')
         o.data.color_attributes.active_color = ca
-    bpy.ops.object.select_all(action='DESELECT')
-    for o in meshes:
-        o.select_set(True)
-    bpy.context.view_layer.objects.active = meshes[0]
     scene.render.bake.target = 'VERTEX_COLORS'
-    bpy.ops.object.bake(type='AO')
+    # trash piles only appear later in the game, so they must not darken the floor in the clean room
+    trash = [o for o in meshes if o.name.startswith('trash_')]
+    rest = [o for o in meshes if o not in trash]
+    for group, hide in ((rest, trash), (trash, [])):
+        if not group:
+            continue
+        for o in hide:
+            o.hide_render = True
+        bpy.ops.object.select_all(action='DESELECT')
+        for o in group:
+            o.select_set(True)
+        bpy.context.view_layer.objects.active = group[0]
+        bpy.ops.object.bake(type='AO')
+        for o in hide:
+            o.hide_render = False
 
 
 def export(name, ghost=False):

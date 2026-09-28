@@ -1,16 +1,166 @@
-{"lines": [
- {"id": "g_intro", "voice": "GIRL", "stability": 0.5, "text": "[whispers] 엄마…? 왔어?"},
- {"id": "g_found", "voice": "GIRL", "stability": 0.5, "text": "[whispers] 찾았다."},
- {"id": "g_wait", "voice": "GIRL", "stability": 0.5, "text": "[sad] 나… 착하게 기다렸어. 소리도 안 냈어."},
- {"id": "g_why", "voice": "GIRL", "stability": 0.5, "text": "[crying softly] 엄마… 왜 안 왔어?"},
- {"id": "g_clock", "voice": "GIRL", "stability": 0.5, "text": "[whispers] 시계가 멈췄을 때… 나도 멈췄어."},
- {"id": "g_three", "voice": "GIRL", "stability": 0.5, "text": "[giggles] 누가 진짜 나게?"},
- {"id": "g_turn", "voice": "GIRL", "stability": 0.5, "text": "[coldly] 이번엔… 엄마가 기다려."},
- {"id": "g_look", "voice": "GIRL", "stability": 0.5, "text": "[whispers] 나를 봐."},
- {"id": "g_stay", "voice": "GIRL", "stability": 0.5, "text": "[whispers] 같이 있자… 계속."},
- {"id": "g_end", "voice": "GIRL", "stability": 0.5, "text": "[softly] 엄마… 또 와줘."},
- {"id": "m_tape1", "voice": "MOTHER", "stability": 0.5, "text": "[tired] 수아야, 엄마야. 엄마 오늘도 좀 늦어. TV 켜 놨지? 채널 돌리지 말고… 얌전히 보고 있어."},
- {"id": "m_tape2", "voice": "MOTHER", "stability": 0.5, "text": "[annoyed] 문 두드리지 말라고 했지. 옆집에서 또 뭐라 그러잖아. [sighs] …금방 갈게. 금방."},
- {"id": "m_tape3", "voice": "MOTHER", "stability": 0.5, "text": "[drunk, slurring] 수아야… 엄마 너무 힘들어. [long pause] 조금만… 조금만 더 기다려. [crying] 미안해."},
- {"id": "n_news", "voice": "ANCHOR", "stability": 0.5, "text": "[serious] 다음 소식입니다. 한 빌라 삼백삼 호에서 일곱 살 여자아이가 숨진 채 발견됐습니다. 아이는 밖에서 잠긴 방 안에 혼자 있었으며, 경찰은 삼 주째 연락이 닿지 않는 아이의 어머니를 찾고 있습니다."}
-]}
+{
+ "lines": [
+  {
+   "id": "c_intro",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 엄마…? 왔어?"
+  },
+  {
+   "id": "c_first",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[giggles] 엄마, 이거 보고 싶었어? 내가 갖다 줄게."
+  },
+  {
+   "id": "c_bring1",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 가져왔어."
+  },
+  {
+   "id": "c_bring2",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[happy] 이것도 줄게, 엄마."
+  },
+  {
+   "id": "c_bring3",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 엄마 거야. 만져 봐."
+  },
+  {
+   "id": "c_heavy",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[straining] 으응… 무거워…"
+  },
+  {
+   "id": "c_cold",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 엄마 손… 차갑다. 나처럼."
+  },
+  {
+   "id": "c_cctv",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 엄마 뒤에 있어."
+  },
+  {
+   "id": "c_doll",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[shouting] 내 인형 만지지 마!"
+  },
+  {
+   "id": "c_song",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[softly] 이 노래… 엄마가 불러 줬던 거."
+  },
+  {
+   "id": "c_wait",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[sad] 나 착하게 기다렸어. 소리도 안 냈어."
+  },
+  {
+   "id": "c_why",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[crying] 엄마… 왜 안 왔어?"
+  },
+  {
+   "id": "c_rope",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[pleading] 가지 마… 또 가지 마."
+  },
+  {
+   "id": "c_turn",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[coldly] 이번엔… 엄마가 기다려."
+  },
+  {
+   "id": "c_look",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 나를 봐."
+  },
+  {
+   "id": "c_stay",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 같이 있자… 계속."
+  },
+  {
+   "id": "c_found",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[giggles] 찾았다."
+  },
+  {
+   "id": "c_clock",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 시계가 멈췄을 때… 나도 멈췄어."
+  },
+  {
+   "id": "c_door",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 문은… 밖에서 잠겼어. 엄마가 잠갔잖아."
+  },
+  {
+   "id": "c_take",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[softly] 이거… 나야? 엄마랑… 나."
+  },
+  {
+   "id": "c_bye",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[crying softly] 엄마… 이제 가도 돼. 문 열어 줄게."
+  },
+  {
+   "id": "c_end",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[softly] 엄마… 또 와줘."
+  },
+  {
+   "id": "m_tape0",
+   "voice": "MOTHER",
+   "stability": 0.5,
+   "text": "[cheerful] 수아야~ 엄마야. 오늘 일 끝나고 케이크 사 갈게. 저녁 꼭 챙겨 먹고, TV 보고 있어. 사랑해!"
+  },
+  {
+   "id": "m_tape1",
+   "voice": "MOTHER",
+   "stability": 0.5,
+   "text": "[tired] 수아야, 엄마야. 엄마 오늘도 좀 늦어. TV 켜 놨지? 채널 돌리지 말고… 얌전히 보고 있어."
+  },
+  {
+   "id": "m_tape2",
+   "voice": "MOTHER",
+   "stability": 0.5,
+   "text": "[annoyed] 문 두드리지 말라고 했지. 옆집에서 또 뭐라 그러잖아. [sighs] …금방 갈게. 금방."
+  },
+  {
+   "id": "m_tape3",
+   "voice": "MOTHER",
+   "stability": 0.5,
+   "text": "[drunk, slurring] 수아야… 엄마 너무 힘들어. [long pause] 조금만… 조금만 더 기다려. [crying] 미안해."
+  },
+  {
+   "id": "n_news",
+   "voice": "ANCHOR",
+   "stability": 0.5,
+   "text": "[serious] 다음 소식입니다. 한 빌라 삼백삼 호에서 일곱 살 여자아이가 숨진 채 발견됐습니다. 아이는 밖에서 잠긴 방 안에 혼자 있었으며, 경찰은 삼 주째 연락이 닿지 않는 아이의 어머니를 찾고 있습니다."
+  }
+ ]
+}

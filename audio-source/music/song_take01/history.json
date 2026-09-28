@@ -1,0 +1,173 @@
+{
+  "prompt": [
+    638,
+    "c5865d46-ba8f-41fa-803b-3ad2eb1fb2c4",
+    {
+      "1": {
+        "class_type": "UNETLoader",
+        "inputs": {
+          "unet_name": "minimax_music3_dit_fp16.safetensors",
+          "weight_dtype": "default"
+        }
+      },
+      "2": {
+        "class_type": "CLIPLoader",
+        "inputs": {
+          "clip_name": "minimax_music3_text_encoder_pruned_int8_convrot.safetensors",
+          "type": "minimax",
+          "device": "default"
+        }
+      },
+      "3": {
+        "class_type": "VAELoader",
+        "inputs": {
+          "vae_name": "minimax_music3_dav.safetensors"
+        }
+      },
+      "4": {
+        "class_type": "MiniMaxMusic3TextEncode",
+        "inputs": {
+          "clip": [
+            "2",
+            0
+          ],
+          "caption": "Global Metadata: Korean children's song (dongyo) from an early-1990s kids' TV program. Gentle and innocent, about 92 BPM, bright major key, a very simple singable melody that repeats. Nostalgic and sweet, meant to sound harmless at first.\n\nVocal Details: soft, sweet, bright female vocal singing in Korean in the manner of a children's song, innocent and light, clear diction, no vibrato, no harmonies, no spoken words.\n\nArrangement: music box and toy piano carry the melody, glockenspiel sparkles, soft nylon acoustic guitar strums, light hand claps on the chorus, a warm slightly wobbly VHS tape feel. Short intro, one verse, one chorus, a gentle ending on the tonic.\n",
+          "lyrics": "[Intro]\n[Verse]\n\uc5c4\ub9c8\uac00 \uc624\uba74\uc740 \ubb38\uc744 \uc5f4\uc5b4 \uc904 \uac70\uc57c\n\ucc29\ud558\uac8c \uae30\ub2e4\ub9ac\uba74 \uae08\ubc29 \uc628\ub2e4 \ud588\uc9c0\n[Chorus]\n\ub611\ub611\ub611 \ub204\uad6c\uc138\uc694 \uc5c4\ub9c8\uc608\uc694 \uc5f4\uc5b4 \uc918\nTV\ub97c \ubcf4\uba74\uc11c \ub098\ub294 \uae30\ub2e4\ub824\uc694\n[Outro]\n\uc5c4\ub9c8 \uc5c4\ub9c8 \uc5b8\uc81c \uc640\uc694\n",
+          "seed": 2026092913,
+          "max_duration": 60.0,
+          "cfg_scale": 1.7,
+          "top_k": 50
+        }
+      },
+      "5": {
+        "class_type": "ConditioningZeroOut",
+        "inputs": {
+          "conditioning": [
+            "4",
+            0
+          ]
+        }
+      },
+      "6": {
+        "class_type": "EmptyMiniMaxMusic3LatentAudio",
+        "inputs": {
+          "seconds": [
+            "4",
+            1
+          ],
+          "batch_size": 1
+        }
+      },
+      "7": {
+        "class_type": "KSampler",
+        "inputs": {
+          "model": [
+            "1",
+            0
+          ],
+          "positive": [
+            "4",
+            0
+          ],
+          "negative": [
+            "5",
+            0
+          ],
+          "latent_image": [
+            "6",
+            0
+          ],
+          "seed": 2026092913,
+          "steps": 30,
+          "cfg": 1.7,
+          "sampler_name": "euler",
+          "scheduler": "simple",
+          "denoise": 1.0
+        }
+      },
+      "8": {
+        "class_type": "VAEDecodeAudioTiled",
+        "inputs": {
+          "samples": [
+            "7",
+            0
+          ],
+          "vae": [
+            "3",
+            0
+          ],
+          "tile_size": 1536,
+          "overlap": 64
+        }
+      },
+      "9": {
+        "class_type": "SaveAudio",
+        "inputs": {
+          "audio": [
+            "8",
+            0
+          ],
+          "filename_prefix": "audio/minimax_music"
+        }
+      }
+    },
+    {
+      "client_id": "84a0cfd9-5599-4930-b34b-da7ad0e45441",
+      "create_time": 1790631893632
+    },
+    [
+      "9"
+    ]
+  ],
+  "outputs": {
+    "9": {
+      "audio": [
+        {
+          "filename": "minimax_music_00014.flac",
+          "subfolder": "audio",
+          "type": "output"
+        }
+      ]
+    }
+  },
+  "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+      [
+        "execution_start",
+        {
+          "prompt_id": "c5865d46-ba8f-41fa-803b-3ad2eb1fb2c4",
+          "timestamp": 1790631893633
+        }
+      ],
+      [
+        "execution_cached",
+        {
+          "nodes": [
+            "1",
+            "2",
+            "3"
+          ],
+          "prompt_id": "c5865d46-ba8f-41fa-803b-3ad2eb1fb2c4",
+          "timestamp": 1790631893633
+        }
+      ],
+      [
+        "execution_success",
+        {
+          "prompt_id": "c5865d46-ba8f-41fa-803b-3ad2eb1fb2c4",
+          "timestamp": 1790631968606
+        }
+      ]
+    ]
+  },
+  "meta": {
+    "9": {
+      "node_id": "9",
+      "display_node": "9",
+      "parent_node": null,
+      "real_node_id": "9"
+    }
+  }
+}

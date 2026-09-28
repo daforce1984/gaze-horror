@@ -15,7 +15,8 @@ SFX = {
     'curtain': (0.05, 3.2, 0.8, True),
 }
 LOOPS = {'buzz': (20.0, 30.0, 1.5, 0.8), 'tvloop': (1.0, 12.0, 1.5, 0.8)}  # start, end, crossfade, peak
-MUSIC = {'music_room': ('ambient_take01/minimax_music_00012.flac', 4.0, 0.6), 'music_chase': ('chase_take01/minimax_music_00013.flac', 3.0, 0.62)}
+MUSIC = {'music_room': ('ambient_take01/minimax_music_00012.flac', 4.0, 0.6), 'music_chase': ('chase_take01/minimax_music_00013.flac', 3.0, 0.62),
+         'song': ('song_take01/' + [f for f in os.listdir(os.path.join(MU, 'song_take01')) if f.endswith('.flac')][0], 1.0, 0.7)}
 
 
 def fade(x, sr, fin=0.008, fout=0.15):

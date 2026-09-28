@@ -25,10 +25,10 @@ Used under the [Pixabay Content License](https://pixabay.com/service/license-sum
 | curtain | Curtain opening | freesound_community | https://pixabay.com/sound-effects/household-curtain-opening-46261/ |
 
 ## Music
-`music_room`, `music_chase` — generated with **MiniMax Music 3** (ComfyUI). Captions, seeds and workflows in `audio-source/music/`. Loop crossfades placed inside the files.
+`music_room`, `music_chase`, `song` (the children's song on TV channel 3) — generated with **MiniMax Music 3** (ComfyUI). Captions, seeds and workflows in `audio-source/music/`. Loop crossfades placed inside the files.
 
 ## Voices
-Generated with **ElevenLabs Eleven v3** (Jessica, Lily, Daniel). Script in `assets/voice/lines.json`.
+Generated with **ElevenLabs Eleven v3**. The girl: Voice Library kid character voice "Piku"; the mother: "Park Hyun-mi"; the news anchor: "JasonK" (Korean Voice Library voices). Script in `assets/voice/lines.json`.
 
 ## Images
 Textures, key art, documents and the jump-scare face: AI image generation. 3D models: Blender scripts in `blender/`.

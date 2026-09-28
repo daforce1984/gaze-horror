@@ -162,3 +162,47 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
 .docimg.wide { max-height: 50vh; }
 .hint.doc { color: #c2b9a9; margin-top: 14px; }
 .memo b.rec { color: #d9a441; }
+
+/* ---------- v2: warmth, tray, inspect, remote */
+.meters { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.warmbox { display: flex; align-items: center; gap: 6px; color: #9fd0ff; font-size: 14px; }
+.warm { width: 90px; height: 5px; background: rgba(255,255,255,.1); border-radius: 3px; overflow: hidden; }
+.warm i { display: block; height: 100%; background: linear-gradient(90deg, #5aa0ff, #e8f4ff); transform-origin: left; transition: transform .3s; }
+#hud.cold .warmbox span { animation: beat .7s infinite; color: #fff; }
+#hint { position: absolute; left: 50%; top: calc(50% + 46px); transform: translateX(-50%); font-size: 13px; color: #cfe6ff; text-shadow: 0 0 6px #000, 0 1px 3px #000;
+  opacity: 0; transition: opacity .25s; white-space: nowrap; pointer-events: none; }
+#hint.show { opacity: .95; }
+#hint.use { color: #ffd98a; }
+#revealRing.fetch .fg { stroke: #a9dcff; filter: drop-shadow(0 0 5px #6cf); }
+#tray { position: absolute; left: 12px; bottom: calc(14px + var(--safe-b)); display: flex; gap: 8px; max-width: calc(100vw - 120px); overflow-x: auto; padding: 4px; }
+#tray button { pointer-events: auto; min-width: 58px; height: 58px; border-radius: 8px; background: rgba(10,8,8,.72); border: 1px solid rgba(217,212,199,.28);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 22px; line-height: 1.05; padding: 3px 6px; flex: none; }
+#tray button small { font-size: 10px; color: #bfb6a6; margin-top: 3px; white-space: nowrap; }
+#tray button.sel { border-color: #ffcf70; box-shadow: 0 0 12px rgba(255,200,90,.6); }
+#tray button.new { animation: pulse 1.2s 3; border-color: #9fd0ff; }
+#inspect { position: fixed; inset: 0; z-index: 15; display: none; touch-action: none; }
+#inspect.show { display: block; }
+#inspect .ihead { position: absolute; top: calc(64px + var(--safe-t)); left: 50%; transform: translateX(-50%); text-align: center; width: min(92vw, 640px); pointer-events: none;
+  text-shadow: 0 0 6px #000, 0 2px 4px #000; }
+#inspect .ihead b { display: block; font-size: 18px; letter-spacing: .15em; margin-bottom: 6px; }
+#inspect .ihead span { font-size: 14px; color: #d2c9b8; line-height: 1.6; }
+#inspect .ibar { position: absolute; bottom: calc(24px + var(--safe-b)); left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
+#hotspots button { position: absolute; transform: translate(-50%, -50%); width: 34px; height: 34px; border-radius: 50%; border: 2px solid #ffd98a; background: rgba(40,30,10,.55);
+  color: #ffe4a8; font-size: 13px; box-shadow: 0 0 14px rgba(255,200,100,.5); animation: pulse 1.6s infinite; }
+#hotspots button span { position: absolute; top: 38px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 12px; text-shadow: 0 1px 3px #000; }
+#pad { position: fixed; right: 12px; top: calc(70px + var(--safe-t)); z-index: 16; display: none; width: 196px; background: rgba(14,12,12,.92); border: 1px solid var(--line);
+  border-radius: 14px; padding: 10px; box-shadow: 0 10px 40px #000; }
+#pad.show { display: block; }
+.padtop { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #bdb4a4; margin-bottom: 8px; }
+.padtop b { font-family: monospace; color: #7f7; font-size: 18px; }
+.padtop button { background: none; border: none; font-size: 16px; color: #aaa; }
+.padgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.padgrid button { height: 40px; border-radius: 8px; background: #221d1b; border: 1px solid #3a3230; font-family: monospace; font-size: 15px; }
+.padgrid button:active { background: #3a1010; }
+.padgrid .pw { color: #ff6a5a; }
+.dials { display: flex; gap: 10px; justify-content: center; margin: 8px 0 4px; }
+.dials div { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.dials b { font-family: monospace; font-size: 34px; width: 52px; height: 58px; display: grid; place-items: center; background: linear-gradient(#1a1410, #3b2f22, #1a1410); border: 1px solid #5a4630;
+  border-radius: 6px; color: #f2d9a4; }
+.dials button { width: 52px; height: 34px; background: #1f1a17; border: 1px solid var(--line); border-radius: 6px; }
+@media (max-aspect-ratio: 1/1) { #pad { top: auto; bottom: calc(96px + var(--safe-b)); right: 8px; } #tray button { min-width: 52px; height: 52px; } }

@@ -4,15 +4,16 @@ usage: el_gen.py [id ...]   (default: all missing)   env VARIANTS=2 to make alte
 import sys, os, json, base64, time, importlib.util
 HERE = os.path.dirname(os.path.abspath(__file__))
 spec = importlib.util.spec_from_file_location('el', os.path.join(HERE, 'el.py')); el = importlib.util.module_from_spec(spec); spec.loader.exec_module(el)
-VOICES = {'GIRL': 'cgSgspJ2msm6clMCkdW9',    # Jessica - young
-          'MOTHER': 'pFZP5JQG7iQjIQuC4Bku',  # Lily - velvety, tired mother
-          'ANCHOR': 'onwK4e9ZLuTAKqWW03F9'}  # Daniel - steady broadcaster
+VOICES = {'GIRL': 'EeQEodFZVtBkjtgK3HBc',    # Piku - expressive kid character (Voice Library)
+          'MOTHER': 'JxIGrv4AVuvbo1Dxzryu',  # Park Hyun-mi - Korean female (Voice Library)
+          'ANCHOR': 'lO4E4qxAvq4BhWUWF8Ci'}  # JasonK - Korean male, calm (Voice Library)
 root = os.path.dirname(os.path.dirname(HERE))
 out_dir = os.path.join(root, 'assets', 'voice')
 data = json.load(open(os.path.join(out_dir, 'lines.json')))
 cap = next(q for q in json.load(open('/tmp/claude-1000/-mnt-d--AI-GENERATED-------2026-horror/ade6b511-f646-4ef8-a52c-feaabe89190d/scratchpad/el_reqs.json')) if q['body'])
 url = cap['url']; body0 = json.loads(json.loads(json.dumps(cap['body'])) or '{}') if cap['body'] else {}
 hdr = {k: v for k, v in cap['headers'].items() if k.lower() in ('authorization', 'content-type', 'x-generation-actor', 'x-generation-surface')}
+hdr['content-type'] = 'application/json'
 model = body0.get('model_id', 'eleven_v3')
 el.ensure(); tab, ws = el.pick_tab(); s = el.Session(ws)
 want = set(sys.argv[1:])

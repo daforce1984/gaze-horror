@@ -176,7 +176,21 @@ export class TVScreen {
     this.ng.putImageData(this.nd, 0, 0);
     g.imageSmoothingEnabled = false;
     if (this.mode === 'off') { g.fillStyle = '#050607'; g.fillRect(0, 0, W, H); return this.c; }
-    if (this.mode === 'static') {
+    if (this.mode === 'kids') {
+      const img = this.bad ? this.kidsBad : this.kids;
+      g.imageSmoothingEnabled = true;
+      const jit = (Math.random() < (this.bad ? 0.25 : 0.04)) ? (Math.random() - 0.5) * 14 : 0;
+      if (img) g.drawImage(img, jit, 0, W, H); else { g.fillStyle = '#6a8'; g.fillRect(0, 0, W, H); }
+      if (this.bad) {
+        g.globalAlpha = 0.25; g.drawImage(this.noise, 0, 0, W, H); g.globalAlpha = 1;
+        g.fillStyle = 'rgba(40,0,0,0.25)'; g.fillRect(0, 0, W, H);
+        if (this.face && Math.random() < 0.012) { g.globalAlpha = 0.5; g.drawImage(this.face, 60, 0, 200, 240); g.globalAlpha = 1; }
+      } else { g.globalAlpha = 0.08; g.drawImage(this.noise, 0, 0, W, H); g.globalAlpha = 1; }
+      // VHS tracking band
+      const by = (this.t * 40) % (H + 40) - 20;
+      g.fillStyle = 'rgba(255,255,255,0.06)'; g.fillRect(0, by, W, 10);
+      g.imageSmoothingEnabled = false;
+    } else if (this.mode === 'static') {
       g.drawImage(this.noise, 0, 0, W, H);
     } else if (this.mode === 'broadcast') {
       g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
@@ -226,7 +240,7 @@ function crayonX(g, x, y, s, r, col = 'rgba(170,20,20,0.85)') {
   }
 }
 
-export function calendarTex() {
+export function calendarTex(circle = 24) {
   const W = 512, H = 700, c = canvas(W, H), g = c.getContext('2d'), r = rnd(19);
   paperBg(g, W, H, [232, 226, 212], 5);
   g.fillStyle = '#7a1010'; g.fillRect(0, 0, W, 110);
@@ -241,8 +255,8 @@ export function calendarTex() {
     const k = first + d - 1, cx = x0 + (k % 7) * cellW, cy = y0 + Math.floor(k / 7) * cellH;
     g.strokeStyle = 'rgba(0,0,0,0.15)'; g.strokeRect(cx, cy, cellW, cellH);
     g.fillStyle = k % 7 === 0 ? '#a01818' : '#222'; g.textAlign = 'left'; g.fillText(String(d), cx + 8, cy + 28);
-    if (d >= 4) crayonX(g, cx + 38, cy + 52, 20, r, d > 24 ? 'rgba(20,20,120,0.8)' : 'rgba(170,20,20,0.85)');
-    if (d === 24) {
+    if (d >= 4) crayonX(g, cx + 38, cy + 52, 20, r, d > circle ? 'rgba(20,20,120,0.8)' : 'rgba(170,20,20,0.85)');
+    if (d === circle) {
       g.strokeStyle = 'rgba(200,30,30,0.9)'; g.lineWidth = 5; g.beginPath(); g.ellipse(cx + 36, cy + 44, 40, 36, 0.1, 0, Math.PI * 2); g.stroke();
     }
   }
@@ -310,5 +324,56 @@ export function scratchTex() {
   }
   // dried blood near the bottom
   for (let k = 0; k < 18; k++) { g.fillStyle = `rgba(70,5,5,${0.2 + r() * 0.3})`; g.fillRect(20 + r() * 216, 380 + r() * 120, 2 + r() * 5, 6 + r() * 30); }
+  return c;
+}
+
+// family photo in a frame; `ruin` scratches the mother's face out and smears the glass
+export function familyTex(img, ruin = 0) {
+  const W = 512, H = 640, c = canvas(W, H), g = c.getContext('2d'), r = rnd(71);
+  g.fillStyle = '#e9e2d0'; g.fillRect(0, 0, W, H);
+  if (img) g.drawImage(img, 26, 26, W - 52, W - 52); else { g.fillStyle = '#8a6f5a'; g.fillRect(26, 26, W - 52, W - 52); }
+  g.fillStyle = '#2a2520'; g.font = `34px ${CRAYON}`; g.textAlign = 'center';
+  g.fillText('수아 일곱 살 생일 ♥', W / 2, W + 40);
+  g.font = '20px Georgia, serif'; g.fillText("'99. 12. 4", W / 2, W + 78);
+  if (ruin > 0) {
+    // violent scribble over the woman's face (upper-left third of the photo)
+    g.strokeStyle = `rgba(20,10,10,${0.55 + ruin * 0.4})`; g.lineCap = 'round';
+    for (let k = 0; k < 90 * ruin; k++) {
+      g.lineWidth = 2 + r() * 5; g.beginPath();
+      const cx = 170 + (r() - 0.5) * 120, cy = 150 + (r() - 0.5) * 120;
+      g.moveTo(cx, cy); g.lineTo(cx + (r() - 0.5) * 140, cy + (r() - 0.5) * 140); g.stroke();
+    }
+    g.fillStyle = `rgba(120,10,10,${0.5 * ruin})`; g.font = `64px ${CRAYON}`;
+    g.save(); g.translate(W / 2, H - 40); g.rotate(-0.06); g.fillText('거짓말쟁이', 0, 0); g.restore();
+    // cracked glass
+    g.strokeStyle = 'rgba(255,255,255,0.5)'; g.lineWidth = 1.5;
+    for (let k = 0; k < 9; k++) { g.beginPath(); g.moveTo(330, 260); g.lineTo(330 + (r() - 0.5) * 520, 260 + (r() - 0.5) * 620); g.stroke(); }
+  }
+  return c;
+}
+
+// scrawled word repeated (for the rotting room)
+export function scrawlTex(word = '엄마', seed = 2) {
+  const c = canvas(1024, 512), g = c.getContext('2d'), r = rnd(seed);
+  for (let k = 0; k < 22; k++) {
+    g.save(); g.translate(40 + r() * 940, 40 + r() * 430); g.rotate((r() - 0.5) * 0.6);
+    g.fillStyle = `rgba(${60 + r() * 50},${5},${5},${0.5 + r() * 0.45})`;
+    g.font = `${40 + r() * 90}px ${CRAYON}`; g.fillText(word, 0, 0); g.restore();
+  }
+  roughen(g, 1024, 512, seed);
+  return c;
+}
+
+// child's note hidden in the music box
+export function childNoteTex(dd) {
+  const c = canvas(512, 384), g = c.getContext('2d');
+  paperBg(g, 512, 384, [240, 232, 214], 44);
+  g.strokeStyle = 'rgba(0,0,0,0.12)'; for (let x = 128; x < 512; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 384); g.stroke(); }
+  g.fillStyle = 'rgba(40,40,160,0.9)'; g.font = `44px ${CRAYON}`; g.textAlign = 'left';
+  g.fillText('서랍 비밀번호는', 40, 90);
+  g.fillText('엄마가 오는 날', 40, 150);
+  g.fillStyle = 'rgba(180,20,20,0.9)'; g.fillText('(달력에 동그라미!)', 40, 214);
+  g.fillStyle = 'rgba(40,40,40,0.8)'; g.font = `32px ${CRAYON}`; g.fillText('월 두 자리 + 일 두 자리', 40, 290);
+  g.fillText('— 수아', 330, 350);
   return c;
 }

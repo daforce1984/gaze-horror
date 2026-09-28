@@ -78,5 +78,9 @@
  "music_chase": {
   "file": "assets/audio/music_chase.mp3",
   "seconds": 83.39
+ },
+ "song": {
+  "file": "assets/audio/song.mp3",
+  "seconds": 43.153
  }
 }

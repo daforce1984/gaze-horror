@@ -1,9 +1,10 @@
 // Procedural horror soundscape (WebAudio). No audio files needed.
 const SAMPLES = ['knock', 'bang', 'creak', 'drawer', 'unlock', 'pop', 'static', 'steps', 'chime', 'giggle', 'giggle2',
-  'whisper', 'whisper2', 'scare', 'scare2', 'curtain', 'buzz', 'tvloop', 'music_room', 'music_chase'];
+  'whisper', 'whisper2', 'scare', 'scare2', 'curtain', 'buzz', 'tvloop', 'music_room', 'music_chase', 'song'];
 
-const VOICES = ['g_intro', 'g_found', 'g_wait', 'g_why', 'g_clock', 'g_three', 'g_turn', 'g_look', 'g_stay', 'g_end',
-  'm_tape1', 'm_tape2', 'm_tape3', 'n_news'];
+const VOICES = ['c_intro', 'c_first', 'c_bring1', 'c_bring2', 'c_bring3', 'c_heavy', 'c_cold', 'c_cctv', 'c_doll', 'c_song',
+  'c_wait', 'c_why', 'c_rope', 'c_turn', 'c_look', 'c_stay', 'c_found', 'c_clock', 'c_door', 'c_take', 'c_bye', 'c_end',
+  'm_tape0', 'm_tape1', 'm_tape2', 'm_tape3', 'n_news'];
 
 export class Sound {
   constructor() {
@@ -103,6 +104,13 @@ export class Sound {
     breath.connect(bl).connect(bAmp).connect(this.ghostGain);
     this.ghostGain.connect(this.ghostPan).connect(this.master);
 
+    // rain on the window (act 1 only)
+    const rain = this.loop(this.white); const rf = ctx.createBiquadFilter(); rf.type = 'bandpass'; rf.frequency.value = 2400; rf.Q.value = 0.4;
+    const rl = ctx.createBiquadFilter(); rl.type = 'lowpass'; rl.frequency.value = 6000;
+    this.rainGain = ctx.createGain(); this.rainGain.gain.value = 0;
+    this.rainPan = this.panner([-2.4, 1.5, -0.6]);
+    rain.connect(rf).connect(rl).connect(this.rainGain).connect(this.rainPan).connect(this.master);
+    this.nextDrop = 0;
     // tinnitus + warped drone for the insanity effect
     const tin = ctx.createOscillator(); tin.type = 'sine'; tin.frequency.value = 6900;
     const tl = ctx.createOscillator(); tl.frequency.value = 0.3; const tlg = ctx.createGain(); tlg.gain.value = 40;
@@ -147,6 +155,40 @@ export class Sound {
     const g = this.ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(1, t, fade / 3);
     s.connect(g).connect(this.musicBus); s.start();
     this.musicNode = { s, g }; this.music = { rate: s.playbackRate };
+  }
+  // TV speaker: the children's song (rate < 1 makes it drag and sag)
+  tvSong(on, rate = 1) {
+    if (!this.ctx || !this.buf.song) return;
+    if (on && !this.songNode) {
+      const s = this.ctx.createBufferSource(); s.buffer = this.buf.song; s.loop = true;
+      const g = this.ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(0.55, this.ctx.currentTime, 0.3);
+      const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1600; f.Q.value = 0.5;  // small CRT speaker
+      s.connect(f).connect(g).connect(this.tvPan); s.start();
+      this.songNode = { s, g };
+    } else if (!on && this.songNode) {
+      const n = this.songNode; n.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1); n.s.stop(this.ctx.currentTime + 0.5); this.songNode = null;
+    }
+    if (this.songNode) this.songNode.s.playbackRate.setTargetAtTime(rate, this.ctx.currentTime, 0.4);
+  }
+  // music box: plucked metal comb notes; `slow` stretches the tempo as the spring unwinds
+  musicBox(pos, sec = 14) {
+    if (!this.ctx) return;
+    const dest = this.panner(pos); dest.connect(this.master);
+    const mel = [76, 79, 81, 79, 76, 74, 72, 74, 76, 76, 74, 72, 71, 72, 74, 76, 79, 77, 76, 74, 72, 72];
+    let t = this.ctx.currentTime + 0.1, k = 0;
+    while (t < this.ctx.currentTime + sec) {
+      const note = mel[k % mel.length], f = 440 * Math.pow(2, (note - 69) / 12) * (1 + (Math.random() - 0.5) * 0.004);
+      for (const [mul, v] of [[1, 0.22], [4.0, 0.05], [2.01, 0.06]]) {
+        const o = this.ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f * mul;
+        const g = this.ctx.createGain(); this.env(g, t, 0.003, v, 1.3 / mul);
+        o.connect(g).connect(dest); o.start(t); o.stop(t + 1.5);
+      }
+      const prog = (t - this.ctx.currentTime) / sec;
+      t += 0.32 + prog * prog * 0.5 + (k % 4 === 3 ? 0.18 : 0);
+      k++;
+    }
+    this.duck(0.3, sec);
+    return sec;
   }
   stopMusic(fade = 2) { this.wantMusic = null; if (this.ctx) this.playMusic(null, fade); }
   duck(amount = 0.25, sec = 2) {
@@ -193,6 +235,11 @@ export class Sound {
 
   update(dt, s) {
     if (!this.ctx) return;
+    this.set(this.rainGain.gain, (s.rain || 0) * 0.16, 0.8);
+    if ((s.rain || 0) > 0.1 && this.ctx.currentTime > this.nextDrop) {  // heavy drops on the glass
+      this.nextDrop = this.ctx.currentTime + 0.05 + Math.random() * 0.25;
+      this.noiseHit(this.ctx.currentTime, { freq: 1800 + Math.random() * 2500, q: 6, v: 0.05 * s.rain, d: 0.03, dest: this.rainPan });
+    }
     const recBuzz = !!this.buzzRec, recTv = !!this.tvRec;
     this.set(this.buzzGain.gain, recBuzz ? s.bulb * 0.008 : s.bulb * 0.035);
     recBuzz && this.set(this.buzzRec.gain, s.bulb * 0.22, 0.03);

@@ -20,16 +20,33 @@
     <button id="memoBtn" class="icon memo" aria-label="메모">메모</button>
     <button id="gyroBtn" class="icon gyro" aria-label="자이로 센서" aria-pressed="false">📱 자이로</button>
     <div id="objective"></div>
-    <div class="fearbox" aria-label="공포"><span>♥</span><div class="fear"><i id="fearFill"></i></div></div>
+    <div class="meters">
+      <div class="warmbox" aria-label="온기"><span>❄</span><div class="warm"><i id="warmFill"></i></div></div>
+      <div class="fearbox" aria-label="공포"><span>♥</span><div class="fear"><i id="fearFill"></i></div></div>
+    </div>
   </div>
   <div id="cross"></div>
   <svg id="revealRing" viewBox="0 0 44 44"><circle cx="22" cy="22" r="18" class="bg"/><circle id="revealArc" cx="22" cy="22" r="18" class="fg"/></svg>
   <div id="subtitle"></div>
+  <div id="hint"></div>
+  <div id="tray"></div>
   <button id="actionBtn"></button>
   <button id="zoomBtn" aria-label="확대해서 응시">👁<small>응시</small></button>
 </div>
 
 <div id="modal"><div id="modalCard" class="card"></div></div>
+<div id="inspect">
+  <div class="ihead"><b id="inspTitle"></b><span id="inspDesc"></span></div>
+  <div id="hotspots"></div>
+  <div class="ibar"><button id="inspUse" class="primary">사용</button><button id="inspClose" class="ghostbtn">내려놓기</button></div>
+</div>
+<div id="pad">
+  <div class="padtop"><span>📺 리모컨</span><b id="padCh">--</b><button id="padClose">✕</button></div>
+  <div class="padgrid">
+    <button data-p="power" class="pw">⏻</button><button data-p="up">CH ▲</button><button data-p="down">CH ▼</button>
+    <button data-p="1">1</button><button data-p="2">2</button><button data-p="3">3</button><button data-p="4">4</button><button data-p="5">5</button><button data-p="6">6</button><button data-p="7">7</button><button data-p="8">8</button><button data-p="9">9</button><button data-p="10">10</button><button data-p="11">11</button><button data-p="12">12</button>
+  </div>
+</div>
 <div id="halluc"></div>
 <div id="scare"><img src="assets/ghost_face.webp" alt=""></div>
 <div id="fade"></div>
