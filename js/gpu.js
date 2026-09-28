@@ -138,7 +138,7 @@ fn lighting(p: vec3f, nIn: vec3f, wrap: f32, spec: f32) -> vec3f {
   // hanging bulb
   let bl = G.bulbPos.xyz - p; let bd = length(bl); let bn = bl / bd;
   let bdiff = wrapDiffuse(n, bn, wrap);
-  let bspec = pow(max(dot(n, normalize(bn + V)), 0.0), 40.0) * spec;
+  let bspec = pow(max(dot(n, normalize(bn + V)), 0.0), 22.0) * spec * 0.6;
   c += G.bulbCol.rgb * G.bulbPos.w * (bdiff + bspec) * bulbSh / (1.0 + bd * bd * 1.6);
   // CRT: forward cone towards +z
   let tl = G.tvPos.xyz - p; let td = length(tl); let tn = tl / td;

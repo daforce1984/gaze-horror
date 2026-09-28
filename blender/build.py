@@ -169,6 +169,7 @@ def join(name, obs):
 
 def set_origin(ob, engine_pt):
     """move the object origin to an engine-space point without moving geometry"""
+    bpy.context.view_layer.update()   # matrix_world is stale right after setting a location
     target = E(*engine_pt)
     delta = target - ob.matrix_world.translation
     ob.data.transform(Matrix.Translation(-(ob.matrix_world.inverted().to_3x3() @ delta)))
@@ -522,29 +523,48 @@ def build_room():
     bulb = sphere('bulb', (0, RH - 0.54, -0.6), 0.042, M['bulb'], seg=16, ring=12, scale=(1, 1.25, 1))
     set_origin(bulb, PV)
 
-    # ---- player's chair: armrests with loose rope
-    ch = []
-    for sx in (-0.3, 0.3):
-        ch.append(box('arm', (sx, 0.66, 0.34), (0.055, 0.04, 0.5), M['wooddark'], 0.008))
-        ch.append(box('armpost', (sx, 0.43, 0.13), (0.04, 0.46, 0.04), M['wooddark']))
-        for k in range(5):
-            t = cyl('rope', (sx, 0.66, 0.2 + k * 0.022), 0.04, 0.012, M['rope'], seg=14, axis='z', cap=False)
-            t.rotation_euler = (PI / 2 + random.uniform(-0.25, 0.25), random.uniform(-0.2, 0.2), 0)
-            add_mod(t, 'SOLIDIFY', thickness=0.012)
-            ch.append(t)
-        # loose rope end dangling to the floor
-        bm = bmesh.new()
-        pts = [E(sx + 0.03 * math.sin(i * 0.9), 0.64 - i * 0.06, 0.18 - 0.012 * i * i) for i in range(12)]
-        prof = [Vector((math.cos(a) * 0.008, math.sin(a) * 0.008, 0)) for a in [i / 6 * 2 * PI for i in range(6)]]
-        rings = []
-        for p in pts:
-            rings.append([bm.verts.new(p + Vector((q.x, q.y, 0))) for q in prof])
-        for a, b in zip(rings, rings[1:]):
-            for i in range(6):
-                bm.faces.new((a[i], a[(i + 1) % 6], b[(i + 1) % 6], b[i]))
-        ch.append(from_bm('ropeend', bm, M['rope']))
+    # ---- the player's chair (seat, legs, back, arms); ropes and the ankle chain are separate nodes
+    W_ = M['wooddark']
+    ch = [box('seat', (0, 0.45, 0.36), (0.46, 0.04, 0.42), W_, 0.01, cuts=1)]
+    for lx in (-0.2, 0.2):
+        for lz in (0.18, 0.54):
+            ch.append(box('leg', (lx, 0.215, lz), (0.04, 0.43, 0.04), W_, 0.004))
+    ch += [box('rail_f', (0, 0.13, 0.18), (0.4, 0.03, 0.025), W_), box('rail_b', (0, 0.13, 0.54), (0.4, 0.03, 0.025), W_)]
+    for lx in (-0.2, 0.2):
+        ch.append(box('backpost', (lx, 0.78, 0.555), (0.04, 0.62, 0.035), W_, 0.004))
+    ch += [box('backslat', (0, 0.98, 0.56), (0.42, 0.14, 0.025), W_, 0.006), box('backslat2', (0, 0.72, 0.56), (0.42, 0.06, 0.02), W_, 0.004)]
+    for sx in (-0.27, 0.27):
+        ch.append(box('arm', (sx, 0.66, 0.34), (0.055, 0.035, 0.44), W_, 0.008))
+        ch.append(box('armpost', (sx, 0.555, 0.17), (0.035, 0.2, 0.035), W_))
+        ch.append(box('armpost2', (sx, 0.555, 0.5), (0.035, 0.2, 0.035), W_))
     chair = join('chair', ch)
     world_uv(chair, 0.4)
+
+    def tube(name, pts, r, material, seg=7):
+        bm = bmesh.new()
+        rings = []
+        for i, p in enumerate(pts):
+            d = (pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized()
+            a = d.orthogonal().normalized(); b2 = d.cross(a)
+            rings.append([bm.verts.new(p + (a * math.cos(t) + b2 * math.sin(t)) * r) for t in [k / seg * 2 * PI for k in range(seg)]])
+        for ra, rb in zip(rings, rings[1:]):
+            for k in range(seg):
+                bm.faces.new((ra[k], ra[(k + 1) % seg], rb[(k + 1) % seg], rb[k]))
+        return from_bm(name, bm, material)
+
+    def coil(sx, name, loose):
+        parts = []
+        for k in range(6):  # rope wound around the armrest
+            pts = [E(sx + math.cos(t) * 0.036, 0.66 + math.sin(t) * 0.028, 0.2 + k * 0.017 + t / (2 * PI) * 0.017) for t in [q / 16 * 2 * PI for q in range(17)]]
+            parts.append(tube('coil', pts, 0.006, M['rope']))
+        if loose:  # the free end hangs to the floor and curls there
+            pts = [E(sx + 0.03, 0.64, 0.3), E(sx + 0.05, 0.5, 0.31), E(sx + 0.06, 0.3, 0.3), E(sx + 0.07, 0.1, 0.28),
+                   E(sx + 0.08, 0.015, 0.22), E(sx + 0.1, 0.012, 0.14), E(sx + 0.16, 0.012, 0.1), E(sx + 0.2, 0.012, 0.14)]
+            parts.append(tube('ropeend', pts, 0.007, M['rope']))
+        rp = join(name, parts)
+        return rp
+    coil(0.27, 'rope_R', True)
+    coil(-0.27, 'rope_L', False)
 
     # ---- trash piles by rigid body simulation
     build_trash(M)
@@ -789,17 +809,22 @@ def build_props(M):
     for (cx, cy, w, h) in ((0, 0.21, 0.4, 0.04), (0, -0.21, 0.4, 0.04), (-0.18, 0, 0.04, 0.46), (0.18, 0, 0.04, 0.46)):
         fr.append(box('pf_bar', (-0.78 + cx, 1.55 + cy, -2.478), (w, h, 0.03), mat('M_gilt', (0.45, 0.33, 0.12), 0.35, 0.8), 0.006))
     item_origin(join('item_frame', fr))
-    # ---- ankle chain + padlock around the chair legs (visible when looking down)
+    # ---- ankle chain: a loop round each front leg, a sagging run between, a padlock pulled to the front
     ch = []
-    for k in range(22):
-        a = k / 22 * 2 * PI
-        cx, cz = 0.0 + math.cos(a) * 0.3, 0.12 + math.sin(a) * 0.07
-        t = torus('link', (cx, 0.09 + 0.012 * math.sin(a * 3), cz), 0.014, 0.0035, metal, seg=10, rseg=5, rot=(PI / 2 if k % 2 else 0, 0, a))
-        ch.append(t)
+    def link(p, k, tilt=0.0):
+        return torus('link', p, 0.011, 0.0028, metal, seg=10, rseg=5, rot=((PI / 2 if k % 2 else 0) + tilt, 0, 0))
+    for lx in (-0.2, 0.2):
+        ch.append(torus('legloop', (lx, 0.1, 0.18), 0.03, 0.004, metal, seg=18, rseg=5))
+    n = 28
+    for k in range(n + 1):  # front run with a sag, bending forward to meet the padlock
+        t = k / n
+        x = -0.17 + 0.34 * t
+        sag = math.sin(t * PI)
+        ch.append(link((x, 0.1 - 0.05 * sag, 0.17 - 0.21 * sag), k))
     join('chain', ch)
-    pl = [box('pl_body', (0.0, 0.07, 0.05), (0.05, 0.05, 0.02), brass, 0.005),
-          torus('pl_shackle', (0.0, 0.1, 0.05), 0.017, 0.004, metal, seg=14, rseg=5, rot=(PI / 2, 0, 0)),
-          cyl('pl_hole', (0.0, 0.062, 0.039), 0.004, 0.004, mat('M_hole', (0.01, 0.01, 0.01), 0.9), seg=8, axis='z')]
+    pl = [box('pl_body', (0.0, 0.03, -0.045), (0.05, 0.045, 0.02), brass, 0.005),
+          torus('pl_shackle', (0.0, 0.057, -0.045), 0.016, 0.004, metal, seg=14, rseg=5, rot=(PI / 2, 0, 0)),
+          cyl('pl_hole', (0.0, 0.023, -0.056), 0.004, 0.004, mat('M_hole', (0.01, 0.01, 0.01), 0.9), seg=8, axis='z')]
     item_origin(join('padlock', pl))
     # ---- ankle key (hidden inside the doll) and door key are engine-side small meshes
 

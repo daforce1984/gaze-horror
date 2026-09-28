@@ -175,7 +175,7 @@ function buildScene() {
 
   // decaying shell: tex = rotten, tex2 = the clean 1999 room
   const MAT = {
-    M_wall: { t: T.wall, t2: T.wallClean, decay: 1 }, M_floor: { t: T.floor, t2: T.floorClean, decay: 1, spec: 0.3 },
+    M_wall: { t: T.wall, t2: T.wallClean, decay: 1 }, M_floor: { t: T.floor, t2: T.floorClean, decay: 1, spec: 0.05 },
     M_ceiling: { t: T.ceiling, t2: T.ceilClean, decay: 1 },
     M_wood: { t: T.wood, tint: [0.95, 0.9, 0.85], spec: 0.2 }, M_wooddark: { t: T.wood, tint: [0.42, 0.36, 0.32], spec: 0.25 },
     M_door: { t: T.door, spec: 0.12 }, M_curtain: { t: T.curtain, wrap: 0.4 },
@@ -419,6 +419,7 @@ const STORY = {
   },
   ropeCut() {
     S.flags.hand = 1;
+  setVisible(O.nodes.rope_R, false);
     const p = v3.add(EYE, v3.add(v3.scale(flatFwd(), 0.7), [0, -1.15, 0]));
     S.ghost = { p, kind: 'stand', alpha: 0.6, target: 1, mode: 'close' };
     girl('c_rope', '가지 마… 또 가지 마.', [p[0], 1.2, p[2]]);
@@ -430,6 +431,7 @@ const STORY = {
   },
   freed() {
     S.flags.feet = 1;
+  setVisible(O.nodes.chain, false); setVisible(O.nodes.padlock, false);
     snd.play('unlock', [0, 0.1, 0.1]);
     say('철컥. …발이 자유롭다.', 3);
     after(3, () => STORY.final());
@@ -733,7 +735,7 @@ function windMusicBox() {
 }
 const USE_TARGETS = [
   { id: 'rope', label: '오른손 밧줄', min: [0.2, 0.58, 0.12], max: [0.4, 0.74, 0.4] },
-  { id: 'padlock', label: '발목 자물쇠', min: [-0.12, 0, -0.05], max: [0.12, 0.16, 0.16] },
+  { id: 'padlock', label: '발목 자물쇠', min: [-0.12, 0, -0.1], max: [0.12, 0.14, 0.2] },
   { id: 'door', label: '문', min: [0.12, 0, 2.4], max: [1.28, 2.12, 2.62] },
 ];
 function useTarget(dir) {
@@ -833,7 +835,7 @@ const EXAMINE = [
   { id: 'photo0', min: [-0.98, 1.3, -2.5], max: [-0.58, 1.8, -2.4], when: () => S.decay < 0.5 && !S.fetched.has('frame'), text: '가족사진. 생일 케이크 앞에서 웃는 엄마와 여자아이.' },
   { id: 'photo1', min: [-0.98, 1.3, -2.5], max: [-0.58, 1.8, -2.4], when: () => S.decay >= 0.5 && !S.fetched.has('frame'), text: '사진 속 엄마의 얼굴이… 새까맣게 긁혀 있다.' },
   { id: 'clock', min: [2.05, 1.62, -0.53], max: [2.2, 2.08, -0.07], when: () => S.clockStopped, text: '시계가 7시 59분에서 멈춰 있다.' },
-  { id: 'chain', min: [-0.35, 0, -0.05], max: [0.35, 0.2, 0.25], when: () => S.flags.hand && !S.flags.feet, text: '발목에 감긴 쇠사슬. 작은 자물쇠가 달려 있다.' },
+  { id: 'chain', min: [-0.3, 0, -0.1], max: [0.3, 0.2, 0.22], when: () => S.flags.hand && !S.flags.feet, text: '의자 다리에 감긴 쇠사슬. 작은 자물쇠가 달려 있다.' },
   { id: 'window', min: [-2.35, 0.9, -1.2], max: [-2.1, 2.0, 0.0], when: () => S.curtainOpen > 0.6 && S.act >= 2, text: '유리창 안쪽에 작은 손자국들. 밖에서가 아니라… 안에서.' },
 ];
 let examineT = 0, examineId = null;
@@ -1502,6 +1504,7 @@ function restore(sv) {
   S.flags = sv.flags || {}; S.tv = sv.tv || S.tv;
   for (const id of sv.fetched || []) { S.fetched.add(id); if (W[id] && !W[id].action) setVisible(W[id].objs, false); }
   if (S.fetched.has('curtain')) S.curtainTarget = S.curtainOpen = 1;
+  if (S.flags.hand) setVisible(O.nodes.rope_R, false);
   (sv.inv || []).forEach(invAdd);
   S.act = sv.act;
   if (S.act >= 1) { S.rain = 0; stopClock(); }
