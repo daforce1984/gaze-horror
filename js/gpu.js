@@ -63,7 +63,7 @@ fn hash21(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 
     let t = G.camPos.w;
     let behind = G.shift.w - frontDist(p);                  // how far the front has already gone past this spot
     let life = clamp(behind / (0.9 + c.z * 0.9), 0.0, 1.0);
-    let alive = step(0.0, behind) * step(life, 0.999) * step(0.001, G.shift2.z);
+    let alive = step(0.0, behind) * step(life, 0.999) * step(0.001, G.shift2.z) * step(0.35, changeAt(p));   // only what actually turns peels
     let peel = smoothstep(0.0, 0.3, life);
     var t1 = cross(n, vec3f(0.0, 1.0, 0.0));
     if (length(t1) < 0.1) { t1 = vec3f(1.0, 0.0, 0.0); }
@@ -163,17 +163,27 @@ fn burnBand(p: vec3f) -> f32 {
   let k = G.shift.w - frontDist(p);
   return G.shift2.z * smoothstep(-0.1, 0.12, k) * (1.0 - smoothstep(0.15, 0.7, k));
 }
-fn decayMask(p: vec3f) -> f32 {
-  let d = roomDecay(p);
-  if (d <= 0.001) { return 0.0; }
+// how prone a spot is to rot (fixed per point); a decay level d turns it into a mask
+fn rotField(p: vec3f) -> f32 {
   let n = noise3(p * 1.7) * 0.55 + noise3(p * 5.3) * 0.3 + noise3(p * 13.0) * 0.15;
   let dx = 2.2 - abs(p.x); let dz = 2.5 - abs(p.z);
   let m2 = secondMin(dx, dz, p.y, 2.6 - p.y);
   let edge = 1.0 - smoothstep(0.0, 1.2, m2);
   let drip = smoothstep(1.2, 2.6, p.y) * noise3(vec3f(p.x * 9.0, p.y * 0.8, p.z * 9.0));
-  let v = n * 0.6 + edge * 0.3 + drip * 0.25;
+  return n * 0.6 + edge * 0.3 + drip * 0.25;
+}
+fn maskAt(v: f32, d: f32) -> f32 {
+  if (d <= 0.001) { return 0.0; }
   let th = 1.05 - d * 1.25;
   return smoothstep(th - 0.06, th + 0.06, v);
+}
+// how much this spot actually turns in the current shift (0 where nothing changes)
+fn changeAt(p: vec3f) -> f32 {
+  let v = rotField(p);
+  return clamp(maskAt(v, G.shift2.y) - maskAt(v, G.shift2.x), 0.0, 1.0);
+}
+fn decayMask(p: vec3f) -> f32 {
+  return maskAt(rotField(p), roomDecay(p));
 }
 
 fn secondMin(a: f32, b: f32, c: f32, d: f32) -> f32 {
@@ -251,30 +261,30 @@ const LIT = SHARED + /* wgsl */`
     let dq = length(i.uv - vec2f(0.5)) * 2.0;
     let da = (1.0 - smoothstep(0.4, 1.0, dq)) * i.col.z * 0.85;
     if (da < 0.01) { discard; }
-    let dc = mix(vec3f(0.28, 0.12, 0.05), vec3f(0.08, 0.06, 0.05), i.col.y - 2.0) * (0.12 + 0.18 * G.bulbPos.w / 4.0 + G.ambient.r * 4.0);
+    let cool = clamp((i.col.y - 2.0) * 1.6, 0.0, 1.0);
+    let dc = mix(vec3f(1.0, 0.38, 0.07) * 1.8, vec3f(0.05, 0.045, 0.04), cool);   // a spark that cools to ash
     return vec4f(fog(dc, i.wp), da);
   }
   if (O.extra.w > 0.5) {   // peeling flake: old wallpaper on its face, rust eating in from the ragged edge
     let q = (i.uv - vec2f(0.5)) * 2.0;
     let edge = max(abs(q.x), abs(q.y)) * 0.6 + length(q) * 0.4 + (noise3(vec3f(i.uv * 6.0, i.col.x * 17.0)) - 0.5) * 0.55;
-    // crumbling: cracks open between shards, then each shard and the paper between them erode away
+    // burning: the flake burns in from its ragged edge; a glowing line, a charred band, then nothing
     let life = i.col.y;
-    let cu = i.uv * 3.0 + vec2f(noise3(vec3f(i.uv * 5.0, i.col.x * 7.0)), noise3(vec3f(i.uv * 5.0 + 3.1, i.col.x * 7.0))) * 0.7;
-    let cell = floor(cu); let fr = fract(cu);
-    let crack = min(min(fr.x, 1.0 - fr.x), min(fr.y, 1.0 - fr.y));
-    let shardT = fract(sin(dot(cell + vec2f(i.col.x * 31.0), vec2f(12.9898, 78.233))) * 43758.5453);
-    let crumble = smoothstep(0.25, 0.95, life);
-    if (crack < crumble * 0.16) { discard; }
-    if (crumble > 0.15 + shardT * 0.7) { discard; }
-    if (noise3(vec3f(i.uv * 14.0, i.col.x * 11.0)) < crumble * 0.9 - 0.15) { discard; }
+    let inner = 1.0 - edge + (noise3(vec3f(i.uv * 11.0, i.col.x * 13.0)) - 0.5) * 0.35;   // 1 at the middle, 0 at the rim
+    let cut = smoothstep(0.05, 0.95, life) * 1.15 - 0.1;
+    let past = inner - cut;
+    if (past < 0.0) { discard; }
+    let glow = 1.0 - smoothstep(0.0, 0.06, past);
+    let charB = 1.0 - smoothstep(0.04, 0.22, past);
     let a = (1.0 - smoothstep(0.62, 0.8, edge)) * i.col.z * O.tint.a;
     if (a < 0.01) { discard; }
     let rustN = noise3(vec3f(i.uv * 9.0, i.col.x * 5.0));
     let rustAmt = clamp(0.25 + i.col.y * 1.8 + smoothstep(0.25, 0.7, edge) * 0.9 + (rustN - 0.5) * 0.5, 0.0, 1.0);
     let rust = mix(vec3f(0.36, 0.14, 0.05), vec3f(0.12, 0.05, 0.03), rustN);
-    var col = mix(paper, rust, rustAmt);
-    col = col * (0.12 + 0.18 * G.bulbPos.w / 4.0 + G.ambient.r * 4.0) * (1.0 - 0.55 * i.col.y);
-    col += vec3f(0.9, 0.28, 0.05) * smoothstep(0.55, 0.78, edge) * (1.0 - smoothstep(0.0, 0.35, i.col.y)) * 0.6;   // a thin glowing rim just as it lets go
+    var col = mix(paper, rust, rustAmt * 0.6);
+    col = col * (0.12 + 0.18 * G.bulbPos.w / 4.0 + G.ambient.r * 4.0);
+    col = mix(col, vec3f(0.015, 0.01, 0.008), charB * 0.9);
+    col += vec3f(1.0, 0.35, 0.06) * glow * (1.6 + 0.8 * noise3(vec3f(i.uv * 20.0, G.camPos.w * 3.0)));
     return vec4f(fog(col, i.wp), a);
   }
   var ember = 0.0;
@@ -283,6 +293,7 @@ const LIT = SHARED + /* wgsl */`
     let rim = 1.0 - abs(dm * 2.0 - 1.0);           // water-stain edge where rot meets clean paper
     t = mix(t2, t, dm);
     let burn = burnBand(i.wp);
+    let chg = select(0.0, changeAt(i.wp), burn > 0.0);   // does this spot actually turn in this shift?
     // while the front passes, the edge between the two worlds chars and glows like burning paper
     t = vec4f(t.rgb * (1.0 - 0.45 * rim * step(0.02, roomDecay(i.wp))), t.a);   // (the flaking itself is real geometry now)
     // deep in the other world the paper is gone: rusted metal, dark drips running down
@@ -293,8 +304,9 @@ const LIT = SHARED + /* wgsl */`
     let metal = mix(vec3f(0.2, 0.07, 0.03), vec3f(0.46, 0.2, 0.07), rn) * (1.0 - 0.7 * drip) + vec3f(0.1, 0.0, 0.0) * drip * rn;
     t = vec4f(mix(t.rgb, metal, ow * 0.85), t.a);
     let rustC = mix(vec3f(0.34, 0.13, 0.05), vec3f(0.14, 0.06, 0.03), noise3(i.wp * 14.0));
-    t = vec4f(mix(t.rgb, rustC, clamp(burn * (0.4 + rim * 0.8), 0.0, 0.85)), t.a);   // rust creeping just behind the front
-    ember = rim * rim * rim * burn * (0.5 + 0.5 * noise3(i.wp * 9.0 + vec3f(0.0, G.camPos.w * 0.8, 0.0)));
+    t = vec4f(mix(t.rgb, rustC, clamp(burn * chg * (0.3 + rim * 0.6), 0.0, 0.7)), t.a);
+    ember = rim * burn * chg * (0.6 + 0.4 * noise3(i.wp * 9.0 + vec3f(0.0, G.camPos.w * 1.5, 0.0))) * 2.2;   // the burning line, only where it turns
+    t = vec4f(t.rgb * (1.0 - 0.8 * burn * chg * smoothstep(0.2, 0.6, dm)), t.a);                          // charred just behind it
   }
   // things that form out of the ash: burn in from the floor up with a glowing edge
   var formEdge = 0.0;
