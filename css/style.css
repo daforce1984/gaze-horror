@@ -286,3 +286,14 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
 #lids.open .bot { transform: translateY(105%); }
 #lids.half .top { transform: translateY(-55%); }
 #lids.half .bot { transform: translateY(55%); }
+
+/* hotbar: flashlight and remote, either side of the turn-around button at the bottom centre */
+#hotbar { position: absolute; left: 50%; bottom: calc(22px + var(--safe-b)); transform: translateX(-50%); display: flex; align-items: center; gap: 10px; z-index: 5; }
+#hotbar .gap { width: 92px; }
+#hotbar .slot { width: 64px; height: 64px; border-radius: 14px; border: 1px solid rgba(230,220,200,.28); background: rgba(10,10,12,.55); color: #e9e1d2;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font: inherit; backdrop-filter: blur(4px); }
+#hotbar .slot b { font-size: 24px; line-height: 1; }
+#hotbar .slot small { font-size: 11px; color: #cfc6b6; }
+#hotbar .slot.on { border-color: #ffd48a; box-shadow: 0 0 14px rgba(255,210,140,.5); }
+#hotbar .slot.on small { color: #ffe2a8; }
+#hud.choosing #hotbar { display: none; }

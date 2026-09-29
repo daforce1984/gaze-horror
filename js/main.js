@@ -41,7 +41,7 @@ const CCTV = { pos: [1.95, 2.42, 2.28], target: [-0.05, 0.3, -0.35], tanHalf: 0.
 const $ = (s) => document.querySelector(s);
 const ui = {
   title: $('#title'), start: $('#startBtn'), load: $('#loadText'), hud: $('#hud'), sub: $('#subtitle'),
-  action: $('#actionBtn'), zoom: $('#zoomBtn'), memoBtn: $('#memoBtn'), pauseBtn: $('#pauseBtn'), gyroBtn: $('#gyroBtn'), torchBtn: $('#torchBtn'),
+  action: $('#actionBtn'), zoom: $('#zoomBtn'), memoBtn: $('#memoBtn'), pauseBtn: $('#pauseBtn'), gyroBtn: $('#gyroBtn'), torchBtn: $('#torchBtn'), remoteBtn: $('#remoteBtn'),
   ring: $('#revealRing'), ringArc: $('#revealArc'), cross: $('#cross'), fear: $('#fearFill'), warm: $('#warmFill'),
   modal: $('#modal'), card: $('#modalCard'), scare: $('#scare'), ending: $('#ending'), fade: $('#fade'),
   nogpu: $('#nogpu'), canvas: $('#gl'), objective: $('#objective'), halluc: $('#halluc'), hint: $('#hint'), tray: $('#tray'),
@@ -419,6 +419,10 @@ let hsToken = 0;
 function hsAfter(sec, fn) { const tok = hsToken; after(sec, () => { if (tok === hsToken) fn(); }); }
 // one subtitle channel during the chapter: the newest line replaces the old one
 function hsSay(text, dur) { sayNow(text, dur); }
+function hsAfterVoice(fn, pad = 0.35) {   // run fn once she has finished her line
+  const tok = hsToken, wait = () => { if (tok !== hsToken) return; if ((snd.voices || []).length) after(0.1, wait); else after(pad, () => { if (tok === hsToken) fn(); }); };
+  after(0.2, wait);
+}
 function hsNewBeat() { hsToken++; snd.stopVoices(); subQueue = []; }
 // the girl's extra lines (subtitle = spoken words); `quiet` skips it while another line is playing
 const LINES = {
@@ -569,12 +573,12 @@ function hsFound() {
   voice(fl[0], h.c, 2.2); hsSay(`“${fl[1]}”`, 2.4);
   if (HS.round === 1) {   // the reward floats to your lap while you can still look around
     hsAfter(0.9, () => { S.job = { w: W.remote, t: 0, phase: 'lift', carry: false, from: W.remote.c.slice(), pos: W.remote.c.slice(), spin: 0, free: true }; });
-    hsAfter(2.4, () => anStart(1));
+    hsAfterVoice(() => anStart(1));
   } else if (HS.round === 2) {   // one-line story fragment, 3 seconds
     hsAfter(1.6, () => { S.tape = Math.max(S.tape, 1); hsSay('📼 …책상 위 자동응답기에 빨간 불이 켜졌다. “수아야~ 엄마야…”', 3); snd.play('beep', [1.81, 0.8, 0.12]); });
     hsAfter(3.6, () => hsRound(3));
   } else if (HS.round === 3) {
-    hsAfter(2.0, () => anStart(2));
+    hsAfterVoice(() => anStart(2));
   } else if (HS.round === 4) {
     hsAfter(2.0, () => anStart(3));
   }
@@ -826,7 +830,7 @@ function clothUpdate(dt, time) {
 const clothPoke = (z, y, s) => { for (const c of CLOTH) if (z >= c.cl.z0 - 0.1 && z <= c.cl.z1 + 0.1) c.pokes.push({ z, y, s }); };
 // the twenty 1999 things: not in the modern studio; each forms in when the fire reaches it (level)
 const LATE = [['p_crate', 0.25], ['p_boombox', 0.25], ['p_phone', 0.25], ['p_sidetable', 0.25], ['p_mclock', 0.25], ['p_candle', 0.6],
-  ['p_camera', 0.25], ['p_chalk', 0.25], ['p_stool', 0.25], ['p_oillamp', 0.6], ['p_alarm', 0.25], ['p_basket2', 0.5], ['p_bowl', 0.6],
+  ['p_camera', 0.25], ['p_chalk', 0.25], ['p_stool', 0.25], ['p_alarm', 0.25], ['p_basket2', 0.5], ['p_bowl', 0.6],
   ['p_teaset', 0.25], ['p_frame2', 0.25], ['p_books', 0.5], ['p_flashlight', 0.9], ['p_sungka', 0.6], ['p_watch', 0.25],
   // the child's things were never in her studio: they come with the other world
   ['deco_teddy', 0.2], ['deco_backpack', 0.2], ['deco_shoes', 0.2], ['deco_musicbox', 0.2], ['item_doll', 0.2], ['deco_duck', 0.3], ['deco_basket', 0.3], ['deco_cake', 0.3]];
@@ -834,6 +838,7 @@ function setupLate() {
   for (const [n, at] of LATE) { const l = O.nodes[n] || []; if (!l.length) continue; for (const o of l) o.visible = false; const b = l[0].base;
     MODERN.push({ mod: [], old: l, pos: [b[12], b[13], b[14]], oldNames: [n], modern: true, at }); }
   for (const o of O.nodes.p_rat || []) o.visible = false;   // only there while it is an anomaly
+  for (const o of O.nodes.p_oillamp || []) o.visible = false;   // (removed)
   for (const o of [O.drawingObj, O.noteObj].filter(Boolean)) {   // the child's drawing and note come with the other world too
     o.visible = false; MODERN.push({ mod: [], old: [o], pos: [o.model[12], o.model[13], o.model[14]], oldNames: [], modern: true, at: 0.2 });
   }
@@ -845,7 +850,10 @@ function modernUpdate() {
     if (turned && p.modern) { p.modern = false; formOut(p.mod); formIn(p.old); }
     else if (!turned && !p.modern) { p.modern = true; for (const x of p.old) x.visible = false; for (const x of p.mod) { x.visible = true; x.extra[2] = 0; } }
   }
-  if (isModern('tv_screen')) { O.screen.visible = false; O.cctvScreen.visible = false; O.tvHalo.tint[3] = 0; }
+  if (isModern('tv_screen')) {
+    O.screen.visible = false; O.cctvScreen.visible = false; O.tvHalo.tint[3] = S.tv.on ? 0.08 : 0;
+    const panel = (O.nodes.mod_tv || [])[0]; if (panel) panel.emissive = S.tv.on ? [0.25 + Math.random() * 0.05, 0.3, 0.42, 0] : [0, 0, 0, 0];
+  }
 }
 
 // ================================================================ 이상현상 (the room turns wrong)
@@ -858,19 +866,17 @@ const ANOM = {
   doll: { node: 'item_doll', name: '인형', sfx: 'bang', cue: '…등 뒤에서, 작은 발소리.', to: [-0.7, 0, 2.2], verb: '안 볼 때마다 다가와요. 눌러서 돌려놔요' },   // climbs down, grows, and stands behind you (clear of the chair back) facing you
   frame: { node: 'item_frame', name: '가족사진', sfx: 'creak', cue: '…액자가 삐걱삐걱 흔들리는 소리.', loopSfx: 3.5, verb: '흔들림이 한가운데를 지날 때 잡아요' },
   cushion: { node: 'cushion', name: '방석', sfx: 'whisper', cue: '…누가 속삭인다.', lift: 1.0, verb: '도망치는 방석을 한 번 더 잡아요' },
-  lamp: { node: 'lamp', name: '전등', sfx: 'whisper', cue: '…방 안이 붉게 물들었다. 천장의 전등.', verb: '빨간 빛을 확대해서 가만히 바라봐요' },   // the ceiling light turns deep red
+  lamp: { node: 'lamp', name: '전등', sfx: 'whisper', cue: '…방 안이 붉게 물들었다. 천장의 전등.' },   // the ceiling light turns deep red
   curtain: { name: '커튼', sfx: 'giggle', cue: '…커튼 쪽에서 킥킥.', ghost: true },
   boombox: { node: 'p_boombox', name: '라디오', sfx: 'static', cue: '…어디선가 동요가 흘러나온다.', kind: 'shake', loop: 'song' },
   phone: { node: 'p_phone', name: '전화기', sfx: 'click', cue: '…전화벨이 울린다.', kind: 'shake', loop: 'ring', answer: 'amb1' },
   alarm: { node: 'p_alarm', name: '자명종', sfx: 'click', cue: '…삑삑삑삑, 자명종 소리.', kind: 'shake', loop: 'alarm' },
   mclock: { node: 'p_mclock', name: '탁상시계', sfx: 'tick', cue: '…시계가 미친 듯이 째깍거린다.', kind: 'shake', loop: 'tick' },
-  camera: { node: 'p_camera', name: '캠코더', sfx: 'click', cue: '…삐빅. 무언가 나를 찍고 있다.', kind: 'face', glow: [2.5, 0.1, 0.05] },
-  teddy: { node: 'deco_teddy', name: '곰인형', sfx: 'creak', cue: '…곰인형이 이쪽을 보고 있다.', kind: 'face' },
+  teddy: { node: 'deco_teddy', name: '곰인형', sfx: 'crack', cue: '…곰인형이 이쪽을 보고 있다.', kind: 'face' },
   stool: { node: 'p_stool', name: '의자', sfx: 'creak', cue: '…등 뒤에서 나무 의자 끄는 소리.', kind: 'move', to: [0.45, 0, 1.0] },
   shoes: { node: 'deco_shoes', name: '빨간 구두', sfx: 'steps', cue: '…또각, 또각. 작은 발소리.', kind: 'move', to: [0.3, 0, 0.8] },
   chalk: { node: 'p_chalk', name: '칠판', sfx: 'bang', cue: '…쿵, 무언가 넘어지는 소리.', kind: 'flip' },
   frame2: { node: 'p_frame2', name: '그림', sfx: 'creak', cue: '…벽에서 삐걱.', kind: 'flip' },
-  oillamp: { node: 'p_oillamp', name: '석유등', sfx: 'whisper', cue: '…어디선가 붉은 불빛.', kind: 'glow', glow: [3.0, 0.25, 0.05] },
   rat: { node: 'p_rat', name: '쥐', sfx: 'steps', cue: '…사각사각, 바닥을 긁는 소리.', kind: 'rat', hidden: true },
   crawl: { name: '기어오는 아이', sfx: 'steps', cue: '…바닥을 긁으며 기어오는 소리.', ghost: true },
 };
@@ -908,7 +914,7 @@ function anStart(phase) {
   AN.on = true; AN.phase = phase; AN.fixed = 0; AN.act = {}; AN.danger = 0; AN.lock = 0;
   AN.used = new Set(); AN.everUsed = AN.everUsed || new Set();
   const left = Object.keys(ANOM).filter(k => !AN.everUsed.has(k) && (k !== 'crawl' || phase >= 2)).length;
-  AN.goal = Math.min([0, 5, 7, 8][phase], left);
+  AN.goal = Math.min([0, 5, 6, 7][phase], left);   // 18 puzzles, each once
   AN.baseDim = phase === 3 ? 0.72 : 0; AN.streak = 0; AN.crawlShown = AN.crawlShown || false;
   HS.phase = 'anom'; HS.spot = null; S.ghost = null;
   ui.hud.classList.add('turnon');
@@ -1022,8 +1028,8 @@ function anEnd() {
   AN.on = false; AN.act = {}; hsTip(''); anHud(); $('#anMark').className = '';
   log('anom_end', { phase: AN.phase, fails: AN.fails, t: +S.time.toFixed(1) });
   voice('an_done', null, 2.0); hsSay('“와~ 다 찾았다! 엄마 최고!”', 2.4);
-  if (AN.phase === 1) hsAfter(2.6, () => { voice('hs_again', null, 2.0); hsSay('“이번엔 진짜 숨을게. 못 찾을걸?”', 2.2); hsAfter(1.6, () => hsRound(3)); });
-  else if (AN.phase === 2) hsAfter(2.6, () => { voice('hs_under', null, 2.0); hsSay('“이번엔… 진짜 못 찾을걸.”', 2.4); hsAfter(2.4, () => hsRound(4)); });
+  if (AN.phase === 1) hsAfterVoice(() => { voice('hs_again', null, 2.0); hsSay('“이번엔 진짜 숨을게. 못 찾을걸?”', 2.2); hsAfterVoice(() => hsRound(3)); });
+  else if (AN.phase === 2) hsAfterVoice(() => { voice('hs_under', null, 2.0); hsSay('“이번엔… 진짜 못 찾을걸.”', 2.4); hsAfterVoice(() => hsRound(4)); });
   else hsAfter(2.8, () => { S.lampDim = 0; hsStory(); });
 }
 function anTouch(k) {
@@ -1038,7 +1044,6 @@ function anTouch(k) {
     s.to = spots.length ? pick(spots) : [1.2, 0.9, 1.6];
     snd.play('giggle', c); line('an_spawn1', c, { quiet: false }); hsTip('<b>방석</b>이 도망갔다! 다시 찾아 눌러요'); log('verb_step', { k }); return;
   }
-  if (k === 'lamp') { hsTip('빨간 <b>전등</b>을 확대해서 가만히 바라봐요'); log('verb_hint', { k }); return; }
   if (k === 'tv' && !s.stage) {   // the set switches to the corner camera: someone stands behind your chair
     s.stage = 1; s.stageT = 0; S.tv.ch = 7; tvScreen.osd = 2; snd.play('static', O.tvCenter); S.glitch = 0.7;
     S.ghost = { p: [0.05, 0, 1.0], kind: 'stand', alpha: 0, target: 1, mode: 'cctv', camOnly: true };
@@ -1094,7 +1099,7 @@ function anUpdate(dt) {
   }
   anHint();
   // lamp: stare it down (zoomed in, centred) until the red goes out
-  if (AN.act.lamp) {
+  if (false && AN.act.lamp) {
     const s = AN.act.lamp, lc = [0, 2.5, -0.6], v = inView(lc, 0.9);
     s.stare = v.centered && S.zoom > 1.5 ? (s.stare || 0) + dt : Math.max(0, (s.stare || 0) - dt * 0.5);
     AN.ring = s.stare / 1.5;
@@ -1129,15 +1134,14 @@ function anUpdate(dt) {
   const cr = AN.act.crawl;
   if (cr && S.ghost?.mode === 'crawl') {
     const head = [cr.p[0], 0.4, cr.p[2]], seen = inView(head, 0.9).visible;
-    cr.stepT += dt;
     const to = v3.sub([EYE[0], 0, EYE[2]], cr.p); to[1] = 0; const dist = v3.len(to);
-    if (!seen && cr.stepT > 1.2) {
-      cr.stepT = 0;
+    S.ghost.frozen = seen;   // the crawl animation stops while you watch her
+    if (!seen && !cr.teach0) {   // she crawls, continuously, while you are not looking
       if (dist < 0.8) { anFail('crawl'); return; }
-      const step = v3.scale(v3.norm(to), Math.min(0.2, dist - 0.7));
-      cr.p[0] += step[0]; cr.p[2] += step[2];
-      snd.play('steps', [cr.p[0], 0.1, cr.p[2]]);
-      if (dist < 1.4) { S.fear = Math.max(S.fear, 0.5); if (!cr.spoke) { cr.spoke = true; line('crawl_near', [cr.p[0], 0.4, cr.p[2]], { quiet: false }); } else hsSay('…바로 뒤에서, 숨소리.', 1.6); }
+      const sp = 0.32 * dt;
+      cr.p[0] += to[0] / dist * sp; cr.p[2] += to[2] / dist * sp;
+      cr.stepT += dt; if (cr.stepT > 0.55) { cr.stepT = 0; snd.play('steps', [cr.p[0], 0.05, cr.p[2]]); }
+      if (dist < 1.4 && !cr.spoke) { cr.spoke = true; S.fear = Math.max(S.fear, 0.5); line('crawl_near', [cr.p[0], 0.4, cr.p[2]], { quiet: false }); }
     }
     if (seen) S.ghost.twitch = Math.max(S.ghost.twitch || 0, 0.3);
   }
@@ -1984,6 +1988,7 @@ function setupInput() {
   $('#chStay').addEventListener('click', hsStay);
   ui.memoBtn.addEventListener('click', () => { if (S.started && !ui.modal.classList.contains('show')) openMemo(); });
   ui.torchBtn.addEventListener('click', () => { if (S.started) setTorch(!TORCH.on); });
+  ui.remoteBtn.addEventListener('click', () => { if (S.started) { togglePad(); snd.play('beep', LAP()); ui.remoteBtn.classList.toggle('on', ui.pad.classList.contains('show')); } });
   ui.pauseBtn.addEventListener('click', () => { if (S.started && !ui.modal.classList.contains('show')) openPause(); });
 
   const keys = new Set();
@@ -2371,9 +2376,9 @@ function frame(dt) {
     if (sk.node?.skin && O.ghostRig) {
       if (sk !== O.skinCrouch) {
         if (sk.clip === 'twitch' && sk.t > 1.0) { sk.clip = 'idle'; sk.t = 0; }
-        if (sk.clip === 'idle' && (g.twitch > 0.5 || Math.random() < dt * 0.12)) { sk.clip = 'twitch'; sk.t = 0; }
+        if (sk.clip === 'idle' && (g.twitch > 0.5 || Math.random() < dt * 0.12)) { sk.clip = 'twitch'; sk.t = 0; if (g.alpha > 0.3 && !g.camOnly) snd.play('crack', [g.p[0], 1.2, g.p[2]]); }
       }
-      sk.t += dt * (g.mode === 'crawl' ? 1.3 : 1);
+      if (!g.frozen) sk.t += dt * (g.mode === 'crawl' ? 1.1 : 1);
       skinMatrices(O.ghostRig, sk.node, sk.clip, sk.t, sk.buf);
       for (const o of list) o.joints = sk.buf;
     }

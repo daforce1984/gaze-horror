@@ -468,6 +468,12 @@ export class Sound {
         const g = ctx.createGain(); this.env(g, t + i * 0.7, 0.01, 0.12, 2.2); o.connect(g).connect(dest); o.start(t + i * 0.7); o.stop(t + i * 0.7 + 2.4);
       } break;
       case 'tick': this.noiseHit(t, { freq: 4200, q: 8, v: 0.25, d: 0.02, dest }); break;
+      case 'crack': {   // a neck turning too far: a quick run of small bone cracks and a dull pop
+        const n = 4 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < n; i++) this.noiseHit(t + i * (0.018 + Math.random() * 0.03), { freq: 1800 + Math.random() * 2600, q: 5, v: 0.9, a: 0.001, d: 0.02, dest });
+        this.noiseHit(t + 0.02, { freq: 260, q: 3, v: 0.8, a: 0.002, d: 0.06, dest });
+        break;
+      }
       case 'steps': for (let i = 0; i < 4; i++) this.noiseHit(t + i * 0.55, { freq: 160, q: 1.5, v: 0.8, d: 0.15, dest }); break;
       case 'giggle': for (let i = 0; i < 5; i++) {
         const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(700 + i * 20, t + i * 0.13); o.frequency.exponentialRampToValueAtTime(520, t + i * 0.13 + 0.1);
