@@ -163,7 +163,15 @@ fn noise3(p: vec3f) -> f32 {
   return mix(a, b, u.z);
 }
 // how rotten this spot of the room is (0 clean .. 1 rotten); stains creep out of corners, floor and ceiling
-fn frontDist(p: vec3f) -> f32 { return length(p - G.shift.xyz) + (noise3(p * 2.3) - 0.5) * 0.9; }
+// how far the fire has to travel to reach p: it climbs fast, creeps down slowly, and licks ahead in fingers
+fn frontDist(p: vec3f) -> f32 {
+  let d = p - G.shift.xyz;
+  let dv = select(d.y * 1.9, d.y * 0.45, d.y > 0.0);
+  let dist = length(vec3f(d.x, dv, d.z));
+  let w = p * 0.9 + vec3f(noise3(p * 0.7), noise3(p * 0.7 + vec3f(3.1)), noise3(p * 0.7 + vec3f(7.3))) * 1.6;
+  let f = noise3(w * 1.3) * 0.7 + noise3(w * 3.1) * 0.3;
+  return dist * (0.72 + 0.56 * f) + (f - 0.5) * 1.3 + (noise3(p * 9.0) - 0.5) * 0.25;
+}
 fn roomDecay(p: vec3f) -> f32 {
   if (G.shift.w > 50.0) { return G.shift2.y; }   // no change rolling through the room right now
   let passed = 1.0 - smoothstep(G.shift.w - 0.5, G.shift.w, frontDist(p));

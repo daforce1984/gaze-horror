@@ -708,7 +708,7 @@ function startShift(to) {
   // it starts in front of you, so you watch it come
   let o = v3.add(EYE, v3.scale(flatFwd(), 2.4)); o = [clamp(o[0], -2.1, 2.1), 1.3, clamp(o[2], -2.4, 2.4)];
   if (S.ghost && S.ghost.alpha > 0.3 && !S.ghost.camOnly) o = [S.ghost.p[0], 1.1, S.ghost.p[2]];
-  Object.assign(SHIFT, { on: true, o, r: 0, from, to, big, t: 0, speed: big ? 0.8 : 0.55, burn: 0, cr: 0 });
+  Object.assign(SHIFT, { on: true, o, r: 0, from, to, big, t: 0, speed: big ? 1.0 : 0.7, burn: 0, cr: 0 });
   log('shift', { from: +from.toFixed(2), to: +to.toFixed(2), big });
   if (big) { snd.play('siren'); snd.duck(0.35, 7); after(1.2, () => line('shift_start', null, { quiet: false })); }
   snd.play('crackle', o);
@@ -720,18 +720,33 @@ function shiftUpdate(dt) {
   }
   SHIFT.t += dt;
   SHIFT.r += SHIFT.speed * dt * (SHIFT.big && SHIFT.t < 2.5 ? 0.2 : 1);   // the siren first, then it comes
-  SHIFT.burn = Math.min(1, SHIFT.t / 1.2) * (SHIFT.big ? 1 : 0.6) * (1 - smooth(6.2, 7.5, SHIFT.r));
-  S.decay = lerp(SHIFT.from, SHIFT.to, clamp(SHIFT.r / 6.5, 0, 1));
+  SHIFT.burn = Math.min(1, SHIFT.t / 1.2) * (SHIFT.big ? 1 : 0.6) * (1 - smooth(8.2, 9.5, SHIFT.r));
+  S.decay = lerp(SHIFT.from, SHIFT.to, clamp(SHIFT.r / 8.5, 0, 1));
   // the crackle follows the front
   SHIFT.cr -= dt;
-  if (SHIFT.cr <= 0 && SHIFT.r < 6.5) {
+  if (SHIFT.cr <= 0 && SHIFT.r < 8.5) {
     SHIFT.cr = rnd(1.4, 2.6);
     const d = v3.norm(v3.sub(EYE, SHIFT.o)), q = v3.add(SHIFT.o, v3.scale(d, Math.min(SHIFT.r, v3.len(v3.sub(EYE, SHIFT.o)) - 0.3)));
     snd.play('crackle', q);
   }
-  if (SHIFT.r > 7.5) { SHIFT.on = false; S.decay = SHIFT.to; log('shift_end', {}); }
+  if (SHIFT.r > 9.5) { SHIFT.on = false; S.decay = SHIFT.to; log('shift_end', {}); }
 }
-function levelAt(p) { return !SHIFT.on ? S.decay : v3.len(v3.sub(p, SHIFT.o)) < SHIFT.r ? SHIFT.to : SHIFT.from; }
+// same fire front as the shader (frontDist in gpu.js), so furniture and trash catch when the walls round them do
+const _h31 = (x, y, z) => { const v = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return v - Math.floor(v); };
+function noise3(x, y, z) {
+  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z), fx = x - ix, fy = y - iy, fz = z - iz;
+  const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy), uz = fz * fz * (3 - 2 * fz), L = (a, b, t) => a + (b - a) * t;
+  const c = (dx, dy, dz) => _h31(ix + dx, iy + dy, iz + dz);
+  return L(L(L(c(0, 0, 0), c(1, 0, 0), ux), L(c(0, 1, 0), c(1, 1, 0), ux), uy), L(L(c(0, 0, 1), c(1, 0, 1), ux), L(c(0, 1, 1), c(1, 1, 1), ux), uy), uz);
+}
+function frontDist(p) {
+  const d = v3.sub(p, SHIFT.o), dv = d[1] > 0 ? d[1] * 0.45 : d[1] * 1.9, dist = Math.hypot(d[0], dv, d[2]);
+  const n = (q, s, o = 0) => noise3(q[0] * s + o, q[1] * s + o, q[2] * s + o);
+  const w = [p[0] * 0.9 + n(p, 0.7) * 1.6, p[1] * 0.9 + n(p, 0.7, 3.1) * 1.6, p[2] * 0.9 + n(p, 0.7, 7.3) * 1.6];
+  const f = n(w, 1.3) * 0.7 + n(w, 3.1) * 0.3;
+  return dist * (0.72 + 0.56 * f) + (f - 0.5) * 1.3 + (n(p, 9) - 0.5) * 0.25;
+}
+function levelAt(p) { return !SHIFT.on ? S.decay : frontDist(p) < SHIFT.r ? SHIFT.to : SHIFT.from; }
 const FORMING = new Set(), FADING = new Set();
 function formIn(list) { for (const o of list) { FADING.delete(o); o.visible = true; o.extra[2] = 0.001; FORMING.add(o); } }
 function formOut(list) { for (const o of list) { FORMING.delete(o); if (!o.visible) continue; o.extra[2] = 0.999; FADING.add(o); } }
