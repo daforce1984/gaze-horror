@@ -589,6 +589,7 @@ def build_room():
     add_kid_things()   # teddy, backpack, shoes, music box
     add_modern()       # the white modern studio the game starts in
     add_props2()       # twenty more 1999 things
+    add_young_woman()  # the modern studio's own things
     ph_cleanup()
 
 
@@ -1142,7 +1143,7 @@ def bake_ao():
     trash = [o for o in meshes if o.name.startswith('trash_')]
     # scanned Poly Haven props bring their own occlusion map: don't darken them twice (they still occlude others)
     own_ao = [o for o in meshes if o not in trash and 'ph' in o and not str(o['ph']).startswith('hy_')]
-    modern = [o for o in meshes if o.name.startswith('mod_')]
+    modern = [o for o in meshes if o.name.startswith(('mod_', 'yw_')) and not ('ph' in o and not str(o['ph']).startswith('hy_'))]   # scanned ones keep their own AO
     OLD = ('tv', 'tv_cabinet', 'tv_screen', 'lowtable', 'bookshelf', 'desk', 'drawer', 'drawer_lock', 'desk_clutter',
            'answering_machine', 'am_led', 'deco_desklamp', 'deco_pencils', 'deco_suitcase')
     # things that are not always in the room (1999 pieces, the twenty late props): they must not darken the shell
@@ -1152,7 +1153,8 @@ def bake_ao():
             o.data.color_attributes.remove(o.data.color_attributes['AO'])
     # the 1999 room, its trash, and the modern studio are never there at the same time: bake each on its own
     late = [o for o in vintage if o not in own_ao]
-    for group, hide in ((rest, trash + modern + vintage), (late, trash + modern), (trash, modern), (modern, trash + vintage)):   # own_ao props stay visible as occluders
+    ywph = [o for o in own_ao if o.name.startswith('yw_')]   # her scanned things: they come and go, so they must not shade the shell
+    for group, hide in ((rest, trash + modern + vintage + ywph), (late, trash + modern + ywph), (trash, modern + ywph), (modern, trash + vintage)):   # own_ao props stay visible as occluders
         if not group:
             continue
         for o in hide:

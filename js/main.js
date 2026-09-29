@@ -784,6 +784,8 @@ function setupModern() {
   pair(['mod_shelf'], ['bookshelf']);
   pair(['mod_desk', 'mod_laptop', 'mod_speaker'], ['desk', 'drawer', 'drawer_lock', 'desk_clutter', 'answering_machine', 'am_led', 'deco_desklamp', 'deco_pencils']);
   pair([], ['deco_suitcase']);
+  // her own things in the modern studio: each goes when the fire reaches it
+  for (const n of Object.keys(O.nodes).filter(n => n.startsWith('yw_'))) pair([n], []);
   for (const x of N('deco_suitcase')) x.visible = false;
   MODERN.push({ mod: [], old: N('deco_suitcase'), pos: [1.95, 0.3, 1.35], oldNames: ['deco_suitcase'], modern: true });
 }
@@ -819,11 +821,16 @@ const clothPoke = (z, y, s) => { for (const c of CLOTH) if (z >= c.cl.z0 - 0.1 &
 // the twenty 1999 things: not in the modern studio; each forms in when the fire reaches it (level)
 const LATE = [['p_crate', 0.25], ['p_boombox', 0.25], ['p_phone', 0.25], ['p_sidetable', 0.25], ['p_mclock', 0.25], ['p_candle', 0.6],
   ['p_camera', 0.25], ['p_chalk', 0.25], ['p_stool', 0.25], ['p_oillamp', 0.6], ['p_alarm', 0.25], ['p_basket2', 0.5], ['p_bowl', 0.6],
-  ['p_teaset', 0.25], ['p_frame2', 0.25], ['p_books', 0.5], ['p_flashlight', 0.9], ['p_sungka', 0.6], ['p_watch', 0.25]];
+  ['p_teaset', 0.25], ['p_frame2', 0.25], ['p_books', 0.5], ['p_flashlight', 0.9], ['p_sungka', 0.6], ['p_watch', 0.25],
+  // the child's things were never in her studio: they come with the other world
+  ['deco_teddy', 0.2], ['deco_backpack', 0.2], ['deco_shoes', 0.2], ['deco_musicbox', 0.2], ['item_doll', 0.2], ['deco_duck', 0.3], ['deco_basket', 0.3], ['deco_cake', 0.3]];
 function setupLate() {
   for (const [n, at] of LATE) { const l = O.nodes[n] || []; if (!l.length) continue; for (const o of l) o.visible = false; const b = l[0].base;
     MODERN.push({ mod: [], old: l, pos: [b[12], b[13], b[14]], oldNames: [n], modern: true, at }); }
   for (const o of O.nodes.p_rat || []) o.visible = false;   // only there while it is an anomaly
+  for (const o of [O.drawingObj, O.noteObj].filter(Boolean)) {   // the child's drawing and note come with the other world too
+    o.visible = false; MODERN.push({ mod: [], old: [o], pos: [o.model[12], o.model[13], o.model[14]], oldNames: [], modern: true, at: 0.2 });
+  }
 }
 const isModern = (node) => MODERN.some(p => p.modern && p.oldNames.includes(node));
 function modernUpdate() {

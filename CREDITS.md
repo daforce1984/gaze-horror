@@ -65,3 +65,8 @@ wool_boucle (rug) — the clean layer the room starts from, before it rots into 
 boombox, wooden_crate_01, vintage_telephone_wall_clock, vintage_video_camera, side_table_01, street_rat, standing_chalkboard_01,
 mantel_clock_01, wooden_stool_01, vintage_oil_lamp, alarm_clock_01, wicker_basket_02, wooden_bowl_01, tea_set_01,
 hanging_picture_frame_02, book_encyclopedia_set_01, wooden_candlestick, vintage_flashlight, sungka_board, vintage_pocket_watch.
+
+### Her studio (the modern room)
+Poly Haven (CC0): modern_arm_chair_01, potted_plant_02, potted_plant_04, ceramic_vase_01, ceramic_vase_03, standing_picture_frame_02.
+Generated: bed, full-length mirror, clothes rail, handbag, skincare tray, floor lamp, monstera, candle + diffuser — Codex product images
+reconstructed with Hunyuan3D 2.1 (ComfyUI), voxel-remeshed and front-projected in blender/props_ph.py.

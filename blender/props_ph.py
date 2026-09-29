@@ -365,6 +365,8 @@ def hy_item(key, name, height, faces=6000, color=None, up='z'):
     bmesh.ops.delete(bm, geom=[f for f in bm.faces if f.index not in keep], context='FACES')
     bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=0.0008)
     bm.to_mesh(ob.data); bm.free()
+    r = ob.modifiers.new('rem', 'REMESH'); r.mode = 'VOXEL'; r.voxel_size = max(ob.dimensions) / 200; r.adaptivity = 0.0   # always remeshed
+    bpy.ops.object.modifier_apply(modifier=r.name)
     for _ in range(4):
         cur = len(ob.data.polygons)
         if cur < faces * 1.15:
@@ -568,3 +570,30 @@ def add_props2():
     put('vintage_flashlight', 'p_flashlight', 1.0, (0.55, 0, -0.1), rotz=1.1, faces=1200)
     put('sungka_board', 'p_sungka', 1.0, (-0.7, 0, 0.35), faces=1500)
     put('vintage_pocket_watch', 'p_watch', 1.0, (-1.15, top('lowtable'), -0.8), rotx=-PI / 2, faces=1000)
+
+
+def add_young_woman():
+    """the modern studio's own things: a young woman living alone. Poly Haven pieces + Hunyuan3D meshes
+    (Codex product images, remeshed, front-projected). The engine dissolves each when the fire reaches it."""
+    def ph(pid, name, sc, pt, rotz=0.0, faces=2500, **kw):
+        ob = ph_import(pid, res=512, faces=faces, **kw); ph_place(ob, sc, pt, rotz=rotz)
+        ob.name = name; ob.data.name = name; item_origin(ob); return ob
+    def hy(key, name, h, pt, rotz=0.0, faces=3000, up='z'):
+        ob = hy_item(key, name, h, faces=faces, up=up)
+        if not ob: return None
+        ph_place(ob, 1.0, pt, rotz=rotz); ob.name = name; ob.data.name = name; item_origin(ob); return ob
+    top = lambda n: ph_bounds(bpy.data.objects[n])[1].z if bpy.data.objects.get(n) else 0.4
+    ph('modern_arm_chair_01', 'yw_armchair', 0.9, (-1.6, 0, 1.05), rotz=PI / 2 - 0.5)
+    ph('potted_plant_02', 'yw_plant', 1.0, (1.45, 0, -2.15), faces=4000)
+    ph('potted_plant_04', 'yw_succulent', 1.0, (-1.55, top('mod_shelf'), 2.33), faces=1500)   # on top of her shelf (the doll comes later)
+    ph('ceramic_vase_01', 'yw_vase1', 0.6, (-0.55, top('mod_tvstand'), -2.25), faces=1500)
+    ph('ceramic_vase_03', 'yw_vase2', 0.6, (-0.42, top('mod_tvstand'), -2.2), faces=1500)
+    ph('standing_picture_frame_02', 'yw_frame', 0.9, (1.95, 0.74 + 0.013, -0.62), rotz=PI + 0.3, faces=1000)
+    hy('mod_bed', 'yw_bed', 0.8, (1.72, 0, 1.45), rotz=-PI / 2, faces=4000)
+    hy('mod_mirror', 'yw_mirror', 1.6, (-2.05, 0, 0.72), rotz=PI / 2, faces=2500)
+    hy('mod_rack', 'yw_rack', 1.45, (-0.35, 0, 2.28), rotz=PI, faces=4000)
+    hy('mod_lamp', 'yw_lamp', 1.5, (-1.5, 0, -2.2), faces=2500)
+    hy('mod_monstera', 'yw_monstera', 0.95, (-1.35, 0, -1.75), faces=4000)
+    hy('mod_skincare', 'yw_skincare', 0.2, (1.95, 0.74 + 0.013, -0.95), rotz=-PI / 2, faces=2500)
+    hy('mod_bag', 'yw_bag', 0.28, (1.35, 0, 0.45), rotz=-PI / 2 + 0.3, faces=2500)
+    hy('mod_candle', 'yw_candle', 0.2, (-0.8, 0.34 + 0.012, -0.95), faces=2000)
