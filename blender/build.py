@@ -536,22 +536,21 @@ def build_room():
     cu = box('cushion', (-1.25, 0.04, 0.2), (0.5, 0.07, 0.5), mat('M_cushion', (0.55, 0.42, 0.25), 0.9), 0.03, cuts=2)
     world_uv(cu, 0.5)
 
-    # ---- the player's chair (seat, legs, back, arms); ropes and the ankle chain are separate nodes
+    # ---- the player's chair: no backrest (seat, four legs, armrests on front and back posts); ropes and chain are separate nodes
     W_ = M['wooddark']
     FX, FZ, BZ = 0.22, 0.16, 0.56        # leg positions (front z, back z)
     ch = [box('seat', (0, 0.4475, 0.36), (0.5, 0.045, 0.48), W_, 0.01, cuts=1)]
     for lx in (-FX, FX):
         ch.append(box('leg_f', (lx, 0.2125, FZ), (0.042, 0.425, 0.042), W_, 0.004))       # under the seat
-        ch.append(box('leg_b', (lx, 0.51, BZ), (0.042, 1.02, 0.042), W_, 0.004))          # back leg continues as back post
+        ch.append(box('leg_b', (lx, 0.2125, BZ), (0.042, 0.425, 0.042), W_, 0.004))       # no back post: the leg stops at the seat
         ch.append(box('rail_s', (lx, 0.12, (FZ + BZ) / 2), (0.026, 0.03, BZ - FZ), W_))   # side stretcher
     ch += [box('rail_f', (0, 0.12, FZ), (2 * FX, 0.03, 0.026), W_), box('rail_b', (0, 0.12, BZ), (2 * FX, 0.03, 0.026), W_),
            box('apron_f', (0, 0.4, FZ), (2 * FX, 0.05, 0.022), W_)]
-    ch += [box('backslat', (0, 0.93, BZ), (2 * FX, 0.14, 0.024), W_, 0.006),
-           box('backslat2', (0, 0.69, BZ), (2 * FX, 0.05, 0.02), W_, 0.004)]
     AX = 0.225
     for sx in (-AX, AX):
-        ch.append(box('armpost', (sx, 0.5575, 0.19), (0.036, 0.175, 0.036), W_))              # stands on the seat
-        ch.append(box('arm', (sx, 0.66, (0.15 + BZ) / 2), (0.056, 0.036, BZ - 0.15 + 0.02), W_, 0.008))  # runs into the back post
+        ch.append(box('armpost', (sx, 0.5575, 0.19), (0.036, 0.175, 0.036), W_))              # front post on the seat
+        ch.append(box('armpost_b', (sx, 0.5575, BZ - 0.03), (0.036, 0.175, 0.036), W_))       # rear post on the seat
+        ch.append(box('arm', (sx, 0.66, (0.15 + BZ) / 2), (0.056, 0.036, BZ - 0.15 + 0.02), W_, 0.008))
     chair = join('chair', ch)
     world_uv(chair, 0.4)
 
