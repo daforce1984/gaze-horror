@@ -158,7 +158,8 @@ def bake(key, res=1024):
     views = [v for v in VIEWS if os.path.exists(os.path.join(MV, f'{key}_{v}_paint.png'))]
     for v in views:
         project_uv(ob, cams[v], size, 'proj_' + v)
-    me.uv_layers.active = atlas
+    atlas = me.uv_layers['UVMap']
+    me.uv_layers.active = atlas; atlas.active_render = True
     # blend material: sum(view colour * facing^p) / sum(facing^p)
     mt = bpy.data.materials.new('M_' + key + '_mv'); mt.use_nodes = True
     nt = mt.node_tree; N = nt.nodes; L = nt.links
@@ -203,6 +204,7 @@ def bake(key, res=1024):
     # final: one material with the baked atlas, one UV set
     for v in views:
         me.uv_layers.remove(me.uv_layers['proj_' + v])
+    me.uv_layers.active = me.uv_layers['UVMap']
     fin = bpy.data.materials.new('M_' + key + '_baked'); fin.use_nodes = True
     bs = fin.node_tree.nodes['Principled BSDF']; ti = fin.node_tree.nodes.new('ShaderNodeTexImage'); ti.image = img
     fin.node_tree.links.new(ti.outputs['Color'], bs.inputs['Base Color']); bs.inputs['Roughness'].default_value = 0.8

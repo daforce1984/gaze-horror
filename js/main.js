@@ -285,7 +285,7 @@ function buildScene() {
   // shares the grid, the ragged cell outline and the wallpaper mapping); when the other world's front
   // reaches a cell that really turns, its flake comes off, chars, is eaten away and rises like burnt paper
   {
-    const CS = 0.12, seeds = [];
+    const CS = 0.06, seeds = [];
     const inDoor = (x, y) => x > 0.2 && x < 1.2 && y < 2.1, inWin = (z, y) => z > -1.2 && z < 0 && y > 0.9 && y < 2.0;
     for (let i = Math.floor(-2.5 / CS); (i + 0.5) * CS < 2.5; i++) for (let j = 0; (j + 0.5) * CS < 2.6; j++) {
       const z = (i + 0.5) * CS, y = (j + 0.5) * CS;
@@ -300,7 +300,7 @@ function buildScene() {
       if (!inDoor(x, y)) seeds.push([[x, y, 2.5], [0, 0, -1]]);
     }
     // each flake is one quad (c.w = 1) plus two crumbs (c.w = 2, 3) it sheds
-    const PER = 3, N = seeds.length * PER, v = new Float32Array(N * 4 * 12), idx = new Uint32Array(N * 6);
+    const PER = 2, N = seeds.length * PER, v = new Float32Array(N * 4 * 12), idx = new Uint32Array(N * 6);
     seeds.forEach(([p, n], k) => {
       for (let d = 0; d < PER; d++) {
         const q = k * PER + d;
@@ -781,7 +781,7 @@ function anHud() {
 function anStart(phase) {
   hsNewBeat();
   AN.on = true; AN.phase = phase; AN.fixed = 0; AN.act = {}; AN.danger = 0; AN.lock = 0;
-  AN.goal = [0, 6, 8, 9][phase];
+  AN.goal = [0, 6, 8, 9][phase]; AN.used = new Set();
   AN.baseDim = phase === 3 ? 0.72 : 0; AN.streak = 0; AN.crawlShown = AN.crawlShown || false;
   HS.phase = 'anom'; HS.spot = null; S.ghost = null;
   ui.hud.classList.add('turnon');
@@ -812,6 +812,7 @@ function anSpawn(k, force = false) {
   if (!force && k !== 'crawl' && inView(anBox(k).c, 1.15).visible) return false;    // never change what you are watching (she picks an unseen corner herself)
   const s = { k: 0, t: 0, seen: false };
   AN.act[k] = s;
+  (AN.used = AN.used || new Set()).add(k);
   if (k === 'tv') { S.tv.on = true; S.tv.ch = 13; snd.play('static', O.tvCenter); S.glitch = 0.5; }
   if (k === 'door') S.doorOpenT = 0.2;
   if (k === 'curtain') S.ghost = { p: HIDE.curtain.ghost.slice(), kind: 'stand', alpha: 1, target: 1, mode: 'anom', clip: 0.3 };
@@ -970,7 +971,9 @@ function anUpdate(dt) {
       return;
     }
     AN.recent = AN.recent || [];
-    const pool = Object.keys(ANOM).filter(k => !AN.act[k] && (k !== 'crawl' || AN.phase >= 2));
+    const all = Object.keys(ANOM).filter(k => !AN.act[k] && (k !== 'crawl' || AN.phase >= 2));
+    const fresh = all.filter(k => !AN.used.has(k));
+    const pool = fresh.length ? fresh : all;   // nothing twice in a night until everything has had its turn
     // things she has not changed for a while first
     const order = pool.sort(() => Math.random() - 0.5).sort((x, y) => AN.recent.indexOf(x) - AN.recent.indexOf(y));
     let ok = false;

@@ -195,10 +195,10 @@ fn changeAt(p: vec3f) -> f32 {
   return clamp(maskAt(v, G.shift2.y) - maskAt(v, G.shift2.x), 0.0, 1.0);
 }
 // ---- the wall's skin as 12 cm cells: each cell is one flake; the wall and its flake agree on everything
-const CS = 0.12;
+const CS = 0.06;
 fn isXWall(n: vec3f) -> bool { return abs(n.x) > 0.5; }
 fn wallPlane(p: vec3f, n: vec3f) -> vec2f { return select(vec2f(p.x, p.y), vec2f(p.z, p.y), isXWall(n)); }
-fn cellJitter(p: vec3f) -> vec2f { return vec2f(noise3(p * 23.0), noise3(p * 23.0 + vec3f(7.3))) * 0.05 - vec2f(0.025); }
+fn cellJitter(p: vec3f) -> vec2f { return vec2f(noise3(p * 46.0), noise3(p * 46.0 + vec3f(7.3))) * 0.025 - vec2f(0.0125); }
 fn cellOf(p: vec3f, n: vec3f) -> vec2f { return floor((wallPlane(p, n) + cellJitter(p)) / CS); }
 fn cellCenter(cell: vec2f, p: vec3f, n: vec3f) -> vec3f {
   let c = (cell + vec2f(0.5)) * CS;
