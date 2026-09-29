@@ -206,3 +206,33 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
   border-radius: 6px; color: #f2d9a4; }
 .dials button { width: 52px; height: 34px; background: #1f1a17; border: 1px solid var(--line); border-radius: 6px; }
 @media (max-aspect-ratio: 1/1) { #pad { top: auto; bottom: calc(96px + var(--safe-b)); right: 8px; } #tray button { min-width: 52px; height: 52px; } }
+
+/* ---------- v3: hide & seek */
+#turnBtn { position: absolute; left: 50%; bottom: calc(18px + var(--safe-b)); transform: translateX(-50%); width: 84px; height: 84px; border-radius: 50%;
+  background: rgba(0,0,0,.5); border: 1px solid rgba(217,212,199,.35); font-size: 30px; display: none; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+#turnBtn small { font-size: 11px; color: #cfc6b6; margin-top: 4px; }
+#hud.hs #turnBtn { display: flex; }
+#turnBtn.pulse { border-color: #ff5a4a; box-shadow: 0 0 24px rgba(255,60,40,.7); animation: pulse .8s infinite; }
+#hud.hs .meters, #hud.hs #tray:empty, #hud.hs #zoomBtn, #hud.hs #memoBtn, #hud.hs #objective { display: none; }
+#hud.hs #turnBtn { opacity: .35; }
+#hud.hs #turnBtn.pulse, #hud.hs.turnon #turnBtn { opacity: 1; }
+#cctvOsd { position: fixed; inset: 0; z-index: 9; pointer-events: none; display: none; font-family: monospace; color: #e8e8e8; text-shadow: 0 0 4px #000; }
+#cctvOsd.show { display: block; }
+#cctvOsd .rec { position: absolute; top: calc(64px + var(--safe-t)); left: 22px; font-size: 18px; }
+#cctvOsd .rec i { color: #f33; font-style: normal; animation: pulse 1s infinite; }
+#cctvOsd .cam { position: absolute; top: calc(64px + var(--safe-t)); right: 22px; font-size: 16px; }
+#cctvOsd .back { position: absolute; bottom: calc(120px + var(--safe-b)); left: 50%; transform: translateX(-50%); font-family: var(--serif); font-size: 15px; }
+#hud.hs #subtitle { bottom: calc(118px + var(--safe-b)); }
+#hsTip { position: absolute; top: calc(58px + var(--safe-t)); left: 50%; transform: translateX(-50%); font-size: 17px; letter-spacing: .06em; color: #f2eadb;
+  text-shadow: 0 0 8px #000, 0 2px 4px #000; opacity: 0; transition: opacity .4s; pointer-events: none; white-space: nowrap; }
+#hsTip.show { opacity: 1; }
+#hsTip b { color: #ffb44a; }
+
+#choice { position: absolute; left: 50%; bottom: calc(26px + var(--safe-b)); transform: translateX(-50%); display: none; gap: 12px; }
+#choice.show { display: flex; }
+#choice button { pointer-events: auto; min-width: 150px; min-height: 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 17px; }
+#choice button small { font-size: 12px; font-weight: 400; opacity: .8; margin-top: 4px; letter-spacing: 0; }
+#choice #chStay { background: rgba(0,0,0,.6); }
+#choice #chStay.confirm { border-color: #ff5a4a; color: #ffb0a6; }
+#hud.choosing #turnBtn { display: none !important; }
+.endtext .again { opacity: 1 !important; animation: none !important; margin-top: 26px; font-size: 18px; padding: 14px 34px; }

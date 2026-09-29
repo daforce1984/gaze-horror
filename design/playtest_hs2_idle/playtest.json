@@ -1,0 +1,292 @@
+{
+ "mode": "idle",
+ "shots": [
+  {
+   "t": 0.5,
+   "file": "00_t0_start.png",
+   "sub": "“엄마! 일어났다! 우리 숨바꼭질 하자. 엄마가 술래야!”",
+   "tip": "수아를 찾아 눌러요"
+  },
+  {
+   "t": 3.1,
+   "file": "01_t3_curtain.png",
+   "sub": "“엄마! 일어났다! 우리 숨바꼭질 하자. 엄마가 술래야!”",
+   "tip": "수아를 찾아 눌러요"
+  },
+  {
+   "t": 5.5,
+   "file": "02_r1_found.png",
+   "sub": "“헤헤, 들켰다!”",
+   "tip": ""
+  },
+  {
+   "t": 7.1,
+   "file": "03_r1_reward_flying.png",
+   "sub": "“한 번 더! 이번엔 못 찾을걸?”",
+   "tip": ""
+  },
+  {
+   "t": 10.4,
+   "file": "04_r2_seek_start.png",
+   "sub": "(눈을 감는다) …타닥타닥, 뛰어가는 발소리",
+   "tip": ""
+  },
+  {
+   "t": 15.5,
+   "file": "05_r2_idle_5s.png",
+   "sub": "“엄마 거야. 만져 봐.”",
+   "tip": ""
+  },
+  {
+   "t": 20.6,
+   "file": "06_r2_idle_10s.png",
+   "sub": "“나 여기 있는데~”",
+   "tip": ""
+  },
+  {
+   "t": 25.7,
+   "file": "07_r2_idle_15s.png",
+   "sub": "“나 여기 있는데~”",
+   "tip": ""
+  },
+  {
+   "t": 30.8,
+   "file": "08_r2_idle_20s.png",
+   "sub": "…의자가 삐걱거린다. 불빛이 한 칸 어두워졌다.",
+   "tip": ""
+  },
+  {
+   "t": 35.9,
+   "file": "09_r2_idle_25s.png",
+   "sub": "…의자가 삐걱거린다. 불빛이 한 칸 어두워졌다.",
+   "tip": ""
+  },
+  {
+   "t": 41.0,
+   "file": "10_r2_idle_30s.png",
+   "sub": "“가까이 왔다…”",
+   "tip": ""
+  },
+  {
+   "t": 46.1,
+   "file": "11_r2_idle_35s.png",
+   "sub": "“가까이 왔다…”",
+   "tip": ""
+  },
+  {
+   "t": 51.2,
+   "file": "12_r2_idle_40s.png",
+   "sub": "“엄마 바보~ 여기 있었지롱.”",
+   "tip": ""
+  },
+  {
+   "t": 56.3,
+   "file": "13_r2_idle_45s.png",
+   "sub": "“다 숨었다! 찾아봐~”",
+   "tip": ""
+  },
+  {
+   "t": 56.9,
+   "file": "14_r2_retry.png",
+   "sub": "“다 숨었다! 찾아봐~”",
+   "tip": ""
+  },
+  {
+   "t": 59.0,
+   "file": "15_r2_found.png",
+   "sub": "“와, 엄마 잘 찾는다!”",
+   "tip": ""
+  },
+  {
+   "t": 64.8,
+   "file": "16_r3_seek_start.png",
+   "sub": "(눈을 감는다) …타닥타닥, 뛰어가는 발소리",
+   "tip": ""
+  },
+  {
+   "t": 74.1,
+   "file": "17_r3_after_cheat.png",
+   "sub": "…등 뒤에서, 의자가 삐걱.",
+   "tip": ""
+  },
+  {
+   "t": 75.1,
+   "file": "18_r3_turned.png",
+   "sub": "…등 뒤에서, 의자가 삐걱.",
+   "tip": ""
+  },
+  {
+   "t": 76.0,
+   "file": "19_r3_found.png",
+   "sub": "…등 뒤에서, 의자가 삐걱.",
+   "tip": ""
+  },
+  {
+   "t": 81.3,
+   "file": "20_r4_tv_on.png",
+   "sub": "“찾았다…”",
+   "tip": "TV를 눌러 봐요"
+  },
+  {
+   "t": 82.6,
+   "file": "21_r4_cctv_view.png",
+   "sub": "“이번엔… 진짜 못 찾을걸.”",
+   "tip": ""
+  },
+  {
+   "t": 83.5,
+   "file": "22_r4_found.png",
+   "sub": "“이번엔… 진짜 못 찾을걸.”",
+   "tip": ""
+  },
+  {
+   "t": 86.6,
+   "file": "23_end.png",
+   "sub": "“다 숨었다! 찾아봐~”",
+   "tip": ""
+  }
+ ],
+ "log": [
+  {
+   "t": 0,
+   "ev": "chapter_start",
+   "ch": 1
+  },
+  {
+   "t": 0,
+   "ev": "round_start",
+   "n": 1,
+   "spot": "curtain"
+  },
+  {
+   "t": 4.75,
+   "ev": "first_input",
+   "kind": "tap"
+  },
+  {
+   "t": 4.75,
+   "ev": "valid_target",
+   "round": 1,
+   "spot": "curtain",
+   "realTime": 4.8,
+   "penalty": 0
+  },
+  {
+   "t": 9.77,
+   "ev": "round_start",
+   "n": 2,
+   "spot": "desk",
+   "decoys": [
+    "curtain",
+    "shelf"
+   ]
+  },
+  {
+   "t": 19.75,
+   "ev": "hint_used",
+   "hint": "voice"
+  },
+  {
+   "t": 29.77,
+   "ev": "escalate",
+   "level": 1
+  },
+  {
+   "t": 39.77,
+   "ev": "escalate",
+   "level": 2
+  },
+  {
+   "t": 49.77,
+   "ev": "fail_reason",
+   "round": 2,
+   "spot": "desk",
+   "realTime": 40,
+   "penalty": 0,
+   "esc": 3
+  },
+  {
+   "t": 51.97,
+   "ev": "retry",
+   "round": 2
+  },
+  {
+   "t": 53.57,
+   "ev": "round_start",
+   "n": 2,
+   "spot": "shelf",
+   "decoys": [
+    "curtain",
+    "desk"
+   ]
+  },
+  {
+   "t": 58.23,
+   "ev": "valid_target",
+   "round": 2,
+   "spot": "shelf",
+   "realTime": 4.7,
+   "penalty": 0
+  },
+  {
+   "t": 63.83,
+   "ev": "round_start",
+   "n": 3,
+   "spot": "behind",
+   "decoys": [
+    "curtain"
+   ]
+  },
+  {
+   "t": 69.92,
+   "ev": "false_tap",
+   "where": "curtain"
+  },
+  {
+   "t": 73.12,
+   "ev": "hint_used",
+   "hint": "behind"
+  },
+  {
+   "t": 73.82,
+   "ev": "hint_used",
+   "hint": "voice"
+  },
+  {
+   "t": 74.25,
+   "ev": "turn"
+  },
+  {
+   "t": 75.25,
+   "ev": "valid_target",
+   "round": 3,
+   "spot": "behind",
+   "realTime": 10.9,
+   "penalty": 0
+  },
+  {
+   "t": 79.65,
+   "ev": "round_start",
+   "n": 4,
+   "spot": "under",
+   "decoys": []
+  },
+  {
+   "t": 81.78,
+   "ev": "cctv_view"
+  },
+  {
+   "t": 82.7,
+   "ev": "valid_target",
+   "round": 4,
+   "spot": "under",
+   "realTime": 3.1,
+   "penalty": 0
+  },
+  {
+   "t": 84.3,
+   "ev": "chapter_end",
+   "ch": 1
+  }
+ ]
+}

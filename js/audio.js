@@ -4,7 +4,8 @@ const SAMPLES = ['knock', 'bang', 'creak', 'drawer', 'unlock', 'pop', 'static', 
 
 const VOICES = ['c_intro', 'c_first', 'c_bring1', 'c_bring2', 'c_bring3', 'c_heavy', 'c_cold', 'c_cctv', 'c_doll', 'c_song',
   'c_wait', 'c_why', 'c_rope', 'c_turn', 'c_look', 'c_stay', 'c_found', 'c_clock', 'c_door', 'c_take', 'c_bye', 'c_end',
-  'm_tape0', 'm_tape1', 'm_tape2', 'm_tape3', 'n_news'];
+  'm_tape0', 'm_tape1', 'm_tape2', 'm_tape3', 'n_news',
+  'hs_start', 'hs_count', 'hs_ready', 'hs_found1', 'hs_found2', 'hs_again', 'hs_hint', 'hs_wrong', 'hs_fail', 'hs_behind', 'hs_cheat', 'hs_closer', 'hs_under', 'hs_eyes', 'hs_song'];
 
 export class Sound {
   constructor() {
@@ -20,6 +21,11 @@ export class Sound {
       try { const r = await fetch(url); if (r.ok) this.raw[n] = await r.arrayBuffer(); } catch { }
     }));
   }
+  stopVoices() {
+    if (!this.ctx) return;
+    for (const v of this.voices || []) { try { v.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05); v.s.stop(this.ctx.currentTime + 0.2); } catch { } }
+    this.voices = [];
+  }
   // ElevenLabs voice line; positional when pos is given. Returns duration (s) or 0.
   voice(id, pos, gain = 1.6) {
     if (!this.ctx || !this.buf[id]) return 0;
@@ -27,6 +33,8 @@ export class Sound {
     const s = this.ctx.createBufferSource(); s.buffer = this.buf[id];
     const g = this.ctx.createGain(); g.gain.value = gain;
     s.connect(g).connect(dest); s.start();
+    (this.voices = this.voices || []).push({ s, g });
+    s.onended = () => { this.voices = this.voices.filter(v => v.s !== s); };
     this.duck(0.45, this.buf[id].duration + 0.5);
     return this.buf[id].duration;
   }

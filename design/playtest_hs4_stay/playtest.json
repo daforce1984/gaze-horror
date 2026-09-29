@@ -1,0 +1,269 @@
+{
+ "mode": "stay",
+ "shots": [
+  {
+   "t": 0.5,
+   "file": "00_t0_start.png",
+   "sub": "",
+   "tip": "수아를 찾아 눌러요"
+  },
+  {
+   "t": 3.1,
+   "file": "01_t3_curtain.png",
+   "sub": "",
+   "tip": "수아를 찾아 눌러요"
+  },
+  {
+   "t": 5.5,
+   "file": "02_r1_found.png",
+   "sub": "“헤헤, 들켰다!”",
+   "tip": ""
+  },
+  {
+   "t": 7.1,
+   "file": "03_r1_reward_flying.png",
+   "sub": "“한 번 더! 이번엔 못 찾을걸?”",
+   "tip": ""
+  },
+  {
+   "t": 10.3,
+   "file": "04_r2_seek_start.png",
+   "sub": "“다 숨었다! 찾아봐~”",
+   "tip": ""
+  },
+  {
+   "t": 13.7,
+   "file": "05_r2_found.png",
+   "sub": "“와, 엄마 잘 찾는다!”",
+   "tip": ""
+  },
+  {
+   "t": 19.4,
+   "file": "06_r3_seek_start.png",
+   "sub": "“다 숨었다! 찾아봐~”",
+   "tip": ""
+  },
+  {
+   "t": 25.6,
+   "file": "07_r3_after_cheat.png",
+   "sub": "…등 뒤에서, 의자가 삐걱.",
+   "tip": ""
+  },
+  {
+   "t": 26.6,
+   "file": "08_r3_turned.png",
+   "sub": "…등 뒤에서, 의자가 삐걱.",
+   "tip": ""
+  },
+  {
+   "t": 27.5,
+   "file": "09_r3_found.png",
+   "sub": "“찾았다…”",
+   "tip": ""
+  },
+  {
+   "t": 32.7,
+   "file": "10_r4_tv_on.png",
+   "sub": "TV가 저절로 켜졌다. …방 구석 카메라 화면.",
+   "tip": "TV를 눌러 봐요"
+  },
+  {
+   "t": 34.0,
+   "file": "11_r4_cctv_view.png",
+   "sub": "TV가 저절로 켜졌다. …방 구석 카메라 화면.",
+   "tip": ""
+  },
+  {
+   "t": 34.9,
+   "file": "12_r4_found.png",
+   "sub": "“와, 엄마 잘 찾는다!”",
+   "tip": ""
+  },
+  {
+   "t": 43.1,
+   "file": "13_story_point_photo.png",
+   "sub": "그 애가 벽의 가족사진을 가리킨다.",
+   "tip": "가족사진을 눌러 봐요"
+  },
+  {
+   "t": 44.6,
+   "file": "14_photo_doc.png",
+   "sub": "그 애가 벽의 가족사진을 가리킨다.",
+   "tip": ""
+  },
+  {
+   "t": 46.4,
+   "file": "15_choice.png",
+   "sub": "“엄마… 이번엔 어디 안 갈 거지?”",
+   "tip": ""
+  },
+  {
+   "t": 47.3,
+   "file": "16_stay_warn.png",
+   "sub": "…다시는 문이 열리지 않아도?",
+   "tip": ""
+  },
+  {
+   "t": 53.4,
+   "file": "17_after_choice.png",
+   "sub": "“같이 있자… 계속.”",
+   "tip": ""
+  },
+  {
+   "t": 63.5,
+   "file": "18_ending.png",
+   "sub": "“같이 있자… 계속.”",
+   "tip": ""
+  }
+ ],
+ "log": [
+  {
+   "t": 0,
+   "ev": "chapter_start",
+   "ch": 1
+  },
+  {
+   "t": 0,
+   "ev": "round_start",
+   "n": 1,
+   "spot": "curtain"
+  },
+  {
+   "t": 4.72,
+   "ev": "first_input",
+   "kind": "tap"
+  },
+  {
+   "t": 4.72,
+   "ev": "valid_target",
+   "round": 1,
+   "spot": "curtain",
+   "realTime": 4.7,
+   "penalty": 0
+  },
+  {
+   "t": 9.75,
+   "ev": "round_start",
+   "n": 2,
+   "spot": "desk",
+   "decoys": [
+    "curtain",
+    "shelf"
+   ],
+   "retry": false
+  },
+  {
+   "t": 9.75,
+   "ev": "input_enabled",
+   "n": 2
+  },
+  {
+   "t": 12.93,
+   "ev": "valid_target",
+   "round": 2,
+   "spot": "desk",
+   "realTime": 3.2,
+   "penalty": 0
+  },
+  {
+   "t": 18.57,
+   "ev": "round_start",
+   "n": 3,
+   "spot": "behind",
+   "decoys": [
+    "curtain"
+   ],
+   "retry": false
+  },
+  {
+   "t": 18.57,
+   "ev": "input_enabled",
+   "n": 3
+  },
+  {
+   "t": 21.45,
+   "ev": "false_tap",
+   "where": "curtain"
+  },
+  {
+   "t": 24.67,
+   "ev": "hint_used",
+   "hint": "behind"
+  },
+  {
+   "t": 25.75,
+   "ev": "turn"
+  },
+  {
+   "t": 26.77,
+   "ev": "valid_target",
+   "round": 3,
+   "spot": "behind",
+   "realTime": 7.7,
+   "penalty": 0
+  },
+  {
+   "t": 31.18,
+   "ev": "round_start",
+   "n": 4,
+   "spot": "under",
+   "decoys": [],
+   "retry": false
+  },
+  {
+   "t": 31.18,
+   "ev": "input_enabled",
+   "n": 4
+  },
+  {
+   "t": 33.27,
+   "ev": "cctv_view"
+  },
+  {
+   "t": 34.17,
+   "ev": "valid_target",
+   "round": 4,
+   "spot": "under",
+   "realTime": 3,
+   "penalty": 0
+  },
+  {
+   "t": 35.58,
+   "ev": "story_start"
+  },
+  {
+   "t": 42.38,
+   "ev": "input_enabled",
+   "n": "photo"
+  },
+  {
+   "t": 43.6,
+   "ev": "valid_target",
+   "round": "photo"
+  },
+  {
+   "t": 44.22,
+   "ev": "input_enabled",
+   "n": "choice"
+  },
+  {
+   "t": 45.4,
+   "ev": "choice_warn"
+  },
+  {
+   "t": 46.3,
+   "ev": "choice",
+   "give": "play"
+  },
+  {
+   "t": 46.3,
+   "ev": "ending_choice",
+   "type": "stay"
+  },
+  {
+   "t": 51.8,
+   "ev": "ending_shown",
+   "type": "doll"
+  }
+ ]
+}

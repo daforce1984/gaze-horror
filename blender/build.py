@@ -341,11 +341,11 @@ def build_room():
         u = 0.5 + (co.y / (Z1 - Z0 + 0.02))  # blender y = -engine z
         v = 0.5 + co.z / (Y1 - Y0 + 0.02)
         uvd[li].uv = (u, v)
-    rod = cyl('rod', (-RX + 0.12, Y1 + 0.18, zc), 0.012, Z1 - Z0 + 0.7, M['metal'], axis='z')
-    fin1 = sphere('fin1', (-RX + 0.12, Y1 + 0.18, Z0 - 0.35), 0.025, M['metal'])
-    fin2 = sphere('fin2', (-RX + 0.12, Y1 + 0.18, Z1 + 0.35), 0.025, M['metal'])
+    rod = cyl('rod', (-RX + 0.22, Y1 + 0.18, zc), 0.012, Z1 - Z0 + 0.7, M['metal'], axis='z')
+    fin1 = sphere('fin1', (-RX + 0.22, Y1 + 0.18, Z0 - 0.35), 0.025, M['metal'])
+    fin2 = sphere('fin2', (-RX + 0.22, Y1 + 0.18, Z1 + 0.35), 0.025, M['metal'])
     for side, z_outer, sgn in (('curtain_L', Z0 - 0.3, 1), ('curtain_R', Z1 + 0.3, -1)):
-        W, H = 0.9, Y1 + 0.17 - 0.55
+        W, H = 0.9, Y1 + 0.17 - 0.3   # nearly floor-length: ankles and bare feet show under the hem
         bm = bmesh.new()
         cols, rows = 60, 22
         vs = {}
@@ -362,7 +362,7 @@ def build_room():
         for r in range(rows):
             for c in range(cols):
                 bm.faces.new((vs[r, c], vs[r, c + 1], vs[r + 1, c + 1], vs[r + 1, c]))
-        ob = from_bm(side, bm, M['curtain'], E(-RX + 0.12, Y1 + 0.17, z_outer))
+        ob = from_bm(side, bm, M['curtain'], E(-RX + 0.22, Y1 + 0.17, z_outer))
         add_mod(ob, 'SOLIDIFY', thickness=0.008)
         apply_mods(ob)
         world_uv(ob, 0.9)
@@ -523,20 +523,37 @@ def build_room():
     bulb = sphere('bulb', (0, RH - 0.54, -0.6), 0.042, M['bulb'], seg=16, ring=12, scale=(1, 1.25, 1))
     set_origin(bulb, PV)
 
+    # ---- lived-in furniture: rug, folding low table (밥상) with a mug and a tray, floor cushion
+    rug = box('rug', (0.0, 0.004, -0.75), (1.9, 0.008, 2.1), mat('M_rug', (0.42, 0.2, 0.16), 0.95), 0.002, cuts=4)
+    world_uv(rug, 0.9)
+    tb = [box('lt_top', (-0.95, 0.31, -1.0), (0.72, 0.028, 0.48), M['wood'], 0.01)]
+    for lx in (-0.3, 0.3):
+        for lz in (-0.19, 0.19):
+            tb.append(box('lt_leg', (-0.95 + lx, 0.15, -1.0 + lz), (0.03, 0.3, 0.03), M['wooddark']))
+    tb.append(cyl('lt_mug', (-1.1, 0.37, -1.05), 0.038, 0.085, M['ceramic'], seg=18))
+    tb.append(box('lt_tray', (-0.82, 0.33, -0.95), (0.3, 0.012, 0.22), mat('M_tray', (0.55, 0.12, 0.1), 0.35), 0.004))
+    tb.append(cyl('lt_bowl', (-0.82, 0.355, -0.95), 0.06, 0.04, M['ceramic'], seg=18, r2=0.045))
+    table = join('lowtable', tb)
+    world_uv(table, 0.5)
+    cu = box('cushion', (-1.25, 0.04, 0.2), (0.5, 0.07, 0.5), mat('M_cushion', (0.55, 0.42, 0.25), 0.9), 0.03, cuts=2)
+    world_uv(cu, 0.5)
+
     # ---- the player's chair (seat, legs, back, arms); ropes and the ankle chain are separate nodes
     W_ = M['wooddark']
-    ch = [box('seat', (0, 0.45, 0.36), (0.46, 0.04, 0.42), W_, 0.01, cuts=1)]
-    for lx in (-0.2, 0.2):
-        for lz in (0.18, 0.54):
-            ch.append(box('leg', (lx, 0.215, lz), (0.04, 0.43, 0.04), W_, 0.004))
-    ch += [box('rail_f', (0, 0.13, 0.18), (0.4, 0.03, 0.025), W_), box('rail_b', (0, 0.13, 0.54), (0.4, 0.03, 0.025), W_)]
-    for lx in (-0.2, 0.2):
-        ch.append(box('backpost', (lx, 0.78, 0.555), (0.04, 0.62, 0.035), W_, 0.004))
-    ch += [box('backslat', (0, 0.98, 0.56), (0.42, 0.14, 0.025), W_, 0.006), box('backslat2', (0, 0.72, 0.56), (0.42, 0.06, 0.02), W_, 0.004)]
-    for sx in (-0.27, 0.27):
-        ch.append(box('arm', (sx, 0.66, 0.34), (0.055, 0.035, 0.44), W_, 0.008))
-        ch.append(box('armpost', (sx, 0.555, 0.17), (0.035, 0.2, 0.035), W_))
-        ch.append(box('armpost2', (sx, 0.555, 0.5), (0.035, 0.2, 0.035), W_))
+    FX, FZ, BZ = 0.22, 0.16, 0.56        # leg positions (front z, back z)
+    ch = [box('seat', (0, 0.4475, 0.36), (0.5, 0.045, 0.48), W_, 0.01, cuts=1)]
+    for lx in (-FX, FX):
+        ch.append(box('leg_f', (lx, 0.2125, FZ), (0.042, 0.425, 0.042), W_, 0.004))       # under the seat
+        ch.append(box('leg_b', (lx, 0.51, BZ), (0.042, 1.02, 0.042), W_, 0.004))          # back leg continues as back post
+        ch.append(box('rail_s', (lx, 0.12, (FZ + BZ) / 2), (0.026, 0.03, BZ - FZ), W_))   # side stretcher
+    ch += [box('rail_f', (0, 0.12, FZ), (2 * FX, 0.03, 0.026), W_), box('rail_b', (0, 0.12, BZ), (2 * FX, 0.03, 0.026), W_),
+           box('apron_f', (0, 0.4, FZ), (2 * FX, 0.05, 0.022), W_)]
+    ch += [box('backslat', (0, 0.93, BZ), (2 * FX, 0.14, 0.024), W_, 0.006),
+           box('backslat2', (0, 0.69, BZ), (2 * FX, 0.05, 0.02), W_, 0.004)]
+    AX = 0.225
+    for sx in (-AX, AX):
+        ch.append(box('armpost', (sx, 0.5575, 0.19), (0.036, 0.175, 0.036), W_))              # stands on the seat
+        ch.append(box('arm', (sx, 0.66, (0.15 + BZ) / 2), (0.056, 0.036, BZ - 0.15 + 0.02), W_, 0.008))  # runs into the back post
     chair = join('chair', ch)
     world_uv(chair, 0.4)
 
@@ -555,7 +572,7 @@ def build_room():
     def coil(sx, name, loose):
         parts = []
         for k in range(6):  # rope wound around the armrest
-            pts = [E(sx + math.cos(t) * 0.036, 0.66 + math.sin(t) * 0.028, 0.2 + k * 0.017 + t / (2 * PI) * 0.017) for t in [q / 16 * 2 * PI for q in range(17)]]
+            pts = [E(sx + math.cos(t) * 0.038, 0.66 + math.sin(t) * 0.03, 0.2 + k * 0.017 + t / (2 * PI) * 0.017) for t in [q / 16 * 2 * PI for q in range(17)]]
             parts.append(tube('coil', pts, 0.006, M['rope']))
         if loose:  # the free end hangs to the floor and curls there
             pts = [E(sx + 0.03, 0.64, 0.3), E(sx + 0.05, 0.5, 0.31), E(sx + 0.06, 0.3, 0.3), E(sx + 0.07, 0.1, 0.28),
@@ -563,8 +580,8 @@ def build_room():
             parts.append(tube('ropeend', pts, 0.007, M['rope']))
         rp = join(name, parts)
         return rp
-    coil(0.27, 'rope_R', True)
-    coil(-0.27, 'rope_L', False)
+    coil(AX, 'rope_R', True)
+    coil(-AX, 'rope_L', False)
 
     # ---- trash piles by rigid body simulation
     build_trash(M)
@@ -813,14 +830,14 @@ def build_props(M):
     ch = []
     def link(p, k, tilt=0.0):
         return torus('link', p, 0.011, 0.0028, metal, seg=10, rseg=5, rot=((PI / 2 if k % 2 else 0) + tilt, 0, 0))
-    for lx in (-0.2, 0.2):
-        ch.append(torus('legloop', (lx, 0.1, 0.18), 0.03, 0.004, metal, seg=18, rseg=5))
+    for lx in (-0.22, 0.22):
+        ch.append(torus('legloop', (lx, 0.1, 0.16), 0.03, 0.004, metal, seg=18, rseg=5))
     n = 28
     for k in range(n + 1):  # front run with a sag, bending forward to meet the padlock
         t = k / n
-        x = -0.17 + 0.34 * t
+        x = -0.19 + 0.38 * t
         sag = math.sin(t * PI)
-        ch.append(link((x, 0.1 - 0.05 * sag, 0.17 - 0.21 * sag), k))
+        ch.append(link((x, 0.1 - 0.05 * sag, 0.15 - 0.19 * sag), k))
     join('chain', ch)
     pl = [box('pl_body', (0.0, 0.03, -0.045), (0.05, 0.045, 0.02), brass, 0.005),
           torus('pl_shackle', (0.0, 0.057, -0.045), 0.016, 0.004, metal, seg=14, rseg=5, rot=(PI / 2, 0, 0)),
@@ -913,8 +930,7 @@ def dress_mesh(name, rings, material, seed, folds=9):
             for l, (a, b) in zip(f.loops, ((i, k), (i + 1, k), (i + 1, k + 1), (i, k + 1))):
                 l[uvl].uv = (a / seg * 3, -b * 0.35)
     ob = from_bm(name, bm, material)
-    add_mod(ob, 'SUBSURF', levels=1)
-    add_mod(ob, 'SOLIDIFY', thickness=0.006)
+    add_mod(ob, 'SUBSURF', levels=1)   # single layer: a solidified shell z-fights with itself at distance
     apply_mods(ob)
     return ob
 
@@ -949,7 +965,7 @@ def hair(name, head_c, head_r, colliders, material, seed, count=260, length=(0.4
             el = rnd.uniform(0.35, 1.2)
             n = Vector((math.cos(th) * math.cos(el), math.sin(th) * math.cos(el), math.sin(el)))
         root = hc + Vector((n.x * head_r[0], n.y * head_r[1], n.z * head_r[2])) * 1.02
-        L = rnd.uniform(*length)
+        L = rnd.uniform(*length) * rnd.uniform(0.92, 1.0)
         if front and front_len:
             L = rnd.uniform(*front_len)
         steps = 16
@@ -964,7 +980,7 @@ def hair(name, head_c, head_r, colliders, material, seed, count=260, length=(0.4
             if gap and abs(p.x - gap[0]) < gap[2] and abs(p.z - gap[1]) < gap[3] and p.y < hc.y:
                 p.x += math.copysign(gap[2] * 0.9, p.x - gap[0])
             pts.append(p.copy())
-        w = rnd.uniform(0.012, 0.028)
+        w = rnd.uniform(0.05, 0.085)   # thick clumps: reads as a mass of hair with a few locks, not strips
         prev = None
         for i, q in enumerate(pts):
             t = i / steps
@@ -989,11 +1005,15 @@ def build_ghost():
     V = [(0, 0, 0.80), (0, 0, 0.93), (0, 0.005, 1.06), (0, 0, 1.19),
          (0.075, 0, 0.77), (0.08, -0.012, 0.44), (0.085, 0.01, 0.07), (0.09, -0.09, 0.025),
          (0.15, 0.005, 1.12), (0.185, 0.015, 0.87), (0.2, 0.0, 0.64), (0.2, -0.015, 0.49)]
-    Rr = [(0.1, 0.075), (0.08, 0.06), (0.095, 0.065), 0.04, 0.062, 0.043, 0.03, 0.022, 0.04, 0.03, 0.022, 0.012]
+    Rr = [(0.1, 0.075), (0.08, 0.06), (0.095, 0.065), 0.042, 0.062, 0.043, 0.03, 0.022, 0.046, 0.037, 0.029, 0.02]
     Ed = [(0, 1), (1, 2), (2, 3), (0, 4), (4, 5), (5, 6), (6, 7), (2, 8), (8, 9), (9, 10), (10, 11)]
     mirror_limb(V, Rr, Ed, [4, 5, 6, 7], 0)
     mirror_limb(V, Rr, Ed, [8, 9, 10, 11], 2)
     body = skin_body('g_body', V, Ed, Rr, M['skin'])
+    hands = [sphere('g_hand', (0, 0, 0), 1, M['skin'], seg=12, ring=8) for _ in range(2)]
+    for hsx, hnd in zip((1, -1), hands):
+        hnd.scale = (0.022, 0.03, 0.055); hnd.location = (0.205 * hsx, -0.012, 0.5)
+        bpy.context.view_layer.objects.active = hnd; bpy.ops.object.transform_apply(location=True, scale=True)
     head = sphere('g_head', (0, 0, 0), 1, M['skin'], seg=24, ring=16)
     head.scale = (0.083, 0.095, 0.108)
     head.location = (0.0, 0.0, 1.29)
@@ -1012,12 +1032,18 @@ def build_ghost():
         s = cyl('sleeve', (0, 0, 0), 0.052, 0.2, M['dress'], seg=16, cap=False, r2=0.045)
         s.location = (0.165 * sx, 0.01, 1.02)
         s.rotation_euler = (0, 0.12 * sx, 0)
-        add_mod(s, 'SOLIDIFY', thickness=0.004)
         sleeves.append(s)
     hr = hair('g_hair', (0, 0.0, 1.30), (0.088, 0.1, 0.112),
-              [((0, 0, 1.06), (0.18, 0.1, 0.14)), ((0, -0.01, 0.9), (0.15, 0.1, 0.2)), ((0, 0.0, 1.18), (0.05, 0.05, 0.05))],
-              M['hair'], 5, count=320, length=(0.5, 0.72), front_len=(0.38, 0.52), gap=(0.036, 1.305, 0.012, 0.03))
-    g = join('ghost_stand', [body, head, eye, eye2, dress, hr] + sleeves)
+              [((0, 0, 1.06), (0.2, 0.12, 0.15)), ((0, 0, 0.92), (0.2, 0.135, 0.24)), ((0, 0.005, 0.7), (0.235, 0.165, 0.22)), ((0, 0.0, 1.18), (0.05, 0.05, 0.05))],   # skull, shoulders and the gown: hair falls outside the dress
+              M['hair'], 5, count=230, length=(0.42, 0.62), front_len=(0.36, 0.48), gap=(0.0, 1.24, 0.03, 0.12))
+    cap = sphere('g_cap', (0, 0, 0), 1, M['hair'], seg=24, ring=16)
+    cap.scale = (0.093, 0.106, 0.118); cap.location = (0.0, 0.012, 1.305); cap.rotation_euler = (0.12, 0.1, 0)
+    bpy.context.view_layer.objects.active = cap
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    bm_ = bmesh.new(); bm_.from_mesh(cap.data)
+    bmesh.ops.delete(bm_, geom=[f for f in bm_.faces if f.calc_center_median().y < -0.06 and f.calc_center_median().z < 1.36], context='FACES')  # open at the face
+    bm_.to_mesh(cap.data); bm_.free()
+    g = join('ghost_stand', [body, head, eye, eye2, dress, hr, cap] + sleeves + hands)
     bpy.context.view_layer.objects.active = g
 
     # ---------------- crouching girl
@@ -1041,9 +1067,13 @@ def build_ghost():
                                    (0.25, 0.23, 0.22, -0.05), (0.1, 0.26, 0.24, -0.04), (0.02, 0.28, 0.25, -0.03)],
                        M['dress'], 7, folds=11)
     hr = hair('c_hair', (0, -0.13, 0.72), (0.09, 0.1, 0.112),
-              [((0, -0.05, 0.4), (0.24, 0.26, 0.26)), ((0, -0.2, 0.44), (0.16, 0.08, 0.06))],
-              M['hair'], 9, count=300, length=(0.42, 0.62), front_len=(0.4, 0.55), gap=(0.03, 0.725, 0.012, 0.025))
-    join('ghost_crouch', [body, head, eye, dress, hr])
+              [((0, -0.05, 0.4), (0.27, 0.28, 0.3)), ((0, -0.2, 0.44), (0.17, 0.09, 0.07)), ((0, -0.05, 0.12), (0.3, 0.27, 0.14))],
+              M['hair'], 9, count=220, length=(0.42, 0.62), front_len=(0.4, 0.55), gap=(0.03, 0.725, 0.012, 0.025))
+    cap = sphere('c_cap', (0, 0, 0), 1, M['hair'], seg=24, ring=16)
+    cap.scale = (0.093, 0.106, 0.118); cap.location = (0.0, -0.118, 0.725); cap.rotation_euler = (0.5, -0.25, 0.1)
+    bpy.context.view_layer.objects.active = cap
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    join('ghost_crouch', [body, head, eye, dress, hr, cap])
 
 
 # ------------------------------------------------------------------------------------------

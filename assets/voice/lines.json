@@ -161,6 +161,96 @@
    "voice": "ANCHOR",
    "stability": 0.5,
    "text": "[serious] 다음 소식입니다. 한 빌라 삼백삼 호에서 일곱 살 여자아이가 숨진 채 발견됐습니다. 아이는 밖에서 잠긴 방 안에 혼자 있었으며, 경찰은 삼 주째 연락이 닿지 않는 아이의 어머니를 찾고 있습니다."
+  },
+  {
+   "id": "hs_start",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[excited] 엄마! 일어났다! 우리 숨바꼭질 하자. 엄마가 술래야!"
+  },
+  {
+   "id": "hs_count",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[playful] 하나… 둘… 셋… 넷… 다섯… 여섯… 일곱… 여덟… 아홉… 열!"
+  },
+  {
+   "id": "hs_ready",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[giggles] 다 숨었다! 찾아봐~"
+  },
+  {
+   "id": "hs_found1",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[giggles] 헤헤, 들켰다!"
+  },
+  {
+   "id": "hs_found2",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[happy] 와, 엄마 잘 찾는다!"
+  },
+  {
+   "id": "hs_again",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[excited] 한 번 더! 이번엔 못 찾을걸?"
+  },
+  {
+   "id": "hs_hint",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 나 여기 있는데~"
+  },
+  {
+   "id": "hs_wrong",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[giggles] 거기 아니야~"
+  },
+  {
+   "id": "hs_fail",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[giggles] 엄마 바보~ 여기 있었지롱."
+  },
+  {
+   "id": "hs_behind",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 엄마… 뒤에."
+  },
+  {
+   "id": "hs_cheat",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[giggles] 속았지? 커튼엔 아무도 없었어!"
+  },
+  {
+   "id": "hs_closer",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 가까이 왔다…"
+  },
+  {
+   "id": "hs_under",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 엄마 밑에 있어… 안 보이지?"
+  },
+  {
+   "id": "hs_eyes",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[softly] 눈 감아. 뭐가 달라졌게?"
+  },
+  {
+   "id": "hs_song",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[singing softly] 무궁화 꽃이… 피었습니다."
   }
  ]
 }

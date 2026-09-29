@@ -1,0 +1,158 @@
+{
+ "shots": [
+  {
+   "t": 0.5,
+   "file": "00_t0_start.png",
+   "sub": "“엄마! 일어났다! 우리 숨바꼭질 하자. 엄마가 술래야!”",
+   "tip": "수아를 찾아 눌러요"
+  },
+  {
+   "t": 3.1,
+   "file": "01_t3_curtain.png",
+   "sub": "“엄마! 일어났다! 우리 숨바꼭질 하자. 엄마가 술래야!”",
+   "tip": "수아를 찾아 눌러요"
+  },
+  {
+   "t": 5.6,
+   "file": "02_r1_found.png",
+   "sub": "“헤헤, 들켰다!”",
+   "tip": ""
+  },
+  {
+   "t": 9.7,
+   "file": "03_r1_reward.png",
+   "sub": "무릎 위에… TV 리모컨을 올려놓고 갔다.",
+   "tip": ""
+  },
+  {
+   "t": 14.7,
+   "file": "04_r2_count.png",
+   "sub": "“하나… 둘… 셋…” (눈을 감는다)",
+   "tip": ""
+  },
+  {
+   "t": 21.9,
+   "file": "05_r2_seek_start.png",
+   "sub": "“다 숨었다! 찾아봐~”",
+   "tip": ""
+  },
+  {
+   "t": 28.1,
+   "file": "06_r2_found.png",
+   "sub": "“와, 엄마 잘 찾는다!”",
+   "tip": ""
+  },
+  {
+   "t": 49.4,
+   "file": "07_r3_seek_start.png",
+   "sub": "“다 숨었다! 찾아봐~”",
+   "tip": ""
+  },
+  {
+   "t": 56.3,
+   "file": "08_r3_after_cheat.png",
+   "sub": "…등 뒤에서, 의자가 삐걱.",
+   "tip": ""
+  },
+  {
+   "t": 57.3,
+   "file": "09_r3_turned.png",
+   "sub": "…등 뒤에서, 의자가 삐걱.",
+   "tip": ""
+  },
+  {
+   "t": 58.2,
+   "file": "10_r3_found.png",
+   "sub": "…등 뒤에서, 의자가 삐걱.",
+   "tip": ""
+  },
+  {
+   "t": 61.4,
+   "file": "11_end.png",
+   "sub": "숨바꼭질이 끝났다. …무릎 위의 리모컨을 누른다.",
+   "tip": ""
+  }
+ ],
+ "log": [
+  {
+   "t": 0,
+   "ev": "chapter_start",
+   "ch": 1
+  },
+  {
+   "t": 0,
+   "ev": "round_start",
+   "n": 1,
+   "spot": "curtain"
+  },
+  {
+   "t": 4.78,
+   "ev": "first_input",
+   "kind": "tap"
+  },
+  {
+   "t": 4.78,
+   "ev": "valid_target",
+   "round": 1,
+   "spot": "curtain",
+   "roundTime": 4.8
+  },
+  {
+   "t": 21.3,
+   "ev": "round_start",
+   "n": 2,
+   "spot": "desk",
+   "decoys": [
+    "curtain",
+    "shelf"
+   ]
+  },
+  {
+   "t": 22.03,
+   "ev": "false_tap",
+   "where": "curtain"
+  },
+  {
+   "t": 27.32,
+   "ev": "valid_target",
+   "round": 2,
+   "spot": "desk",
+   "roundTime": 9
+  },
+  {
+   "t": 48.42,
+   "ev": "round_start",
+   "n": 3,
+   "spot": "behind",
+   "decoys": [
+    "curtain"
+   ]
+  },
+  {
+   "t": 52.1,
+   "ev": "false_tap",
+   "where": "curtain"
+  },
+  {
+   "t": 55.32,
+   "ev": "hint_used",
+   "hint": "behind"
+  },
+  {
+   "t": 56.43,
+   "ev": "turn"
+  },
+  {
+   "t": 57.47,
+   "ev": "valid_target",
+   "round": 3,
+   "spot": "behind",
+   "roundTime": 9.1
+  },
+  {
+   "t": 60,
+   "ev": "chapter_end",
+   "ch": 1
+  }
+ ]
+}

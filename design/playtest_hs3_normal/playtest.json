@@ -1,0 +1,254 @@
+{
+ "mode": "normal",
+ "shots": [
+  {
+   "t": 0.5,
+   "file": "00_t0_start.png",
+   "sub": "",
+   "tip": "수아를 찾아 눌러요"
+  },
+  {
+   "t": 3.1,
+   "file": "01_t3_curtain.png",
+   "sub": "",
+   "tip": "수아를 찾아 눌러요"
+  },
+  {
+   "t": 5.6,
+   "file": "02_r1_found.png",
+   "sub": "“헤헤, 들켰다!”",
+   "tip": ""
+  },
+  {
+   "t": 7.2,
+   "file": "03_r1_reward_flying.png",
+   "sub": "“한 번 더! 이번엔 못 찾을걸?”",
+   "tip": ""
+  },
+  {
+   "t": 10.5,
+   "file": "04_r2_seek_start.png",
+   "sub": "“다 숨었다! 찾아봐~”",
+   "tip": ""
+  },
+  {
+   "t": 16.7,
+   "file": "05_r2_found.png",
+   "sub": "“와, 엄마 잘 찾는다!”",
+   "tip": ""
+  },
+  {
+   "t": 22.4,
+   "file": "06_r3_seek_start.png",
+   "sub": "“다 숨었다! 찾아봐~”",
+   "tip": ""
+  },
+  {
+   "t": 29.3,
+   "file": "07_r3_after_cheat.png",
+   "sub": "…등 뒤에서, 의자가 삐걱.",
+   "tip": ""
+  },
+  {
+   "t": 30.3,
+   "file": "08_r3_turned.png",
+   "sub": "…등 뒤에서, 의자가 삐걱.",
+   "tip": ""
+  },
+  {
+   "t": 31.3,
+   "file": "09_r3_found.png",
+   "sub": "“찾았다…”",
+   "tip": ""
+  },
+  {
+   "t": 36.5,
+   "file": "10_r4_tv_on.png",
+   "sub": "TV가 저절로 켜졌다. …방 구석 카메라 화면.",
+   "tip": "TV를 눌러 봐요"
+  },
+  {
+   "t": 37.9,
+   "file": "11_r4_cctv_view.png",
+   "sub": "TV가 저절로 켜졌다. …방 구석 카메라 화면.",
+   "tip": ""
+  },
+  {
+   "t": 38.8,
+   "file": "12_r4_found.png",
+   "sub": "“와, 엄마 잘 찾는다!”",
+   "tip": ""
+  },
+  {
+   "t": 47.0,
+   "file": "13_story_point_photo.png",
+   "sub": "그 애가 벽의 가족사진을 가리킨다.",
+   "tip": "가족사진을 눌러 봐요"
+  },
+  {
+   "t": 48.5,
+   "file": "14_photo_doc.png",
+   "sub": "그 애가 벽의 가족사진을 가리킨다.",
+   "tip": ""
+  },
+  {
+   "t": 50.2,
+   "file": "15_choice.png",
+   "sub": "사진을 그 애에게 건넬까, 아니면 한 번 더 놀아 줄까.",
+   "tip": "그 애를 누르면 사진을 건넨다 · ↻ 누르면 한 번 더 논다"
+  },
+  {
+   "t": 56.3,
+   "file": "16_give.png",
+   "sub": "손목의 밧줄이… 스르르 풀린다.",
+   "tip": ""
+  },
+  {
+   "t": 76.0,
+   "file": "17_ending.png",
+   "sub": "손목의 밧줄이… 스르르 풀린다.",
+   "tip": ""
+  }
+ ],
+ "log": [
+  {
+   "t": 0,
+   "ev": "chapter_start",
+   "ch": 1
+  },
+  {
+   "t": 0,
+   "ev": "round_start",
+   "n": 1,
+   "spot": "curtain"
+  },
+  {
+   "t": 4.8,
+   "ev": "first_input",
+   "kind": "tap"
+  },
+  {
+   "t": 4.8,
+   "ev": "valid_target",
+   "round": 1,
+   "spot": "curtain",
+   "realTime": 4.8,
+   "penalty": 0
+  },
+  {
+   "t": 9.82,
+   "ev": "round_start",
+   "n": 2,
+   "spot": "desk",
+   "decoys": [
+    "curtain",
+    "shelf"
+   ],
+   "retry": false
+  },
+  {
+   "t": 9.82,
+   "ev": "input_enabled",
+   "n": 2
+  },
+  {
+   "t": 10.62,
+   "ev": "false_tap",
+   "where": "curtain"
+  },
+  {
+   "t": 15.9,
+   "ev": "valid_target",
+   "round": 2,
+   "spot": "desk",
+   "realTime": 6.1,
+   "penalty": 3
+  },
+  {
+   "t": 21.52,
+   "ev": "round_start",
+   "n": 3,
+   "spot": "behind",
+   "decoys": [
+    "curtain"
+   ],
+   "retry": false
+  },
+  {
+   "t": 21.52,
+   "ev": "input_enabled",
+   "n": 3
+  },
+  {
+   "t": 25.12,
+   "ev": "false_tap",
+   "where": "curtain"
+  },
+  {
+   "t": 28.33,
+   "ev": "hint_used",
+   "hint": "behind"
+  },
+  {
+   "t": 29.47,
+   "ev": "turn"
+  },
+  {
+   "t": 30.52,
+   "ev": "valid_target",
+   "round": 3,
+   "spot": "behind",
+   "realTime": 8.5,
+   "penalty": 0
+  },
+  {
+   "t": 34.92,
+   "ev": "round_start",
+   "n": 4,
+   "spot": "under",
+   "decoys": [],
+   "retry": false
+  },
+  {
+   "t": 34.92,
+   "ev": "input_enabled",
+   "n": 4
+  },
+  {
+   "t": 37.1,
+   "ev": "cctv_view"
+  },
+  {
+   "t": 38.05,
+   "ev": "valid_target",
+   "round": 4,
+   "spot": "under",
+   "realTime": 3.1,
+   "penalty": 0
+  },
+  {
+   "t": 39.45,
+   "ev": "story_start"
+  },
+  {
+   "t": 46.25,
+   "ev": "input_enabled",
+   "n": "photo"
+  },
+  {
+   "t": 47.53,
+   "ev": "valid_target",
+   "round": "photo"
+  },
+  {
+   "t": 48.13,
+   "ev": "input_enabled",
+   "n": "choice"
+  },
+  {
+   "t": 49.2,
+   "ev": "choice",
+   "give": "photo"
+  }
+ ]
+}

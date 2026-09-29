@@ -129,10 +129,14 @@ fn wrapDiffuse(n: vec3f, l: vec3f, wrap: f32) -> f32 {
 
 fn lighting(p: vec3f, nIn: vec3f, wrap: f32, spec: f32) -> vec3f {
   var n = nIn;
+  if (dot(n, normalize(G.camPos.xyz - p)) < 0.0) { n = -n; }
+  return lightingS(p, nIn, wrap, spec, shadowAt(p, n));
+}
+fn lightingS(p: vec3f, nIn: vec3f, wrap: f32, spec: f32, sh: f32) -> vec3f {
+  var n = nIn;
   let V = normalize(G.camPos.xyz - p);
   if (dot(n, V) < 0.0) { n = -n; }
   var c = G.ambient.rgb;
-  let sh = shadowAt(p, n);
   let bulbSh = select(sh, 1.0, G.shadowPos.w > 0.5);
   let moonSh = select(1.0, sh, G.shadowPos.w > 0.5);
   // hanging bulb
@@ -199,13 +203,25 @@ const LIT = SHARED + /* wgsl */`
 const GHOST = SHARED + /* wgsl */`
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
   let time = G.camPos.w;
+  if (O.extra.y > 0.0 && i.wp.y > O.extra.y) { discard; }   // only her feet show under the curtain
+  if (O.flags.y > 0.5) { return vec4f(textureSample(tex, samp, i.uv).rgb * O.tint.rgb * select(1.0, i.col.r, O.flags.y > 1.5), 1.0); }
   // screen-door fade so she can materialise without sorting problems
-  let a = O.tint.a * (0.92 + 0.08 * sin(time * 17.0 + i.wp.y * 9.0));
-  if (a < hash21(floor(i.pos.xy) + fract(time) * 0.0)) { discard; }
+  let a = O.tint.a;
+  if (a < 0.995 && a < hash21(floor(i.pos.xy))) { discard; }   // screen-door only while fading
   let t = textureSample(tex, samp, i.uv);
   let ao = mix(sqrt(i.col.r), 1.0, O.emissive.w);
-  var col = t.rgb * O.tint.rgb * lighting(i.wp, normalize(i.n), O.flags.x, O.flags.z) * ao * 1.15 + t.rgb * O.emissive.rgb * ao;
+  // no self-shadowing: thin cloth and hair would acne against their own shadow map
+  var col = t.rgb * O.tint.rgb * lightingS(i.wp, normalize(i.n), O.flags.x, O.flags.z, 1.0) * ao * 1.15 + t.rgb * O.emissive.rgb * ao;
   col = mix(col, col * vec3f(0.8, 1.0, 1.12), 0.5);
+  let Vg = normalize(G.camPos.xyz - i.wp);
+  let rim = pow(1.0 - clamp(abs(dot(normalize(i.n), Vg)), 0.0, 1.0), 2.5);
+  col += vec3f(0.35, 0.45, 0.55) * rim * 0.55 * (0.4 + 0.6 * ao);
+  if (O.uvx.z > 0.5) {
+    // hair: one flat wet-black with a faint cold sheen, independent of each lock's normal,
+    // so overlapping locks never flicker against each other
+    let lum = dot(lighting(i.wp, vec3f(0.0, 1.0, 0.0), 1.0, 0.0), vec3f(0.33));
+    col = vec3f(0.006, 0.007, 0.009) + vec3f(0.012, 0.016, 0.02) * clamp(lum, 0.0, 2.0) + vec3f(0.05, 0.065, 0.08) * rim * 0.35;
+  }
   col = fog(col, i.wp);
   return vec4f(col, 1.0);
 }

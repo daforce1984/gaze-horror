@@ -1,0 +1,224 @@
+{
+ "mode": "wrong3",
+ "shots": [
+  {
+   "t": 0.5,
+   "file": "00_t0_start.png",
+   "sub": "“엄마! 일어났다! 우리 숨바꼭질 하자. 엄마가 술래야!”",
+   "tip": "수아를 찾아 눌러요"
+  },
+  {
+   "t": 3.1,
+   "file": "01_t3_curtain.png",
+   "sub": "“엄마! 일어났다! 우리 숨바꼭질 하자. 엄마가 술래야!”",
+   "tip": "수아를 찾아 눌러요"
+  },
+  {
+   "t": 5.5,
+   "file": "02_r1_found.png",
+   "sub": "“헤헤, 들켰다!”",
+   "tip": ""
+  },
+  {
+   "t": 7.1,
+   "file": "03_r1_reward_flying.png",
+   "sub": "“한 번 더! 이번엔 못 찾을걸?”",
+   "tip": ""
+  },
+  {
+   "t": 10.3,
+   "file": "04_r2_seek_start.png",
+   "sub": "(눈을 감는다) …타닥타닥, 뛰어가는 발소리",
+   "tip": ""
+  },
+  {
+   "t": 20.4,
+   "file": "05_r2_after_3_wrong.png",
+   "sub": "“거기 아니야~”",
+   "tip": ""
+  },
+  {
+   "t": 22.5,
+   "file": "06_r2_found.png",
+   "sub": "“나 여기 있는데~”",
+   "tip": ""
+  },
+  {
+   "t": 28.3,
+   "file": "07_r3_seek_start.png",
+   "sub": "…의자가 삐걱거린다. 불빛이 한 칸 어두워졌다.",
+   "tip": ""
+  },
+  {
+   "t": 37.6,
+   "file": "08_r3_after_cheat.png",
+   "sub": "“다 숨었다! 찾아봐~”",
+   "tip": ""
+  },
+  {
+   "t": 38.6,
+   "file": "09_r3_turned.png",
+   "sub": "“다 숨었다! 찾아봐~”",
+   "tip": ""
+  },
+  {
+   "t": 39.5,
+   "file": "10_r3_found.png",
+   "sub": "“속았지? 커튼엔 아무도 없었어!”",
+   "tip": ""
+  },
+  {
+   "t": 44.8,
+   "file": "11_r4_tv_on.png",
+   "sub": "…등 뒤에서, 의자가 삐걱.",
+   "tip": "TV를 눌러 봐요"
+  },
+  {
+   "t": 46.1,
+   "file": "12_r4_cctv_view.png",
+   "sub": "“나 여기 있는데~”",
+   "tip": ""
+  },
+  {
+   "t": 47.0,
+   "file": "13_r4_found.png",
+   "sub": "“나 여기 있는데~”",
+   "tip": ""
+  },
+  {
+   "t": 50.1,
+   "file": "14_end.png",
+   "sub": "“찾았다…”",
+   "tip": ""
+  }
+ ],
+ "log": [
+  {
+   "t": 0,
+   "ev": "chapter_start",
+   "ch": 1
+  },
+  {
+   "t": 0,
+   "ev": "round_start",
+   "n": 1,
+   "spot": "curtain"
+  },
+  {
+   "t": 4.72,
+   "ev": "first_input",
+   "kind": "tap"
+  },
+  {
+   "t": 4.72,
+   "ev": "valid_target",
+   "round": 1,
+   "spot": "curtain",
+   "realTime": 4.7,
+   "penalty": 0
+  },
+  {
+   "t": 9.75,
+   "ev": "round_start",
+   "n": 2,
+   "spot": "shelf",
+   "decoys": [
+    "curtain",
+    "desk"
+   ]
+  },
+  {
+   "t": 10.45,
+   "ev": "false_tap",
+   "where": "curtain"
+  },
+  {
+   "t": 15.43,
+   "ev": "false_tap",
+   "where": "desk"
+  },
+  {
+   "t": 15.45,
+   "ev": "hint_used",
+   "hint": "voice"
+  },
+  {
+   "t": 19.17,
+   "ev": "false_tap",
+   "where": "curtain"
+  },
+  {
+   "t": 20.75,
+   "ev": "escalate",
+   "level": 1
+  },
+  {
+   "t": 21.75,
+   "ev": "valid_target",
+   "round": 2,
+   "spot": "shelf",
+   "realTime": 12,
+   "penalty": 9
+  },
+  {
+   "t": 27.37,
+   "ev": "round_start",
+   "n": 3,
+   "spot": "behind",
+   "decoys": [
+    "curtain"
+   ]
+  },
+  {
+   "t": 33.43,
+   "ev": "false_tap",
+   "where": "curtain"
+  },
+  {
+   "t": 36.63,
+   "ev": "hint_used",
+   "hint": "behind"
+  },
+  {
+   "t": 37.35,
+   "ev": "hint_used",
+   "hint": "voice"
+  },
+  {
+   "t": 37.75,
+   "ev": "turn"
+  },
+  {
+   "t": 38.77,
+   "ev": "valid_target",
+   "round": 3,
+   "spot": "behind",
+   "realTime": 10.8,
+   "penalty": 0
+  },
+  {
+   "t": 43.17,
+   "ev": "round_start",
+   "n": 4,
+   "spot": "under",
+   "decoys": []
+  },
+  {
+   "t": 45.28,
+   "ev": "cctv_view"
+  },
+  {
+   "t": 46.22,
+   "ev": "valid_target",
+   "round": 4,
+   "spot": "under",
+   "realTime": 3.1,
+   "penalty": 0
+  },
+  {
+   "t": 47.8,
+   "ev": "chapter_end",
+   "ch": 1
+  }
+ ]
+}

@@ -182,8 +182,9 @@ function buildScene() {
     M_window: { t: T.window, unlit: true, tint: [0.3, 0.32, 0.4] }, M_tvscreen: { t: O.tvTex, unlit: true, key: 'screen' },
     M_clockface: { t: O.clockTex, key: 'clockface' }, M_bulb: { unlit: true, key: 'bulb' }, M_corridor: { unlit: true, key: 'corridor', tint: [0, 0, 0] },
     M_bag: { t: T.plastic, tint: [0.9, 0.9, 0.95], spec: 1.4 }, M_bagwhite: { spec: 0.9 }, M_paper: { t: T.paper, wrap: 0.3 }, M_cardboard: { t: T.paper, tint: [0.75, 0.6, 0.42] },
-    M_dress: { t: T.fabric, wrap: 0.45, tint: [0.95, 0.95, 0.95], aoLift: 0.3 }, M_skin: { wrap: 0.35, spec: 0.3 }, M_hair: { spec: 1.6, wrap: 0.2, aoLift: 0.75 }, M_eye: { spec: 1.5, emissive: [0.05, 0.06, 0.06] },
+    M_dress: { t: T.fabric, wrap: 0.45, tint: [0.95, 0.95, 0.95], aoLift: 0.85 }, M_skin: { wrap: 0.35, spec: 0.3, aoLift: 0.5 }, M_hair: { spec: 1.6, wrap: 0.2, aoLift: 1.0 }, M_eye: { spec: 1.5, emissive: [0.05, 0.06, 0.06] },
     M_glassgreen: { spec: 2.0 }, M_can: { spec: 1.5 }, M_can2: { spec: 1.5 }, M_metal: { spec: 1.2 }, M_brass: { spec: 1.4 }, M_mirror: { spec: 2.5 },
+    M_rug: { t: T.fabric, tint: [0.55, 0.22, 0.18], wrap: 0.3, spec: 0.02 }, M_cushion: { t: T.fabric, tint: [0.75, 0.55, 0.32], wrap: 0.4 },
     M_dollcloth: { wrap: 0.4 }, M_dolldress: { t: T.fabric, tint: [0.6, 0.16, 0.18], wrap: 0.4 },
   };
   const NO_SHADOW = new Set(['floor', 'ceiling', 'wall_front', 'wall_back', 'wall_left', 'wall_right', 'trim', 'corridor', 'bulb', 'window_glass', 'clock_face', 'tv_screen']);
@@ -333,6 +334,299 @@ function trayTap(id) {
   if (S.useItem === id) { S.useItem = null; renderTray(); return; }
   if (id === 'remote') { togglePad(); return; }
   openInspect(id);
+}
+
+
+// ================================================================ chapter 1: 숨바꼭질 (hide and seek)
+// One-sentence rule: "수아를 찾아 눌러요". Tap where she hides. Failure escalates in steps, never a cheap scare first.
+const LOG = []; window.__log = LOG;
+function log(ev, data = {}) { LOG.push({ t: +S.time.toFixed(2), ev, ...data }); }
+const HIDE = {
+  curtain: { ghost: [-2.1, 0, -1.02], kind: 'stand', min: [-2.35, 0, -1.55], max: [-1.9, 2.2, 0.25], c: [-2.08, 0.9, -0.7], cue: 'curtain', name: '커튼 뒤' },
+  desk: { ghost: [1.95, 0, 0.06], kind: 'crouch', min: [1.45, 0, -0.35], max: [2.2, 0.85, 0.4], c: [1.85, 0.4, 0.05], cue: 'desk', name: '책상 밑' },
+  shelf: { ghost: [-2.0, 0, 1.92], kind: 'stand', min: [-2.2, 0, 1.55], max: [-1.15, 1.7, 2.5], c: [-1.8, 0.9, 2.0], cue: 'shelf', name: '책장 옆' },
+  tvside: { ghost: [-0.84, 0, -2.18], kind: 'crouch', min: [-1.25, 0, -2.5], max: [-0.45, 0.95, -1.85], c: [-0.82, 0.45, -2.2], cue: 'tv', name: 'TV 옆' },
+  door: { ghost: [0.7, 0, 2.22], kind: 'stand', min: [0.05, 0, 1.9], max: [1.35, 2.15, 2.6], c: [0.7, 1.0, 2.3], cue: 'door', name: '문 앞' },
+  behind: { ghost: [0.05, 0, 1.02], kind: 'stand', min: [-0.45, 0, 0.62], max: [0.5, 1.7, 1.45], c: [0.05, 1.1, 1.0], cue: 'chair', name: '의자 뒤' },
+  under: { ghost: [0.02, 0.12, 1.55], kind: 'stand', lying: true, min: [-0.35, 0, 0.1], max: [0.4, 0.45, 1.7], c: [0.02, 0.15, 0.8], cue: 'chair', name: '의자 밑' },
+};
+const HS = { on: false, round: 0, spot: null, decoys: [], t: 0, real: 0, penalty: 0, phase: 'idle', esc: 0, firstInput: false, turning: null, lastSpot: 'curtain', cctv: false };
+let hsToken = 0;
+function hsAfter(sec, fn) { const tok = hsToken; after(sec, () => { if (tok === hsToken) fn(); }); }
+// one subtitle channel during the chapter: the newest line replaces the old one
+function hsSay(text, dur) { sayNow(text, dur); }
+function hsNewBeat() { hsToken++; snd.stopVoices(); subQueue = []; }
+function hsTip(html) { const el = $('#hsTip'); el.innerHTML = html || ''; el.classList.toggle('show', !!html); }
+function hsStart() {
+  HS.on = true; ui.hud.classList.add('hs');
+  S.yaw = -1.0; S.pitch = -0.12;   // the curtain sits near the centre on phones too
+  log('chapter_start', { ch: 1 });
+  hsAfter(0.4, () => { voice('hs_start', HIDE.curtain.c, 2.2); hsSay('“엄마! 일어났다! 우리 숨바꼭질 하자. 엄마가 술래야!”', 4.2); });
+  hsRound(1);
+}
+function hsRound(n, retry = false) {
+  hsNewBeat();
+  HS.round = n; HS.t = 0; HS.real = 0; HS.penalty = 0; HS.esc = 0; HS.decoys = []; HS.found = false; HS.cheatDone = false;
+  ui.hud.classList.toggle('turnon', n >= 3);
+  S.lampDim = 0;
+  const pickSpot = (pool) => { const c = pool.filter(k => k !== HS.lastSpot); return c[Math.floor(Math.random() * c.length)]; };
+  if (n === 1) { hsHide('curtain', []); HS.phase = 'seek'; hsTip('<b>수아</b>를 찾아 눌러요'); log('round_start', { n, spot: 'curtain' }); return; }
+  let spot, decoys;
+  if (n === 2) { spot = pickSpot(['shelf', 'desk']); decoys = ['curtain', spot === 'shelf' ? 'desk' : 'shelf']; }
+  else if (n === 3) { spot = 'behind'; decoys = ['curtain']; }
+  else if (n === 4) { spot = 'under'; decoys = []; }
+  else { spot = pickSpot(['shelf', 'desk', 'tvside', 'door', 'behind', 'curtain']); decoys = ['curtain', 'door', 'desk'].filter(k => k !== spot).slice(0, 1 + (n > 4 ? 1 : 0)); }
+  // eyes closed: she counts while you hear her run to the hiding place
+  HS.phase = 'count'; hsTip('');
+  S.blackoutTarget = 1; S.ghost = null;
+  const d = retry ? 0.5 : n === 2 ? 1.6 : n === 3 ? 2.0 : 1.2;   // eyes closed: short, long only before the twist
+  hsSay('(눈을 감는다) …타닥타닥, 뛰어가는 발소리', d + 0.6);
+  const from = HIDE[HS.lastSpot].ghost, to = HIDE[n === 3 ? 'curtain' : spot].ghost;   // round 3: the footsteps lie
+  for (let k = 1; k <= 4; k++) hsAfter(k * d / 4.5, () => snd.play('steps', v3.add(v3.scale(from, 1 - k / 4), v3.scale(to, k / 4))));
+  hsAfter(d, () => {
+    S.blackoutTarget = 0; hsHide(spot, decoys); HS.phase = 'seek'; HS.t = 0; HS.real = 0;
+    voice('hs_ready', null, 1.8); hsSay('“다 숨었다! 찾아봐~”', 2);
+    if (n === 4) hsCctvRound();
+    log('round_start', { n, spot, decoys, retry });
+    log('input_enabled', { n });
+  });
+}
+function hsResetCues() {
+  for (const n of ['bookshelf', 'drawer', 'curtain_L']) { const b = O.nodes[n]?.[0]?.base; if (b) setModel(O.nodes[n], b.slice()); }
+}
+function hsHide(spot, decoys) {
+  hsResetCues();
+  HS.spot = spot; HS.decoys = decoys; HS.lastSpot = spot;
+  const h = HIDE[spot];
+  S.ghost = { p: h.ghost.slice(), kind: h.kind, alpha: 1, target: 1, mode: 'hide' };
+  if (spot === 'curtain') { S.curtainTarget = 0; }
+}
+// screen-space generous hit test (>= 56 css px around the spot's centre) plus the spot's box
+function hsPick(px, py, dir) {
+  const cand = [HS.spot, ...HS.decoys].filter(Boolean);
+  const rect = ui.canvas.getBoundingClientRect();
+  let best = null, bd = 1e9;
+  for (const k of cand) {
+    const h = HIDE[k];
+    const tb = rayAABB(EYE, dir, h.min, h.max);
+    const VP = G, c = h.c;
+    const cw = VP[3] * c[0] + VP[7] * c[1] + VP[11] * c[2] + VP[15];
+    let sd = 1e9;
+    if (cw > 0.05) {
+      const sx = ((VP[0] * c[0] + VP[4] * c[1] + VP[8] * c[2] + VP[12]) / cw * 0.5 + 0.5) * rect.width + rect.left;
+      const sy = (0.5 - (VP[1] * c[0] + VP[5] * c[1] + VP[9] * c[2] + VP[13]) / cw * 0.5) * rect.height + rect.top;
+      sd = Math.hypot(px - sx, py - sy);
+    }
+    const score = tb >= 0 ? tb : (sd < 64 ? 10 + sd / 100 : 1e9);
+    if (score < bd) { bd = score; best = k; }
+  }
+  return bd < 1e8 ? best : null;
+}
+function hsTap(px, py, dir) {
+  if (HS.phase === 'photo' || HS.phase === 'final') {
+    const fb = O.nodes.item_frame[0].base, fc = [fb[12], fb[13], fb[14]];
+    const hitPhoto = rayAABB(EYE, dir, [fc[0] - 0.3, fc[1] - 0.35, fc[2] - 0.1], [fc[0] + 0.3, fc[1] + 0.35, fc[2] + 0.2]) >= 0;
+    if (HS.phase === 'photo' && hitPhoto) { log('valid_target', { round: 'photo' }); hsPhoto(); return true; }
+    if (HS.phase === 'final') return true;   // the choice is made with its two labelled buttons
+    log('false_tap', { where: HS.phase }); return true;
+  }
+  if (HS.phase !== 'seek') return false;
+  if (!HS.firstInput) { HS.firstInput = true; log('first_input', { kind: 'tap' }); }
+  if (HS.round === 4 && !HS.cctv) {
+    const r = O.tvRect, tt = (r.z - EYE[2]) / dir[2];
+    const x = EYE[0] + dir[0] * tt, y = EYE[1] + dir[1] * tt;
+    if (tt > 0 && x > r.x0 - 0.15 && x < r.x1 + 0.15 && y > r.y0 - 0.15 && y < r.y1 + 0.15) { hsCctvView(true); return true; }
+  }
+  if (HS.cctv) {   // pick through the camera: generous — a tap near her on the CCTV counts
+    const h = HIDE[HS.spot], cam = cctvBasis(), rect = ui.canvas.getBoundingClientRect();
+    const d = v3.sub(h.c, CCTV.pos), z = v3.dot(d, cam.f);
+    const sx = (v3.dot(d, cam.r) / z / (CCTV.tanHalf * (R.width / R.height)) * 0.5 + 0.5) * rect.width;
+    const sy = (0.5 - v3.dot(d, cam.u) / z / CCTV.tanHalf * 0.5) * rect.height;
+    if (Math.hypot(px - rect.left - sx, py - rect.top - sy) < Math.max(90, rect.width * 0.12)) { hsFound(); return true; }
+    log('false_tap', { where: 'cctv' }); hsCctvView(false); return true;
+  }
+  const k = hsPick(px, py, dir);
+  if (!k) { log('false_tap', { where: 'nothing' }); return true; }
+  if (k === HS.spot) { hsFound(); return true; }
+  // a decoy
+  log('false_tap', { where: k });
+  if (HS.round === 3 && k === 'curtain' && !HS.cheatDone) {
+    HS.cheatDone = true;
+    S.curtainTarget = 1; snd.play('curtain', HIDE.curtain.c);
+    hsAfter(0.9, () => { voice('hs_cheat', HIDE.behind.c, 2.2); hsSay('“속았지? 커튼엔 아무도 없었어!”', 3); });
+    hsAfter(3.2, () => { S.curtainTarget = 0; snd.play('creak', HIDE.behind.c); voice('hs_behind', HIDE.behind.c, 2.4); hsSay('…등 뒤에서, 의자가 삐걱.', 3); $('#turnBtn').classList.add('pulse'); log('hint_used', { hint: 'behind' }); });
+    return true;
+  }
+  voice('hs_wrong', HIDE[HS.spot].c, 1.8); hsSay('“거기 아니야~”', 2);
+  HS.t += 3; HS.penalty += 3;   // a wrong guess moves the warnings closer
+  return true;
+}
+function hsFound() {
+  hsNewBeat();
+  HS.phase = 'found'; hsResetCues(); HS.found = true; hsTip('');
+  $('#turnBtn').classList.remove('pulse');
+  log('valid_target', { round: HS.round, spot: HS.spot, realTime: +HS.real.toFixed(1), penalty: HS.penalty });
+  if (HS.cctv) hsCctvView(false);
+  const h = HIDE[HS.spot];
+  if (HS.spot === 'curtain') { S.curtainTarget = 1; snd.play('curtain', h.c); hsAfter(1.6, () => { S.curtainTarget = 0; }); }
+  if (S.ghost) {
+    S.ghost.mode = 'found';
+    const to = v3.norm([EYE[0] - S.ghost.p[0], 0, EYE[2] - S.ghost.p[2]]);
+    S.ghost.p = v3.add(S.ghost.p, v3.scale(to, 0.3));
+    hsAfter(1.4, () => { if (S.ghost?.mode === 'found') S.ghost.target = 0; });
+  }
+  S.flash = 0.18; S.flashCol = [1, 0.95, 0.85];
+  const line = HS.round === 1 ? ['hs_found1', '헤헤, 들켰다!'] : HS.round === 3 ? ['c_found', '찾았다…'] : ['hs_found2', '와, 엄마 잘 찾는다!'];
+  voice(line[0], h.c, 2.2); hsSay(`“${line[1]}”`, 2.2);
+  if (HS.round === 1) {   // the reward floats to your lap while you can still look around
+    hsAfter(0.9, () => { S.job = { w: W.remote, t: 0, phase: 'lift', carry: false, from: W.remote.c.slice(), pos: W.remote.c.slice(), spin: 0, free: true }; });
+    hsAfter(2.2, () => { voice('hs_again', null, 2.0); hsSay('“한 번 더! 이번엔 못 찾을걸?”', 2.2); });
+    hsAfter(3.4, () => hsRound(2));
+  } else if (HS.round === 2) {   // one-line story fragment, 3 seconds
+    hsAfter(1.6, () => { S.tape = Math.max(S.tape, 1); hsSay('📼 …책상 위 자동응답기에 빨간 불이 켜졌다. “수아야~ 엄마야…”', 3); snd.play('beep', [1.81, 0.8, 0.12]); });
+    hsAfter(3.6, () => hsRound(3));
+  } else if (HS.round === 3) {
+    hsAfter(1.2, () => { voice('hs_under', null, 2.0); hsSay('“이번엔… 진짜 못 찾을걸.”', 2.2); });
+    hsAfter(3.2, () => hsRound(4));
+  } else if (HS.round === 4) {
+    hsAfter(1.4, () => hsStory());
+  }
+}
+function hsFail() {
+  hsNewBeat();
+  HS.phase = 'fail';
+  log('fail_reason', { round: HS.round, spot: HS.spot, realTime: +HS.real.toFixed(1), penalty: HS.penalty, esc: HS.esc });
+  if (HS.cctv) hsCctvView(false);
+  // she steps out right in front of you — the only real scare, after two warnings
+  const p = v3.add([EYE[0], 0, EYE[2]], v3.scale(flatFwd(), 0.7));
+  S.ghost = { p, kind: 'stand', alpha: 0.2, target: 1, mode: 'close' };
+  voice('hs_fail', [p[0], 1.1, p[2]], 2.4); hsSay('“엄마 바보~ 여기 있었지롱.”', 2.5);
+  S.shake = 0.6; S.flash = 0.3; S.flashCol = [0.4, 0.05, 0.05];
+  touch(12, 'hs_fail');
+  hsAfter(1.6, () => { if (S.ghost) S.ghost.target = 0; log('retry', { round: HS.round }); hsRound(HS.round, true); });
+}
+// round 4: the one place your own eyes can't reach — the TV shows it
+function hsCctvRound() {
+  S.tv.on = true; S.tv.ch = 7; tvScreen.channel = 7; tvScreen.osd = 3; snd.play('static', O.tvCenter); S.glitch = 0.8;
+  hsAfter(1.2, () => { hsTip('<b>TV</b>를 눌러 봐요'); hsSay('TV가 저절로 켜졌다. …방 구석 카메라 화면.', 3); });
+}
+function hsCctvView(on) {
+  HS.cctv = on; $('#cctvOsd').classList.toggle('show', on);
+  if (on) { snd.play('static'); S.glitch = 0.6; hsTip(''); log('cctv_view', {}); }
+}
+// ---- the story beat: one clue, one choice with the tap you already know
+function hsStory() {
+  hsNewBeat();
+  S.insanity = 0; S.fear = 0;
+  HS.phase = 'story'; log('story_start', {});
+  S.tv.on = false; S.decayTarget = 0.55; S.lampDim = 0.35;
+  const p = v3.add([EYE[0], 0, EYE[2]], [0.15, 0, -1.05]);
+  S.ghost = { p, kind: 'stand', alpha: 0, target: 1, mode: 'close' };
+  S.yaw = 0.05; S.pitch = -0.05;
+  voice('c_rope', [p[0], 1.1, p[2]], 2.2); hsSay('“엄마… 이번엔 안 나갈 거지? 또 가지 마.”', 3.4);
+  hsAfter(3.6, () => { hsSay('그 애가 벽의 가족사진을 가리킨다.', 3); S.flags.photoGlow = 1; });
+  hsAfter(6.8, () => { hsTip('<b>가족사진</b>을 눌러 봐요'); HS.phase = 'photo'; log('input_enabled', { n: 'photo' }); });
+}
+function hsPhoto() {
+  hsNewBeat();
+  HS.phase = 'choice'; hsTip(''); S.flags.photoGlow = 0;
+  showDoc('가족사진', S.decay > 0.5 ? O.familyRuined : O.familyClean,
+    '생일 케이크 앞의 여자와 수아. …사진 속 여자의 얼굴을, 나는 안다. 매일 거울에서 보던 얼굴이다.');
+  record('photo', '가족사진 — 사진 속 엄마는… 나였다.');
+  const close = ui.card.querySelector('[data-close]');
+  close.textContent = '사진을 들고 닫기';
+  close.addEventListener('click', () => {
+    hsAfter(0.6, () => {
+      hsSay('“엄마… 이번엔 어디 안 갈 거지?”', 4);
+      ui.hud.classList.add('choosing');
+      HS.phase = 'final'; HS.choiceAt = performance.now(); log('input_enabled', { n: 'choice' });
+      $('#choice').classList.add('show'); $('#chStay').classList.remove('confirm');
+    });
+  }, { once: true });
+}
+function hsChoiceReady() { return HS.phase === 'final' && performance.now() - (HS.choiceAt || 0) > 450; }   // the finger that closed the photo must not choose
+function hsGive() {
+  if (!hsChoiceReady()) return;
+  $('#choice').classList.remove('show'); ui.hud.classList.remove('choosing');
+  hsNewBeat(); HS.phase = 'end'; hsTip(''); $('#turnBtn').classList.remove('pulse');
+  log('choice', { give: 'photo' }); log('ending_choice', { type: 'release' });
+  const g = S.ghost;
+  voice('c_take', g ? [g.p[0], 1.1, g.p[2]] : null, 2.2); hsSay('“이거… 나야? 엄마랑… 나.”', 3.4);
+  hsAfter(3.8, () => { voice('c_bye', g ? [g.p[0], 1.1, g.p[2]] : null, 2.2); hsSay('“엄마… 이제 가도 돼. 문 열어 줄게.”', 3.6); });
+  hsAfter(5.5, () => { snd.play('creak', v3.add(EYE, [0.3, -0.5, 0])); hsSay('손목의 밧줄이 풀린다. …문을 잠근 손은, 내 손이었다.', 4); setVisible(O.nodes.rope_R, false); setVisible(O.nodes.rope_L || [], false); });
+  hsAfter(8.2, () => { if (S.ghost) S.ghost.target = 0; snd.play('unlock', [0.7, 1, 2.45]); S.yaw = PI; S.pitch = -0.05; });
+  hsAfter(9.4, () => { snd.play('creak', [0.7, 1, 2.45]); S.doorOpenT = 1; S.doorLight = 0.001; snd.stopMusic(3); });
+  hsAfter(12.5, () => ui.fade.classList.add('white'));
+  hsAfter(15.5, () => { HS.on = false; showEnding('good'); });
+}
+function hsStay() {
+  if (!hsChoiceReady()) return;
+  const b = $('#chStay');
+  if (!b.classList.contains('confirm')) {   // tell the cost before it is paid
+    b.classList.add('confirm'); b.innerHTML = '정말 남기<small>다시는 문이 열리지 않아도?</small>';
+    hsSay('…다시는 문이 열리지 않아도?', 3); log('choice_warn', {}); HS.choiceAt = performance.now(); return;
+  }
+  hsPlayAgain();
+}
+function hsPlayAgain() {
+  $('#choice').classList.remove('show'); ui.hud.classList.remove('choosing');
+  hsNewBeat(); HS.phase = 'end'; hsTip(''); $('#turnBtn').classList.remove('pulse');
+  log('choice', { give: 'play' }); log('ending_choice', { type: 'stay' });
+  const g = S.ghost;
+  voice('c_stay', g ? [g.p[0], 1.1, g.p[2]] : null, 2.2); hsSay('“같이 있자… 계속.”', 3);
+  hsAfter(3, () => { S.blackoutTarget = 1; snd.stopMusic(2); });
+  hsAfter(5.5, () => { HS.on = false; showEnding('doll'); });
+}
+function hsEnd() {
+  HS.on = false; HS.phase = 'idle'; ui.hud.classList.remove('hs'); hsTip('');
+  log('chapter_end', { ch: 1, t: +S.time.toFixed(1) });
+  // hand over to the room-and-TV chapter
+  objective('무릎 위 리모컨으로 TV를 켠다');
+  hsSay('숨바꼭질이 끝났다. …무릎 위의 리모컨을 누른다.', 4);
+}
+function hsUpdate(dt) {
+  if (!HS.on || S.paused) return;
+  const h = HS.spot && HIDE[HS.spot];
+  if (HS.phase === 'seek' && h) {
+    if (HS.turning) return;
+    HS.t += dt; HS.real += dt;
+    if (HS.round === 1) {
+      if (HS.t > 9 && !HS.hint1) { HS.hint1 = true; voice('hs_hint', h.c, 2.0); hsSay('“나 여기 있는데~”', 2.5); log('hint_used', { hint: 'voice' }); }
+      return;   // no failure in the tutorial round
+    }
+    if (HS.t > 10 && HS.esc < 1) { HS.esc = 1; voice('hs_hint', h.c, 2.0); hsSay('“나 여기 있는데~”', 2.5); log('hint_used', { hint: 'voice' }); }
+    if (HS.t > 20 && HS.esc < 2) { HS.esc = 2; snd.play('creak', v3.add(EYE, [0, 0, 0.6])); S.lampDim = 0.5; hsSay('…의자가 삐걱거린다. 불빛이 한 칸 어두워졌다.', 3); log('escalate', { level: 1 }); }
+    if (HS.t > 30 && HS.esc < 3) { HS.esc = 3; voice('hs_closer', h.c, 2.2); hsSay('“가까이 왔다…”', 2.5); log('escalate', { level: 2 }); if (HS.round === 3) $('#turnBtn').classList.add('pulse'); }
+    if (HS.t > 40) hsFail();
+  }
+}
+// cue animation per hiding place (strong on the real spot, faint on decoys)
+function hsCues(time) {
+  if (!HS.on || HS.phase !== 'seek') return;
+  const cues = [[HS.spot, 1], ...HS.decoys.map(d => [d, HS.round === 3 && d === 'curtain' && !HS.cheatDone ? 1.2 : 0.35])];
+  for (const [k, amp] of cues) {
+    const h = HIDE[k]; if (!h) continue;
+    const pulse = Math.max(0, Math.sin(time * 2.3 + k.length)) ** 3 * amp;
+    if (h.cue === 'curtain') {
+      const base = O.nodes.curtain_L[0].base;
+      if (S.curtainOpen < 0.05) setModel(O.nodes.curtain_L, m4.trs([base[12] + pulse * 0.05, base[13], base[14]], 0, [1 + pulse * 1.4, 1, 1 - pulse * 0.05]));
+    }
+    if (h.cue === 'shelf') { const b = O.nodes.bookshelf[0].base; setModel(O.nodes.bookshelf, m4.trs([b[12] + (Math.random() - 0.5) * 0.006 * pulse, b[13], b[14]], (Math.random() - 0.5) * 0.01 * pulse)); }
+    if (h.cue === 'desk') { const b = O.nodes.drawer[0].base; setModel(O.nodes.drawer, m4.trs([b[12] - pulse * 0.03, b[13], b[14]])); }
+    if (h.cue === 'tv' && pulse > 0.3) { S.glitch = Math.max(S.glitch, 0.4 * amp); }
+    if (h.cue === 'door') { const b = O.nodes.door[0].base; setModel(O.nodes.door, m4.trs([b[12], b[13], b[14]], (Math.random() - 0.5) * 0.012 * pulse)); }
+    if (Math.random() < 0.012 * amp) snd.play(h.cue === 'shelf' ? 'bang' : h.cue === 'desk' ? 'drawer' : h.cue === 'door' ? 'knock' : h.cue === 'chair' ? 'creak' : 'giggle', h.c);
+  }
+}
+function turnAround() {
+  if (HS.phase === 'final') return;
+  if (HS.turning) return;
+  // look straight back over the chair (nearest equivalent of yaw = PI)
+  const target = S.yaw + ((((PI - S.yaw) % (2 * PI)) + 3 * PI) % (2 * PI) - PI);
+  $('#turnBtn').classList.remove('pulse');
+  HS.turning = { from: S.yaw, to: target, t: 0, p0: S.pitch };
+  if (!HS.firstInput) { HS.firstInput = true; log('first_input', { kind: 'turn' }); }
+  log('turn', {});
 }
 
 // ---------------------------------------------------------------- stages
@@ -585,10 +879,10 @@ function arrive(j) {
   S.job = null;
   setVisible(w.objs, false);
   S.fetched.add(w.id);
-  touch(w.cost, w.id);
+  if (!j.free) touch(w.cost, w.id);
   if (w.item) invAdd(w.item);
   const lines = [['c_bring1', '가져왔어.'], ['c_bring2', '이것도 줄게, 엄마.'], ['c_bring3', '엄마 거야. 만져 봐.']];
-  if (w.id === 'remote') STORY.remoteArrived();
+  if (w.id === 'remote' && !j.free) STORY.remoteArrived();
   else if (w.id === 'musicbox') STORY.musicboxArrived();
   else if (w.knife) say('손바닥이 베였다. 피가 무릎으로 떨어진다.', 4);
   else if (!w.angry && Math.random() < 0.6) after(0.3, () => { const [id, t] = pick(lines); girl(id, t, [EYE[0] + 0.4, 1.0, EYE[2] - 0.5]); });
@@ -734,7 +1028,7 @@ function windMusicBox() {
   after(1.6, () => { snd.musicBox(LAP(), 16); STORY.musicPlayed(); });
 }
 const USE_TARGETS = [
-  { id: 'rope', label: '오른손 밧줄', min: [0.2, 0.58, 0.12], max: [0.4, 0.74, 0.4] },
+  { id: 'rope', label: '오른손 밧줄', min: [0.15, 0.58, 0.12], max: [0.3, 0.74, 0.42] },
   { id: 'padlock', label: '발목 자물쇠', min: [-0.12, 0, -0.1], max: [0.12, 0.14, 0.2] },
   { id: 'door', label: '문', min: [0.12, 0, 2.4], max: [1.28, 2.12, 2.62] },
 ];
@@ -871,22 +1165,24 @@ function showEnding(kind) {
   S.paused = true; clearSave();
   const mins = Math.floor(S.time / 60), secs = Math.floor(S.time % 60);
   const body = {
-    good: `<p>문밖 현관의 깨진 거울 속에, 스무 해만큼 늙은 여자가 서 있었다.</p>
-      <p>수아의 엄마. — 나였다.</p>
+    good: `<p>1999년 12월 24일 밤, 이 문을 밖에서 잠근 손은 내 손이었다.</p>
+      <p>그 애는 사진을 안고, 처음으로 먼저 문을 열어 주었다.</p>
       ${S.records.size >= RECORD_TOTAL ? '<p class="truth">1999년 12월 24일 밤, 나는 밖에서 문을 잠그고 나갔다. 금방 올 생각이었다.</p>' : ''}
       <p class="ch">CH 07</p><p class="whisper">“엄마… 또 와줘.”</p>`,
-    doll: `<p>그 애는 인형을 안고, 내 무릎에 머리를 기댔다.</p><p>나는 그 방에 남았다.</p>
+    doll: `<p>그 애가 내 무릎에 머리를 기댔다. 문은 다시 열리지 않았다.</p><p>이번에는, 내가 기다리기로 했다.</p>
       <p class="ch">CH 07</p><p class="whisper">화면 속 의자에, 늙은 여자가 묶여 있다.</p>`,
     grab: `<p>작은 손이 내 손목을 잡았다.</p><p>얼음처럼 차가웠다.</p><p class="ch">CH 07</p><p class="whisper">“이번엔 엄마가 기다려.”</p>`,
     cold: `<p>온기가 모두 빠져나갔다.</p><p>의자에 앉은 채로, 나는 TV를 바라보았다. 영원히.</p><p class="ch">CH 03</p><p class="whisper">“엄마가 오면은 문을 열어 줄 거야…”</p>`,
   }[kind];
-  const title = { good: '엔딩 — 돌려준 것', doll: '엔딩 — 같이 있자', grab: '엔딩 — 기다림', cold: '엔딩 — 차가운 손' }[kind];
+  const title = { good: '엔딩 — 놓아주기', doll: '엔딩 — 함께 남기', grab: '엔딩 — 기다림', cold: '엔딩 — 차가운 손' }[kind];
+  log('ending_shown', { type: kind });
+  ui.sub.classList.remove('show'); subQueue = []; subTimer = 0; hsTip(''); ui.hud.classList.remove('show');
   ui.ending.innerHTML = `
     <div class="endtext">
       ${body}
       <h1>응시</h1>
       <p class="stat">${title} · ${mins}분 ${String(secs).padStart(2, '0')}초 · 찾은 기록 ${S.records.size}/${RECORD_TOTAL}${S.records.size < RECORD_TOTAL ? ' — 방 안엔 아직 숨겨진 것이 있다' : ''}</p>
-      <button class="primary" onclick="localStorage.removeItem('${SAVE_KEY}'); location.reload()">다시 하기</button>
+      <button class="primary again" onclick="localStorage.removeItem('${SAVE_KEY}'); location.reload()">↻ 다시 시작</button>
     </div>`;
   ui.ending.classList.add('show');
   snd.play('static');
@@ -988,7 +1284,8 @@ function setupGyro() {
   screen.orientation?.addEventListener?.('change', () => { gyro.last = null; });
 }
 
-function worldTap(dir) {
+function worldTap(dir, px, py) {
+  if (HS.on && hsTap(px, py, dir)) return;
   if (S.useItem) { applyUse(useTarget(dir)); return; }
   // a tap on something she could bring explains the rule
   const ft = fetchTarget(dir);
@@ -1014,7 +1311,7 @@ function setupInput() {
       pinchDist = d; return;
     }
     if (dragInfo && dragInfo.id === e.pointerId) {
-      if (Math.hypot(e.clientX - dragInfo.x0, e.clientY - dragInfo.y0) > 10) dragInfo.moved = true;
+      if (Math.hypot(e.clientX - dragInfo.x0, e.clientY - dragInfo.y0) > 12) { if (!dragInfo.moved && HS.on && !HS.firstInput) { HS.firstInput = true; log('first_input', { kind: 'drag' }); } dragInfo.moved = true; }
       if (S.paused) return;
       const sens = (e.pointerType === 'touch' ? 0.0065 : 0.0045) * (tanHalfY() / Math.tan(31 * PI / 180)) ** 0.9;
       S.yaw += dx * sens; S.pitch = clamp(S.pitch - dy * sens, -1.45, 1.1);
@@ -1025,7 +1322,7 @@ function setupInput() {
     const had = pointers.delete(e.pointerId);
     if (pointers.size < 2) pinchDist = 0;
     if (had && dragInfo && dragInfo.id === e.pointerId) {
-      if (!dragInfo.moved && performance.now() - dragInfo.t0 < 450 && !S.paused) worldTap(screenRay(e.clientX, e.clientY));
+      if (!dragInfo.moved && performance.now() - dragInfo.t0 < 450 && !S.paused) worldTap(screenRay(e.clientX, e.clientY), e.clientX, e.clientY);
       dragInfo = null;
     }
   };
@@ -1057,6 +1354,9 @@ function setupInput() {
     if (S.act >= 3 && S.standing >= 1 && !S.final) S.walking = true;
     else if (S.useItem) applyUse(useTarget(camBasis().f));
   }, () => { S.walking = false; });
+  $('#turnBtn').addEventListener('click', turnAround);
+  $('#chGive').addEventListener('click', hsGive);
+  $('#chStay').addEventListener('click', hsStay);
   ui.memoBtn.addEventListener('click', () => { if (S.started && !ui.modal.classList.contains('show')) openMemo(); });
   ui.pauseBtn.addEventListener('click', () => { if (S.started && !ui.modal.classList.contains('show')) openPause(); });
 
@@ -1114,7 +1414,7 @@ function update(dt) {
 
   // ---- stare to fetch
   let ringV = 0, hint = '', hintUse = false;
-  if (live && !S.job && !S.useItem && S.act < 3) {
+  if (live && !S.job && !S.useItem && S.act < 3 && !HS.on && S.flags.tvOnce !== undefined) {
     const ft = fetchTarget(f);
     if (ft?.w) {
       const w = ft.w;
@@ -1133,6 +1433,8 @@ function update(dt) {
     hintUse = true;
   }
   updateJob(dt);
+  hsUpdate(dt);
+  if (HS.turning) { const tr = HS.turning; tr.t = Math.min(1, tr.t + dt / 0.55); S.yaw = lerp(tr.from, tr.to, smooth(0, 1, tr.t)); S.pitch = lerp(tr.p0, -0.12, smooth(0, 1, tr.t)); if (tr.t >= 1) HS.turning = null; }
 
   // ---- examine by looking closely
   if (live && S.zoom > 2 && !S.job) {
@@ -1155,7 +1457,7 @@ function update(dt) {
     g.alpha = damp(g.alpha, g.target, g.target > g.alpha ? 2.5 : 4, dt);
     const head = [g.p[0], g.kind === 'crouch' ? 0.62 : 1.2, g.p[2]];
     const v = inView(head, 0.95);
-    seeing = v.visible && g.alpha > 0.3 && !g.camOnly;
+    seeing = v.visible && g.alpha > 0.3 && !g.camOnly && g.mode !== 'hide' && !HS.on;   // the game with her is not an attack: no insanity while playing
     if (seeing && !S.paused) addFear(dt * 0.04 * (0.6 + 0.45 * S.zoom));
     if (g.target === 0 && g.alpha < 0.02) S.ghost = null;
     // act 1: glimpses vanish when you look at them
@@ -1172,6 +1474,7 @@ function update(dt) {
       if (seeing) g.twitch = 1;
     }
   }
+  if (HS.on) S.events = Math.max(S.events, 8);
   // act 1-2 glimpses: she appears where you are not looking, then is gone when you look
   if (live && S.act >= 1 && S.act < 3 && !S.ghost && !S.job) {
     S.events -= dt;
@@ -1246,6 +1549,7 @@ function update(dt) {
   for (const r of O.rot) r.o.tint[3] = damp(r.o.tint[3], S.decay >= r.at ? 0.92 : 0, 0.5, dt);
   O.scratchObj.tint[3] = damp(O.scratchObj.tint[3], S.decay > 0.45 ? 0.9 : 0, 0.5, dt);
   if (!S.fetched.has('news') && !(S.job && S.job.w.id === 'news') && !O.newsObj.visible && S.decay > 0.6 && !inView([0.02, 0.1, 1.92], 1.2).visible) O.newsObj.visible = true;
+  O.photoObj.emissive = S.flags.photoGlow ? [0.25 + 0.2 * Math.sin(S.time * 4), 0.22, 0.18, 0] : [0, 0, 0, 0];
   if (!S.fetched.has('frame')) {
     const ruined = S.decay > 0.5;
     if (ruined !== !!O.photoRuinedShown && !inView([-0.78, 1.55, -2.46], 1.2).visible) {
@@ -1311,8 +1615,13 @@ function frame(dt) {
   const { f, r, u } = camBasis();
   let eye = EYE;
   if (S.shake > 0.01) eye = v3.add(EYE, [(Math.random() - 0.5) * 0.05 * S.shake, (Math.random() - 0.5) * 0.05 * S.shake, 0]);
-  const view = m4.view(eye, r, u, v3.scale(f, -1));
-  const proj = m4.persp(tanHalfY(), R.width / R.height, 0.03, 30);
+  let view = m4.view(eye, r, u, v3.scale(f, -1));
+  let proj = m4.persp(tanHalfY(), R.width / R.height, 0.03, 30);
+  if (HS.cctv) {   // full-screen CCTV: the room seen from the corner camera
+    const cb = cctvBasis();
+    view = m4.view(CCTV.pos, cb.r, cb.u, v3.scale(cb.f, -1));
+    proj = m4.persp(CCTV.tanHalf, R.width / R.height, 0.05, 20);
+  }
   G.set(m4.mul(proj, view), 0);
 
   // lamp
@@ -1321,7 +1630,7 @@ function frame(dt) {
   const R0 = m4.trs([0, RH, -0.6], 0, [1, 1, 1], ax, az);
   setModel(O.nodes.lamp, R0); setModel(O.nodes.bulb, R0);
   const bulbPos = [R0[12] + R0[4] * -0.54, R0[13] + R0[5] * -0.54, R0[14] + R0[6] * -0.54];
-  const B = S.bulb ?? 1;
+  const B = (S.bulb ?? 1) * (1 - (S.lampDim || 0) * 0.6);
   O.bulb.emissive = [B * 7, B * 5.2, B * 3.2, 0]; O.bulb.tint = [0.08, 0.07, 0.06, 1];
   O.halo.model = billboard(bulbPos, 0.55 + B * 0.2, true);
   O.halo.tint[3] = B * 0.22;
@@ -1346,6 +1655,7 @@ function frame(dt) {
     const base = O.nodes[k][0].base;
     if (!(S.job && S.job.w.id === 'curtain')) setModel(O.nodes[k], m4.trs([base[12], base[13], base[14]], 0, [1 + co * 1.3, 1, cw]));
   }
+  hsCues(time);
   // music box lid (in hand)
   if (O.led) { const on = S.tape < 4 && Math.sin(time * 5) > 0; O.led.emissive = on ? [3, 0.15, 0.08, 0] : [0.05, 0, 0, 0]; }
   if (O.scratchObj) O.scratchObj.visible = !(S.doorOpen > 0.02);
@@ -1409,15 +1719,18 @@ function frame(dt) {
   if (g) {
     const list = g.kind === 'crouch' ? O.ghostCrouch : O.ghostStand;
     setVisible(list, g.alpha > 0.005);
-    for (const o of list) { o.camOnly = !!g.camOnly; o.castShadow = !g.camOnly; }
+    const clipY = g.mode === 'hide' && HS.spot === 'curtain' ? 0.3 : 0;
+    for (const o of list) { o.camOnly = !!g.camOnly; o.castShadow = !g.camOnly; o.extra[1] = clipY; }
     let p = g.p;
     if (g.twitch > 0 || S.glitch > 0.3) {
       g.twitch = Math.max(0, (g.twitch || 0) - dt * 3);
       if (Math.random() < 0.15) p = v3.add(p, [(Math.random() - 0.5) * 0.04, 0, (Math.random() - 0.5) * 0.04]);
     }
     const faceTo = g.mode === 'sit' ? O.tvCenter : g.camOnly ? CCTV.pos : EYE;
+    if (g.mode === 'hide' && g.kind === 'crouch' && HS.spot === 'desk') { /* tucked under the desk */ }
     const yaw = Math.atan2(faceTo[0] - p[0], faceTo[2] - p[2]) + Math.sin(time * 0.7) * 0.03;
-    setModel(list, m4.trs([p[0], 0, p[2]], yaw, [1, 1, 1], 0, g.twitch > 0.5 && Math.random() < 0.3 ? (Math.random() - 0.5) * 0.12 : 0));
+    if (g.mode === 'hide' && HS.spot && HIDE[HS.spot].lying) setModel(list, m4.trs([p[0], p[1], p[2]], 0, [1, 1, 1], -PI / 2));   // lying on her back, head under the seat
+    else setModel(list, m4.trs([p[0], 0, p[2]], yaw, [1, 1, 1], 0, g.twitch > 0.5 && Math.random() < 0.3 ? (Math.random() - 0.5) * 0.12 : 0));
     setAlpha(list, g.alpha);
     O.ghostShadow.model = m4.trs([p[0], 0.006, p[2]], 0, [0.8, 0.6, 1], -PI / 2);
     O.ghostShadow.tint[3] = g.camOnly ? 0 : g.alpha * 0.6;
@@ -1456,7 +1769,7 @@ function frame(dt) {
   }
 
   // post
-  const exposure = (1.45 + warmK * 0.25) * (1 + (S.zoom - 1) * 0.28);
+  const exposure = (1.45 + warmK * 0.25) * (1 + (S.zoom - 1) * 0.28) * (HS.cctv ? 1.25 : 1);
   let cueX = 0, cueY = 0, cueS = 0;
   if (g && !S.seeing && g.alpha > 0.3 && !g.camOnly && ['glimpse', 'chase', 'final'].includes(g.mode)) {
     const d = v3.norm(v3.sub(gpos, EYE));
@@ -1465,7 +1778,7 @@ function frame(dt) {
   }
   const beat = snd.beatAt ? Math.max(0, 1 - (snd.ctx.currentTime - snd.beatAt) * 3) : 0;
   PST.set([R.width, R.height, time, R.width / R.height], 0);
-  PST.set([exposure, S.fear, S.blackout, 0.016 + S.fear * 0.04 + (S.zoom - 1) * 0.008 + S.decay * 0.01], 4);
+  PST.set([exposure, S.fear, S.blackout, 0.016 + S.fear * 0.04 + (S.zoom - 1) * 0.008 + S.decay * 0.01 + (HS.cctv ? 0.07 : 0)], 4);
   PST.set([...S.flashCol, S.flash], 8);
   PST.set([cueX, cueY, cueS, beat], 12);
   PST.set([0.0025 + S.fear * 0.01 + S.glitch * 0.02, 0.07, 1.0 + S.fear * 0.35 - (S.zoom - 1) * 0.05 - warmK * 0.15, S.fear > 0.6 ? (S.fear - 0.6) * 2.5 + S.glitch : S.glitch], 16);
@@ -1479,8 +1792,24 @@ function frame(dt) {
     }
   }
   PST.set([smooth(0.08, 1, S.insanity), gsx, gsy, gOn], 20);
+  // ?diag: character on flat grey, post-processing stripped, layers switched on one by one
+  const DG = window.__diag;
+  if (DG) {
+    PST.set([1.0, 0, 0, 0], 4); PST.set([0, 0, 0, 0], 8); PST.set([0, 0, 0, 0], 12); PST.set([0, 0, 0, 0], 16); PST.set([0, 0, 0, 0], 20); PST.set([0, 0, 0, 0], 24);
+    if (DG.post) { PST.set([1.45, 0, 0, 0.016], 4); PST.set([0.0025, 0.07, 1.0, 0], 16); }
+  }
   PST.set([S.invert * 0.85, S.stare, S.frost, S.insp ? 1 : 0], 24);
-  R.render(G, PST, objects, shadowLight, camG);
+  if (DG) {
+    for (const o of objects) if (!o.diagKeep) o.visible = false;
+    for (const l of [O.ghostStand, O.ghostCrouch]) for (const o of l) {
+      o.flags[1] = DG.lit ? 0 : (DG.ao ? 2 : 1);
+      if (!o._t0) { o._t0 = o.tex; }
+    }
+    if (!O.diagBg) { O.diagBg = add(R.object(O.quad, null, { model: m4.ident(), flags: [0, 1, 0, 0], tint: [0.42, 0.42, 0.42, 1] })); O.diagBg.diagKeep = true; }
+    O.diagBg.visible = true; O.diagBg.model = m4.trs(v3.add(EYE, v3.scale(f, 4)), S.yaw + PI, [8, 8, 1], -S.pitch);
+    for (const o of (g?.kind === 'crouch' ? O.ghostCrouch : O.ghostStand)) o.visible = true;
+  }
+    R.render(G, PST, objects, shadowLight, camG);
 
   snd.listener(EYE, f, u);
   snd.update(dt, {
@@ -1547,7 +1876,7 @@ async function main() {
     ui.title.classList.add('hidden'); ui.hud.classList.add('show');
     S.started = true; S.paused = false;
     try { document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => { }); } catch { }
-    if (SAVE && ui.start.dataset.resume === '1') restore(SAVE); else { clearSave(); STORY.intro(); }
+    if (SAVE && ui.start.dataset.resume === '1') restore(SAVE); else { clearSave(); hsStart(); }
   }, { once: true });
   if (SAVE) {
     ui.start.textContent = '이어하기'; ui.start.dataset.resume = '1';
@@ -1563,6 +1892,6 @@ async function main() {
     try { update(dt); frame(dt); } catch (e) { if (!loop.err) console.error(e); loop.err = e; window.__err = e.stack || String(e); }
   };
   requestAnimationFrame(loop);
-  window.__game = { S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
+  window.__game = { tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
 }
 main();
