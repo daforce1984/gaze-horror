@@ -31,12 +31,14 @@ class H(BaseHTTPRequestHandler):
             self.send_response(400); self.cors(); self.end_headers(); return
         day = time.strftime('%Y-%m-%d')
         os.makedirs(os.path.join(ROOT, day), exist_ok=True)
-        b['recvAt'] = time.strftime('%Y-%m-%dT%H:%M:%S'); b['ip'] = self.client_address[0]
+        b['recvAt'] = time.strftime('%Y-%m-%dT%H:%M:%S')   # no IP addresses are kept
         with LOCK, open(os.path.join(ROOT, day, sid + '.jsonl'), 'a', encoding='utf-8') as f:
             f.write(json.dumps(b, ensure_ascii=False) + '\n')
         self.send_response(204); self.cors(); self.end_headers()
 
     def do_GET(self):
+        if self.headers.get('CF-Connecting-IP') or self.headers.get('X-Forwarded-For'):   # through the tunnel: write-only
+            self.send_response(403); self.cors(); self.end_headers(); return
         rows = []
         for dp, _, fns in os.walk(ROOT):
             for fn in fns:
