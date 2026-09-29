@@ -573,7 +573,7 @@ function hsCctvRound() {
 }
 function hsCctvView(on) {
   HS.cctv = on; $('#cctvOsd').classList.toggle('show', on);
-  if (on) { snd.play('static'); S.glitch = 0.6; hsTip(''); log('cctv_view', {}); }
+  if (on) { snd.play('static', O.tvCenter); S.glitch = 0.6; hsTip(''); log('cctv_view', {}); }
 }
 // ---- the story beat: one clue, one choice with the tap you already know
 function hsStory() {
@@ -1467,7 +1467,7 @@ function togglePad(force) {
   ui.padCh.textContent = S.tv.on ? String(S.tv.ch).padStart(2, '0') : '--';
 }
 function padPress(k) {
-  snd.play('beep');
+  snd.play('beep', LAP());
   if (k === 'power') { S.tv.on = !S.tv.on; if (S.tv.on) { STORY.tvOn(); } }
   else if (!S.tv.on) { say('TV가 꺼져 있다.', 2); return; }
   else if (k === 'up') S.tv.ch = S.tv.ch % 12 + 1;
@@ -2381,6 +2381,7 @@ async function main() {
   ui.start.disabled = false;
   ui.start.addEventListener('click', () => {
     snd.lite = matchMedia('(pointer: coarse)').matches; snd.init(); snd.decodeAll();
+    snd.setPos(snd.tvPan, O.tvCenter);   // the set's sound comes from where the set is
     let pref = null; try { pref = localStorage.getItem(GYRO_KEY); } catch { }
     if (document.documentElement.classList.contains('has-gyro') && pref === '1') setGyro(true);
     else if (document.documentElement.classList.contains('has-gyro') && pref === null) after(24, () => say('📱 위의 [자이로] 버튼을 누르면 폰을 움직여 둘러볼 수 있다.', 5));

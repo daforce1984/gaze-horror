@@ -113,7 +113,7 @@ export class Sound {
     dl.connect(this.droneGain).connect(this.master);
 
     // bulb buzz (positional)
-    this.bulbPan = this.panner([0, 2.1, -0.6]);
+    this.bulbPan = this.panner([0, 2.5, -0.6]);   // the light set into the ceiling
     const buzz = ctx.createOscillator(); buzz.type = 'sawtooth'; buzz.frequency.value = 120;
     const bb = ctx.createBiquadFilter(); bb.type = 'bandpass'; bb.frequency.value = 1400; bb.Q.value = 3;
     this.buzzGain = ctx.createGain(); this.buzzGain.gain.value = 0;
@@ -270,7 +270,7 @@ export class Sound {
   }
   panner(p) {
     // HRTF convolves every source on the audio thread: fine on a PC, too heavy on phones
-    const n = this.ctx.createPanner(); n.panningModel = this.lite ? 'equalpower' : 'HRTF'; n.distanceModel = 'inverse'; n.refDistance = 1; n.rolloffFactor = 0.8;
+    const n = this.ctx.createPanner(); n.panningModel = this.lite ? 'equalpower' : 'HRTF'; n.distanceModel = 'inverse'; n.refDistance = 0.6; n.rolloffFactor = 1.3;   // a small room: make distance audible
     this.setPos(n, p); return n;
   }
   setPos(n, p) {
@@ -345,16 +345,17 @@ export class Sound {
       const p = this.panner(side()); p.connect(this.master);
       const n = 2 + Math.floor(Math.random() * 4);
       for (let k = 0; k < n; k++) this.noiseHit(now + k * (0.18 + Math.random() * 0.5), { freq: 2600 + Math.random() * 1800, q: 9, v: 0.035, d: 0.025, dest: p });
-    } else {   // something heavy, far away in the building
-      this.thump(now + 0.05, 0.12 + Math.random() * 0.1);
+    } else {   // something heavy, somewhere in the building (from a direction)
+      const p = this.panner(side().map(v => v * 1.6)); p.connect(this.master);
+      this.thump(now + 0.05, 0.3 + Math.random() * 0.2, p);
     }
   }
   env(g, t, a, peak, dec) {
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + dec);
   }
-  thump(t, v) {
+  thump(t, v, dest = this.master) {
     const o = this.ctx.createOscillator(), g = this.ctx.createGain(); o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.15);
-    this.env(g, t, 0.01, v, 0.18); o.connect(g).connect(this.master); o.start(t); o.stop(t + 0.3);
+    this.env(g, t, 0.01, v, 0.18); o.connect(g).connect(dest); o.start(t); o.stop(t + 0.3);
   }
   noiseHit(t, { freq = 1000, q = 1, type = 'bandpass', v = 0.5, a = 0.005, d = 0.2, dest = this.master, rate = 1 } = {}) {
     const s = this.ctx.createBufferSource(); s.buffer = this.white; s.playbackRate.value = rate;
@@ -389,7 +390,7 @@ export class Sound {
         for (const [f, det] of [[180, 0], [187, 30], [260, -20], [523, 10]]) {
           const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f * 2.2, t);
           o.frequency.exponentialRampToValueAtTime(f * 0.6, t + 1.3); o.detune.value = det;
-          const g = ctx.createGain(); this.env(g, t, 0.01, 0.22, 1.3); o.connect(g).connect(this.master); o.start(t); o.stop(t + 1.5);
+          const g = ctx.createGain(); this.env(g, t, 0.01, 0.22, 1.3); o.connect(g).connect(dest); o.start(t); o.stop(t + 1.5);
         }
         this.noiseHit(t, { freq: 2500, q: 0.5, v: 1.2, d: 1.2 });
         this.thump(t, 1.4);
@@ -398,7 +399,7 @@ export class Sound {
       case 'sting': {
         for (const f of [311, 329.6, 466]) {
           const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
-          const g = ctx.createGain(); this.env(g, t, 0.4, 0.06, 2.4); o.connect(g).connect(this.master); o.start(t); o.stop(t + 3);
+          const g = ctx.createGain(); this.env(g, t, 0.4, 0.06, 2.4); o.connect(g).connect(dest); o.start(t); o.stop(t + 3);
         }
         this.noiseHit(t, { freq: 6000, type: 'highpass', v: 0.08, a: 0.6, d: 1.5 });
         break;
@@ -406,14 +407,14 @@ export class Sound {
       case 'reveal': {
         this.noiseHit(t, { freq: 400, q: 2, v: 0.5, a: 0.3, d: 0.9, rate: 0.5 });
         const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(880, t); o.frequency.exponentialRampToValueAtTime(820, t + 2);
-        const g = ctx.createGain(); this.env(g, t, 0.05, 0.08, 2); o.connect(g).connect(this.master); o.start(t); o.stop(t + 2.2);
+        const g = ctx.createGain(); this.env(g, t, 0.05, 0.08, 2); o.connect(g).connect(dest); o.start(t); o.stop(t + 2.2);
         break;
       }
-      case 'knock': for (let i = 0; i < 3; i++) { this.noiseHit(t + i * 0.32 + Math.random() * 0.04, { freq: 180, q: 2, v: 1.3, d: 0.12, dest }); this.thump(t + i * 0.32, 0.25); } break;
-      case 'bang': this.noiseHit(t, { freq: 120, q: 1, v: 2, d: 0.4, dest }); this.thump(t, 0.9); break;
+      case 'knock': for (let i = 0; i < 3; i++) { this.noiseHit(t + i * 0.32 + Math.random() * 0.04, { freq: 180, q: 2, v: 1.3, d: 0.12, dest }); this.thump(t + i * 0.32, 0.25, dest); } break;
+      case 'bang': this.noiseHit(t, { freq: 120, q: 1, v: 2, d: 0.4, dest }); this.thump(t, 0.9, dest); break;
       case 'click': this.noiseHit(t, { freq: 3500, q: 4, v: 0.35, d: 0.03, dest }); break;
-      case 'beep': { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = 660; const g = ctx.createGain(); this.env(g, t, 0.005, 0.05, 0.08); o.connect(g).connect(this.master); o.start(t); o.stop(t + 0.1); break; }
-      case 'wrong': { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 90; const g = ctx.createGain(); this.env(g, t, 0.005, 0.15, 0.35); o.connect(g).connect(this.master); o.start(t); o.stop(t + 0.4); this.noiseHit(t, { freq: 800, v: 0.3, d: 0.3 }); break; }
+      case 'beep': { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = 660; const g = ctx.createGain(); this.env(g, t, 0.005, 0.05, 0.08); o.connect(g).connect(dest); o.start(t); o.stop(t + 0.1); break; }
+      case 'wrong': { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = 90; const g = ctx.createGain(); this.env(g, t, 0.005, 0.15, 0.35); o.connect(g).connect(dest); o.start(t); o.stop(t + 0.4); this.noiseHit(t, { freq: 800, v: 0.3, d: 0.3 }); break; }
       case 'static': this.noiseHit(t, { freq: 3000, type: 'highpass', v: 0.6, a: 0.01, d: 0.7, dest }); break;
       case 'drawer': this.noiseHit(t, { freq: 300, q: 0.7, v: 0.6, a: 0.05, d: 0.5, rate: 0.4, dest }); this.noiseHit(t + 0.5, { freq: 200, q: 2, v: 0.7, d: 0.1, dest }); break;
       case 'unlock': this.noiseHit(t, { freq: 2600, q: 6, v: 0.5, d: 0.05, dest }); this.noiseHit(t + 0.12, { freq: 1600, q: 5, v: 0.6, d: 0.08, dest }); break;
@@ -435,7 +436,7 @@ export class Sound {
       } break;
       case 'whisper': this.noiseHit(t, { freq: 1500, q: 4, v: 0.5, a: 0.3, d: 1.2, dest }); this.noiseHit(t + 0.8, { freq: 1100, q: 5, v: 0.4, a: 0.2, d: 0.9, dest }); break;
       case 'curtain': this.noiseHit(t, { freq: 2000, q: 0.5, type: 'bandpass', v: 0.35, a: 0.3, d: 1.4, dest }); break;
-      case 'pop': this.noiseHit(t, { freq: 5000, type: 'highpass', v: 0.9, d: 0.08, dest }); this.thump(t, 0.3); break;
+      case 'pop': this.noiseHit(t, { freq: 5000, type: 'highpass', v: 0.9, d: 0.08, dest }); this.thump(t, 0.3, dest); break;
     }
   }
 }
