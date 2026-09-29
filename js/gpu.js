@@ -281,6 +281,15 @@ const LIT = SHARED + /* wgsl */`
     col = alb * lighting(i.wp, nrm, O.flags.x, spec) * ao * (1.0 - 0.55 * metal);
   }
   if (O.flags.w > 0.5) { col += t.rgb * O.emissive.rgb; } else { col += O.emissive.rgb * t.a; }
+  // the more a spot has rotted, the more the room's corners and edges swallow the light
+  {
+    let cx = 2.2 - abs(i.wp.x); let cz = 2.5 - abs(i.wp.z);
+    let edge = secondMin(cx, cz, i.wp.y, 2.6 - i.wp.y);     // near two boundaries = in a corner / along an edge
+    let wall = min(min(cx, cz), min(i.wp.y + 0.6, 2.6 - i.wp.y));
+    let dk = clamp(roomDecay(i.wp) * 1.3, 0.0, 1.0);
+    let k = select(dk, 0.0, O.flags.y > 0.5 || O.flags.w > 0.5);   // not the TV picture, clock face or glowing things
+    col = col * mix(1.0, 0.08 + 0.92 * smoothstep(0.0, 1.5, edge) * mix(0.55, 1.0, smoothstep(0.0, 0.9, wall)), k);
+  }
   col = col * (1.0 - 0.8 * formEdge) + vec3f(1.0, 0.3, 0.05) * (ember * 1.3 + formEdge * 1.2);
   col = fog(col, i.wp);
   return vec4f(col, a);
@@ -492,8 +501,13 @@ export class Renderer {
     if (!navigator.gpu) throw new Error('WebGPU unsupported');
     const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
     if (!adapter) throw new Error('No WebGPU adapter');
-    const device = await adapter.requestDevice();
-    return new Renderer(canvas, device, opts);
+    // GPU timings per pass for the performance log, where the browser allows it
+    const feats = adapter.features.has('timestamp-query') ? ['timestamp-query'] : [];
+    const device = await adapter.requestDevice({ requiredFeatures: feats });
+    const r = new Renderer(canvas, device, opts);
+    const i = adapter.info || {};
+    r.adapterInfo = { vendor: i.vendor, architecture: i.architecture, device: i.device, description: i.description, fallback: !!adapter.isFallbackAdapter };
+    return r;
   }
 
   constructor(canvas, device, opts = {}) {
@@ -504,6 +518,14 @@ export class Renderer {
     this.samples = 4;
     this.hdrFormat = 'rgba16float';
     const d = device;
+    this.stats = { draws: 0, tris: 0, shadowDraws: 0, shadowTris: 0 };
+    this.frameNo = 0;
+    if (device.features.has('timestamp-query')) {
+      this.ts = { qs: device.createQuerySet({ type: 'timestamp', count: 8 }), busy: false,
+        res: device.createBuffer({ size: 64, usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC }),
+        read: device.createBuffer({ size: 64, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST }) };
+    }
+    this.gpuMs = null;   // { shadow, cctv, main, post } of the last measured frame
     this.shadowSize = opts.shadowSize || 1024;
     this.maxTex = opts.maxTex || 0;
     this.samplerShadow = d.createSampler({ compare: 'less', magFilter: 'linear', minFilter: 'linear' });
@@ -715,6 +737,7 @@ export class Renderer {
     const rank = { opaque: 0, cutout: 1, blend: 2, ghost: 3, add: 4 };
     const list = objects.filter(o => o.visible && !(bind === this.gBindCam && o.noCam) && !(bind === this.gBind && o.camOnly)).sort((a, b) => (rank[a.pipe] - rank[b.pipe]) || (a.order - b.order));
     let cur = null;
+    if (bind === this.gBind) { this.stats.draws = list.length; this.stats.tris = list.reduce((n, o) => n + o.mesh.count / 3, 0); }
     for (const o of list) {
       if (o.pipe !== cur) { pass.setPipeline(this.pipes[o.pipe]); cur = o.pipe; }
       pass.setBindGroup(1, o.bind);
@@ -735,14 +758,20 @@ export class Renderer {
       q.writeBuffer(o.ub, 0, a);
     }
     const enc = d.createCommandEncoder();
+    this.frameNo++;
+    const T = this.ts && !this.ts.busy && this.frameNo % 15 === 0 ? this.ts : null;   // measure every 15th frame
+    const tw = (b, e) => T ? { timestampWrites: { querySet: T.qs, beginningOfPassWriteIndex: b, endOfPassWriteIndex: e } } : {};
+    this.stats.shadowDraws = 0; this.stats.shadowTris = 0;
     if (lightPos) {
       const proj = persp90(SH_NEAR, SH_FAR);
       const casters = objects.filter(o => o.visible && o.castShadow);
+      this.stats.shadowDraws = casters.length * 6; this.stats.shadowTris = casters.reduce((n, o) => n + o.mesh.count / 3, 0) * 6;
       FACES.forEach(([r, u, f], i) => {
         const view = viewM(lightPos, r, u, [-f[0], -f[1], -f[2]]);
         const m = new Float32Array(20); m.set(mul(proj, view), 0); m.set([...lightPos, 1], 16);
         q.writeBuffer(this.sBufs[i], 0, m);
-        const sp = enc.beginRenderPass({ colorAttachments: [], depthStencilAttachment: { view: this.shadowFaces[i], depthLoadOp: 'clear', depthStoreOp: 'store', depthClearValue: 1 } });
+        const sp = enc.beginRenderPass({ colorAttachments: [], depthStencilAttachment: { view: this.shadowFaces[i], depthLoadOp: 'clear', depthStoreOp: 'store', depthClearValue: 1 },
+          ...(T && (i === 0 || i === 5) ? { timestampWrites: { querySet: T.qs, ...(i === 0 ? { beginningOfPassWriteIndex: 0 } : { endOfPassWriteIndex: 1 }) } } : {}) });
         sp.setPipeline(this.shadowPipe); sp.setBindGroup(0, this.sBinds[i]);
         for (const o of casters) {
           sp.setBindGroup(1, o.bind); sp.setVertexBuffer(0, o.mesh.vb); sp.setIndexBuffer(o.mesh.ib, 'uint32'); sp.drawIndexed(o.mesh.count);
@@ -754,20 +783,32 @@ export class Renderer {
       q.writeBuffer(this.globalsCam, 0, camGlobals);
       const cp = enc.beginRenderPass({
         colorAttachments: [{ view: this.camMsaa.createView(), resolveTarget: this.camTex.createView(), loadOp: 'clear', storeOp: 'discard', clearValue: [0, 0, 0, 1] }],
-        depthStencilAttachment: { view: this.camDepth.createView(), depthLoadOp: 'clear', depthStoreOp: 'discard', depthClearValue: 1 },
+        depthStencilAttachment: { view: this.camDepth.createView(), depthLoadOp: 'clear', depthStoreOp: 'discard', depthClearValue: 1 }, ...tw(2, 3),
       });
       this.drawScene(cp, this.gBindCam, objects);
       cp.end();
     }
     const pass = enc.beginRenderPass({
       colorAttachments: [{ view: this.msaa.createView(), resolveTarget: this.hdr.createView(), loadOp: 'clear', storeOp: 'discard', clearValue: [0, 0, 0, 1] }],
-      depthStencilAttachment: { view: this.depth.createView(), depthLoadOp: 'clear', depthStoreOp: 'discard', depthClearValue: 1 },
+      depthStencilAttachment: { view: this.depth.createView(), depthLoadOp: 'clear', depthStoreOp: 'discard', depthClearValue: 1 }, ...tw(4, 5),
     });
     this.drawScene(pass, this.gBind, objects);
     pass.end();
-    const pp = enc.beginRenderPass({ colorAttachments: [{ view: this.ctx.getCurrentTexture().createView(), loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] }] });
+    const pp = enc.beginRenderPass({ colorAttachments: [{ view: this.ctx.getCurrentTexture().createView(), loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] }], ...tw(6, 7) });
     pp.setPipeline(this.postPipe); pp.setBindGroup(0, this.postBind); pp.draw(3); pp.end();
+    if (T) { enc.resolveQuerySet(T.qs, 0, 8, T.res, 0); enc.copyBufferToBuffer(T.res, 0, T.read, 0, 64); }
     q.submit([enc.finish()]);
+    if (T) {
+      T.busy = true;
+      const had = { shadow: !!lightPos, cctv: !!camGlobals };
+      T.read.mapAsync(GPUMapMode.READ).then(() => {
+        const t = new BigInt64Array(T.read.getMappedRange().slice(0));
+        T.read.unmap(); T.busy = false;
+        const ms = (a, b) => Number(t[b] - t[a]) / 1e6;
+        this.gpuMs = { shadow: had.shadow ? ms(0, 1) : 0, cctv: had.cctv ? ms(2, 3) : 0, main: ms(4, 5), post: ms(6, 7) };
+        this.gpuMs.total = this.gpuMs.shadow + this.gpuMs.cctv + this.gpuMs.main + this.gpuMs.post;
+      }).catch(() => { T.busy = false; });
+    }
   }
 }
 

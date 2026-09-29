@@ -2,6 +2,7 @@ import { Renderer } from './gpu.js';
 import { plane } from './geometry.js';
 import { loadGLB } from './gltf.js';
 import { m4, v3, clamp, lerp, smooth, damp, rayAABB } from './math.js';
+import { Telemetry } from './telemetry.js';
 import { Sound } from './audio.js';
 import * as TX from './textures.js';
 
@@ -369,7 +370,7 @@ function trayTap(id) {
 // ================================================================ chapter 1: 숨바꼭질 (hide and seek)
 // One-sentence rule: "수아를 찾아 눌러요". Tap where she hides. Failure escalates in steps, never a cheap scare first.
 const LOG = []; window.__log = LOG;
-function log(ev, data = {}) { LOG.push({ t: +S.time.toFixed(2), ev, ...data }); }
+function log(ev, data = {}) { LOG.push({ t: +S.time.toFixed(2), ev, ...data }); TEL?.event('game', { ev, gt: +S.time.toFixed(1), ...data }); }
 const HIDE = {
   curtain: { ghost: [-2.1, 0, -1.02], kind: 'stand', min: [-2.35, 0, -1.55], max: [-1.9, 2.2, 0.25], c: [-2.08, 0.9, -0.7], cue: 'curtain', name: '커튼 뒤' },
   desk: { ghost: [1.95, 0, 0.06], kind: 'crouch', min: [1.45, 0, -0.35], max: [2.2, 0.85, 0.4], c: [1.85, 0.4, 0.05], cue: 'desk', name: '책상 밑' },
@@ -671,7 +672,7 @@ function startShift(to) {
   if (S.ghost && S.ghost.alpha > 0.3 && !S.ghost.camOnly) o = [S.ghost.p[0], 1.1, S.ghost.p[2]];
   Object.assign(SHIFT, { on: true, o, r: 0, from, to, big, t: 0, speed: big ? 0.8 : 0.55, burn: 0, cr: 0 });
   log('shift', { from: +from.toFixed(2), to: +to.toFixed(2), big });
-  if (big) { snd.play('siren'); S.bulbBurst = Math.max(S.bulbBurst, 3.5); snd.duck(0.35, 7); }
+  if (big) { snd.play('siren'); snd.duck(0.35, 7); }
   snd.play('crackle', o);
 }
 function shiftUpdate(dt) {
@@ -760,7 +761,7 @@ function anStart(phase) {
     AN.next = bigShift ? 10 : 3;
   } else {   // the last night: the bulb dies, only the TV and the moon are left
     AN.script = ['curtain'];
-    S.lampDim = AN.baseDim; S.bulbBurst = 1.5; snd.play('pop', [0, 2.2, -0.6]); S.flash = 0.3; S.flashCol = [1, 0.9, 0.7];
+    S.lampDim = AN.baseDim; snd.play('pop', [0, 2.2, -0.6]);
     voice('an_last', null, 2.0); hsSay('“불이 죽어 간다… 이제 엄마도 나처럼 어둠 속에서 찾아.”', 3.6);
     AN.next = bigShift ? 10 : 3.5;
   }
@@ -878,7 +879,6 @@ function anTap(px, py, dir) {
 function anUpdate(dt) {
   if (!AN.on || S.paused) return;
   AN.lock = Math.max(0, AN.lock - dt);
-  if (AN.phase === 3 && Math.random() < dt * 0.25) S.bulbBurst = Math.max(S.bulbBurst, rnd(0.15, 0.5));   // the dying bulb
   const keys = Object.keys(AN.act), n = keys.length;
   for (const k of keys) {
     const s = AN.act[k];
@@ -1944,11 +1944,10 @@ function update(dt) {
   S.lampSwing = Math.max(0, S.lampSwing - dt * 0.08);
   let bulb = 1;
   const t = S.time;
-  const flick = Math.sin(t * 13.1) * Math.sin(t * 7.3) + Math.sin(t * 29.7) * 0.3;
-  if (S.act >= 1 && flick > 1.0 - S.decay * 0.15) bulb = 0.2;
-  if (S.bulbBurst > 0) bulb = Math.random() < 0.45 ? 0.05 : rnd(0.4, 1.1);
+  // no flicker: the bulb only ever fades (the room gets darker as it rots)
   if (S.bulbDead) bulb = 0;
-  S.bulb = damp(S.bulb ?? 1, bulb, 30, dt);
+  S.bulb = damp(S.bulb ?? 1, bulb, 3, dt);
+  snd.voiceFx = Math.min(0.55, S.decay * 0.6 + (S.insanity || 0) * 0.4);   // her voice decays with the room
   // clock runs in act 0, stops after
   if (!S.clockStopped && !S.paused) {
     S.clockSec = (S.clockSec || 0) + dt;
@@ -2238,13 +2237,48 @@ function perfTick(dt) {
   const target = gfxPreset().cap || 60;
   if (PERF.acc < 1) return;
   const avg = PERF.acc / PERF.n; PERF.fps = Math.round(1 / avg); PERF.acc = 0; PERF.n = 0;
+  if (TEL && S.started) TEL.sample(perfState());
   if (!S.started || S.paused) return;
   // below ~48 fps for 2 s: fewer pixels; comfortably at 60 for 5 s: a little more
   if (avg > 1 / (target * 0.8)) { PERF.slow++; PERF.fast = 0; } else if (avg < 1 / (target * 0.95)) { PERF.fast++; PERF.slow = 0; } else { PERF.slow = PERF.fast = 0; }
-  if (PERF.slow >= 2 && PERF.scale > PERF.min) { PERF.scale = Math.max(PERF.min, PERF.scale * 0.85); PERF.slow = 0; PERF.shadowSkip = true; resize(); }
-  else if (PERF.fast >= 5 && PERF.scale < 1) { PERF.scale = Math.min(1, PERF.scale * 1.08); PERF.fast = 0; resize(); }
+  if (PERF.slow >= 2 && PERF.scale > PERF.min) { PERF.scale = Math.max(PERF.min, PERF.scale * 0.85); PERF.slow = 0; PERF.shadowSkip = true; resize(); TEL?.event('scale', { to: +PERF.scale.toFixed(2), fps: PERF.fps }); }
+  else if (PERF.fast >= 5 && PERF.scale < 1) { PERF.scale = Math.min(1, PERF.scale * 1.08); PERF.fast = 0; resize(); TEL?.event('scale', { to: +PERF.scale.toFixed(2), fps: PERF.fps }); }
   window.__perf = { fps: PERF.fps, scale: +PERF.scale.toFixed(2), px: `${R.width}x${R.height}`, gfx: gfxChoice, shadow: R.shadowSize };
   const el = $('#gfxFps'); if (el) el.textContent = `${PERF.fps} fps · ${R.width}×${R.height}`;
+}
+// ---------------------------------------------------------------- performance log (per session, see js/telemetry.js)
+// endpoint: ?perf=URL, or localStorage 'gaze-perf', or the default collector below; ?perf=off disables it
+const PERF_DEFAULT = '';
+let TEL = null;
+function perfUrl() {
+  const q = new URLSearchParams(location.search).get('perf');
+  if (q === 'off') { try { localStorage.removeItem('gaze-perf'); } catch { } return ''; }
+  if (q) { try { localStorage.setItem('gaze-perf', q); } catch { } return q; }
+  try { return localStorage.getItem('gaze-perf') || PERF_DEFAULT; } catch { return PERF_DEFAULT; }
+}
+function startTelemetry() {
+  const nav = navigator;
+  TEL = new Telemetry(perfUrl(), {
+    ua: nav.userAgent, platform: nav.userAgentData?.platform || nav.platform, mobile: nav.userAgentData?.mobile,
+    dpr: devicePixelRatio, screen: `${screen.width}x${screen.height}`, viewport: `${innerWidth}x${innerHeight}`,
+    cores: nav.hardwareConcurrency, memGB: nav.deviceMemory, coarse: matchMedia('(pointer: coarse)').matches,
+    gpu: R.adapterInfo, timestamps: !!R.ts, gfx: gfxChoice, preset: Object.keys(GFX).find(k => GFX[k] === gfxPreset()),
+    build: document.querySelector('meta[name=build]')?.content || '', page: location.pathname,
+  });
+  window.__tel = TEL;
+}
+function perfState() {
+  const g = S.ghost, gm = R.gpuMs, r1 = (v) => v == null ? undefined : +v.toFixed(2);
+  return {
+    px: `${R.width}x${R.height}`, scale: +PERF.scale.toFixed(2), gfx: gfxChoice, shadowMap: R.shadowSize,
+    gpu: gm ? { total: r1(gm.total), shadow: r1(gm.shadow), cctv: r1(gm.cctv), main: r1(gm.main), post: r1(gm.post) } : undefined,
+    draws: R.stats.draws, tris: Math.round(R.stats.tris), sDraws: R.stats.shadowDraws, sTris: Math.round(R.stats.shadowTris),
+    phase: HS.phase, round: HS.round, night: AN.on ? AN.phase : 0, anom: Object.keys(AN.act).join(','),
+    ghost: g ? `${g.kind}:${g.mode}:${g.alpha.toFixed(2)}` : '', shift: SHIFT.on ? +SHIFT.r.toFixed(1) : 0,
+    cctv: O.cctvScreen.visible ? 1 : 0, tv: S.tv.on ? 1 : 0, ins: +(S.insanity || 0).toFixed(2), fear: +S.fear.toFixed(2),
+    decay: +S.decay.toFixed(2), zoom: +S.zoom.toFixed(2), insp: S.insp ? 1 : 0, paused: S.paused ? 1 : 0,
+    heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : undefined,
+  };
 }
 // graphics presets: auto = low on phones/tablets, high on PC (dynamic resolution still guards the frame rate)
 const GFX_KEY = 'gaze-gfx';
@@ -2258,6 +2292,7 @@ try { gfxChoice = localStorage.getItem(GFX_KEY) || 'auto'; } catch { }
 const gfxPreset = (c = gfxChoice) => GFX[c] || (matchMedia('(pointer: coarse)').matches ? GFX.low : GFX.high);
 function applyGfx(choice) {
   gfxChoice = choice;
+  TEL?.event('gfx', { choice });
   try { localStorage.setItem(GFX_KEY, choice); } catch { }
   const g = gfxPreset();
   PERF.scale = 1; PERF.min = g.min; PERF.shadowSkip = false;
@@ -2282,8 +2317,11 @@ async function main() {
   const gp = gfxPreset();
   try { R = await Renderer.create(ui.canvas, { shadowSize: gp.shadow, maxTex: gp.tex, aniso: gp.aniso }); }
   catch (e) { ui.nogpu.classList.add('show'); ui.title.classList.add('hidden'); console.error(e); return; }
-  R.device.lost.then(info => { console.error('device lost', info); ui.nogpu.querySelector('p').textContent = 'GPU 장치가 초기화되었습니다. 새로고침 해주세요.'; ui.nogpu.classList.add('show'); });
+  R.device.lost.then(info => { console.error('device lost', info); TEL?.event('device_lost', { reason: info.reason, msg: info.message }); TEL?.flush(); ui.nogpu.querySelector('p').textContent = 'GPU 장치가 초기화되었습니다. 새로고침 해주세요.'; ui.nogpu.classList.add('show'); });
+  startTelemetry();
+  const tl = performance.now();
   await loadAll();
+  TEL.event('loaded', { ms: Math.round(performance.now() - tl) });
   buildScene();
   setupInput();
   setupGyro();
@@ -2296,7 +2334,7 @@ async function main() {
     if (document.documentElement.classList.contains('has-gyro') && pref === '1') setGyro(true);
     else if (document.documentElement.classList.contains('has-gyro') && pref === null) after(24, () => say('📱 위의 [자이로] 버튼을 누르면 폰을 움직여 둘러볼 수 있다.', 5));
     ui.title.classList.add('hidden'); ui.hud.classList.add('show');
-    S.started = true; S.paused = false;
+    S.started = true; S.paused = false; TEL?.event('start', {});
     try { document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => { }); } catch { }
     if (SAVE && ui.start.dataset.resume === '1') restore(SAVE); else { clearSave(); hsStart(); }
   }, { once: true });
@@ -2315,7 +2353,13 @@ async function main() {
     if (cap && now - last < 1000 / (cap + 4)) return;
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     perfTick(dt);
-    try { update(dt); frame(dt); } catch (e) { if (!loop.err) console.error(e); loop.err = e; window.__err = e.stack || String(e); }
+    const t0 = performance.now();
+    try { update(dt); frame(dt); } catch (e) { if (!loop.err) { console.error(e); TEL?.event('exception', { msg: String(e.stack || e).slice(0, 500) }); } loop.err = e; window.__err = e.stack || String(e); }
+    const js = performance.now() - t0;
+    if (TEL && S.started) {
+      TEL.frame(dt, js);
+      if (dt > 0.06 && !document.hidden) TEL.event('long', { ms: Math.round(dt * 1000), js: +js.toFixed(1), ...perfState() });
+    }
   };
   requestAnimationFrame(loop);
   window.__game = { applyGfx, PERF, hsStory, AN, ANOM, anSpawn, anFix, anTap, anBox, anStart, tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };

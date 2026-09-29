@@ -30,14 +30,54 @@ export class Sound {
   // ElevenLabs voice line; positional when pos is given. Returns duration (s) or 0.
   voice(id, pos, gain = 1.6) {
     if (!this.ctx || !this.buf[id]) return 0;
+    const ctx = this.ctx, t = ctx.currentTime;
     const dest = pos ? (() => { const p = this.panner(pos); p.connect(this.master); return p; })() : this.master;
-    const s = this.ctx.createBufferSource(); s.buffer = this.buf[id];
-    const g = this.ctx.createGain(); g.gain.value = gain;
-    s.connect(g).connect(dest); s.start();
+    const g = ctx.createGain(); g.gain.value = gain; g.connect(dest);
+    const girl = /^(c_|hs_|an_)/.test(id);
+    // the dead girl never sounds quite like a child: lower and slower, doubled a hair out of tune,
+    // a gritty band-passed copy drowned in a long dark reverb, a faint metallic tremolo. It gets worse as the room rots.
+    const k = girl ? Math.min(1, 0.45 + (this.voiceFx || 0)) : 0;
+    const rate = girl ? 0.93 - k * 0.04 : 1;
+    const s = ctx.createBufferSource(); s.buffer = this.buf[id]; s.playbackRate.value = rate;
+    const srcs = [s];
+    if (!girl) s.connect(g);
+    else {
+      const ring = ctx.createGain(); ring.gain.value = 1 - 0.25 * k;   // ring-mod tremolo: gain wobbles at ~38 Hz
+      const lfo = ctx.createOscillator(); lfo.frequency.value = 34 + Math.random() * 8;
+      const lg = ctx.createGain(); lg.gain.value = 0.25 * k; lfo.connect(lg).connect(ring.gain); srcs.push(lfo);
+      const dry = ctx.createGain(); dry.gain.value = 0.85;
+      s.connect(ring).connect(dry).connect(g);
+      // detuned double, slightly late
+      const s2 = ctx.createBufferSource(); s2.buffer = s.buffer; s2.playbackRate.value = rate * (0.985 - k * 0.01);
+      const dl = ctx.createDelay(0.2); dl.delayTime.value = 0.028;
+      const g2 = ctx.createGain(); g2.gain.value = 0.28 + 0.2 * k;
+      s2.connect(dl).connect(g2).connect(g); srcs.push(s2);
+      // grit into a long dark reverb
+      const sh = ctx.createWaveShaper(); sh.curve = this.softClip || (this.softClip = Float32Array.from({ length: 1024 }, (_, i) => { const x = i / 511.5 - 1; return Math.tanh(x * 3.5) * 0.8; }));
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1100; bp.Q.value = 0.8;
+      const wet = ctx.createGain(); wet.gain.value = 0.3 + 0.45 * k;
+      s.connect(sh).connect(bp).connect(wet).connect(this.darkVerb());   // send into the shared reverb bus
+    }
+    for (const x of srcs) x.start(t);
+    const dur = this.buf[id].duration / rate;
+    for (const x of srcs.slice(1)) x.stop(t + dur + 0.1);
     (this.voices = this.voices || []).push({ s, g });
     s.onended = () => { this.voices = this.voices.filter(v => v.s !== s); };
-    this.duck(0.45, this.buf[id].duration + 0.5);
-    return this.buf[id].duration;
+    this.duck(0.45, dur + 0.5);
+    return dur;
+  }
+  // one shared impulse: 2.6 s of noise that darkens as it decays (a big empty stairwell)
+  darkVerb() {
+    if (this.verb) return this.verb;
+    const ctx = this.ctx, n = Math.floor(ctx.sampleRate * 2.6), b = ctx.createBuffer(2, n, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = b.getChannelData(c); let lp = 0;
+      for (let i = 0; i < n; i++) { const e = Math.pow(1 - i / n, 2.6); lp += (Math.random() * 2 - 1 - lp) * (0.5 - 0.45 * i / n); d[i] = lp * e; }
+    }
+    this.verb = ctx.createConvolver(); this.verb.buffer = b;
+    const out = ctx.createGain(); out.gain.value = 0.9;
+    this.verb.connect(out).connect(this.master);   // one output, however many voices send into it
+    return this.verb;
   }
   async decodeAll() {
     await Promise.all(Object.entries(this.raw).map(async ([n, ab]) => {
@@ -69,7 +109,7 @@ export class Sound {
 
     // room tone + drone
     const room = this.loop(this.brown); const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 180;
-    this.roomGain = ctx.createGain(); this.roomGain.gain.value = 0.35;
+    this.roomGain = ctx.createGain(); this.roomGain.gain.value = 0.16;
     room.connect(lp).connect(this.roomGain).connect(this.master);
     this.droneGain = ctx.createGain(); this.droneGain.gain.value = 0.0;
     const dl = ctx.createBiquadFilter(); dl.type = 'lowpass'; dl.frequency.value = 400;
@@ -244,19 +284,24 @@ export class Sound {
 
   update(dt, s) {
     if (!this.ctx) return;
-    this.set(this.rainGain.gain, (s.rain || 0) * 0.16, 0.8);
-    if ((s.rain || 0) > 0.1 && this.ctx.currentTime > this.nextDrop) {  // heavy drops on the glass
-      this.nextDrop = this.ctx.currentTime + 0.05 + Math.random() * 0.25;
-      this.noiseHit(this.ctx.currentTime, { freq: 1800 + Math.random() * 2500, q: 6, v: 0.05 * s.rain, d: 0.03, dest: this.rainPan });
+    // rain comes and goes in slow gusts instead of one flat hiss; drops are sparse
+    const now = this.ctx.currentTime, gust = 0.45 + 0.55 * Math.max(0, Math.sin(now * 0.037) * Math.sin(now * 0.061 + 1.3));
+    this.set(this.rainGain.gain, (s.rain || 0) * 0.055 * gust, 1.5);
+    if ((s.rain || 0) > 0.1 && now > this.nextDrop) {
+      this.nextDrop = now + 0.25 + Math.random() * 1.4 / gust;
+      this.noiseHit(now, { freq: 1800 + Math.random() * 2500, q: 6, v: 0.02 * s.rain * gust, d: 0.03, dest: this.rainPan });
     }
+    this.ambience(now);
     const recBuzz = !!this.buzzRec, recTv = !!this.tvRec;
-    this.set(this.buzzGain.gain, recBuzz ? s.bulb * 0.008 : s.bulb * 0.035);
-    recBuzz && this.set(this.buzzRec.gain, s.bulb * 0.22, 0.03);
+    this.set(this.buzzGain.gain, recBuzz ? s.bulb * 0.002 : s.bulb * 0.008);
+    recBuzz && this.set(this.buzzRec.gain, s.bulb * 0.035, 0.3);   // barely there: a looped hum is the first thing that grates
     this.set(this.tvGain.gain, s.tvStatic * (recTv ? 0.03 : 0.09));
     recTv && this.set(this.tvRec.gain, s.tvStatic * 0.5);
     this.set(this.humGain.gain, s.tvHum * 0.01);
     this.set(this.ghostGain.gain, s.ghost * 0.55, 0.3);
-    this.set(this.droneGain.gain, 0.15 + s.fear * 0.5, 0.5);
+    // the drone swells and recedes on its own (never a constant bed), and follows fear
+    const swell = Math.max(0, Math.sin(now * 0.021 + 0.7)) ** 2;
+    this.set(this.droneGain.gain, 0.02 + swell * 0.07 + s.fear * 0.35, 1.2);
     this.setPos(this.ghostPan, s.ghostPos);
     const ins = s.insanity || 0;
     this.set(this.tinGain.gain, Math.max(0, ins - 0.35) ** 2 * 0.05, 0.4);
@@ -272,6 +317,31 @@ export class Sound {
     }
   }
 
+  // sparse, never-the-same ambience: the building breathes (gusts, settling wood, pipes, a far rumble)
+  ambience(now) {
+    if (!this.nextAmb) { this.nextAmb = now + 8 + Math.random() * 10; return; }
+    if (now < this.nextAmb) return;
+    this.nextAmb = now + 14 + Math.random() * 26;
+    const ctx = this.ctx, side = () => [(Math.random() - 0.5) * 8, 1 + Math.random() * 2, (Math.random() - 0.5) * 8];
+    const kind = Math.random();
+    if (kind < 0.35) {   // wind leaning on the window: a filtered noise swell of a few seconds
+      const src = this.loop(this.brown), f = ctx.createBiquadFilter(), g = ctx.createGain(), d = 3 + Math.random() * 5;
+      f.type = 'bandpass'; f.Q.value = 1.2; f.frequency.setValueAtTime(250 + Math.random() * 200, now);
+      f.frequency.linearRampToValueAtTime(500 + Math.random() * 500, now + d * 0.5); f.frequency.linearRampToValueAtTime(220, now + d);
+      g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.05 + Math.random() * 0.05, now + d * 0.45); g.gain.linearRampToValueAtTime(0, now + d);
+      src.connect(f).connect(g).connect(this.rainPan); src.stop(now + d + 0.1);
+    } else if (kind < 0.6 && this.buf.creak) {   // the building settling: a far, muffled creak at a random pitch
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 700 + Math.random() * 600;
+      const p = this.panner(side()); f.connect(p); p.connect(this.master);
+      this.sample('creak', f, { gain: 0.12 + Math.random() * 0.1, rate: 0.55 + Math.random() * 0.3 });
+    } else if (kind < 0.82) {   // pipes ticking as they cool
+      const p = this.panner(side()); p.connect(this.master);
+      const n = 2 + Math.floor(Math.random() * 4);
+      for (let k = 0; k < n; k++) this.noiseHit(now + k * (0.18 + Math.random() * 0.5), { freq: 2600 + Math.random() * 1800, q: 9, v: 0.035, d: 0.025, dest: p });
+    } else {   // something heavy, far away in the building
+      this.thump(now + 0.05, 0.12 + Math.random() * 0.1);
+    }
+  }
   env(g, t, a, peak, dec) {
     g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + dec);
   }
