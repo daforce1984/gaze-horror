@@ -544,7 +544,11 @@ function hsPhoto() {
     });
   }, { once: true });
 }
-function hsChoiceReady() { return HS.phase === 'final' && performance.now() - (HS.choiceAt || 0) > 450; }   // the finger that closed the photo must not choose
+function hsChoiceReady() {
+  const ok = HS.phase === 'final' && performance.now() - (HS.choiceAt || 0) > 450;
+  if (!ok && (HS.phase === 'final' || HS.phase === 'choice')) { HS.blocked = (HS.blocked || 0) + 1; log('input_blocked', { count: HS.blocked }); }
+  return ok;
+}   // the finger that closed the photo must not choose
 function hsGive() {
   if (!hsChoiceReady()) return;
   $('#choice').classList.remove('show'); ui.hud.classList.remove('choosing');
@@ -1181,7 +1185,7 @@ function showEnding(kind) {
     <div class="endtext">
       ${body}
       <h1>응시</h1>
-      <p class="stat">${title} · ${mins}분 ${String(secs).padStart(2, '0')}초 · 찾은 기록 ${S.records.size}/${RECORD_TOTAL}${S.records.size < RECORD_TOTAL ? ' — 방 안엔 아직 숨겨진 것이 있다' : ''}</p>
+      <p class="stat">${title} · ${mins}분 ${String(secs).padStart(2, '0')}초</p>
       <button class="primary again" onclick="localStorage.removeItem('${SAVE_KEY}'); location.reload()">↻ 다시 시작</button>
     </div>`;
   ui.ending.classList.add('show');

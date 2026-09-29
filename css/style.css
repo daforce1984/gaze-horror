@@ -236,3 +236,6 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
 #choice #chStay.confirm { border-color: #ff5a4a; color: #ffb0a6; }
 #hud.choosing #turnBtn { display: none !important; }
 .endtext .again { opacity: 1 !important; animation: none !important; margin-top: 26px; font-size: 18px; padding: 14px 34px; }
+#choice button { white-space: nowrap; }
+@media (max-width: 480px) { #choice { flex-direction: column; width: min(86vw, 320px); } #choice button { min-width: 0; width: 100%; } }
+#hud.choosing #tray { display: none; }
