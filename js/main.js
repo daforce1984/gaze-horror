@@ -281,28 +281,34 @@ function buildScene() {
     // a crude magic circle in blood on the floor round the chair: there once the first shift has passed (turn around to see it)
     { o: add(R.object(quad, R.texture(TX.bloodCircleTex()), { pipe: 'blend', model: m4.trs([0, 0.012, 0.42], 0.3, [2.3, 2.3, 1], -PI / 2), clamp: true, tint: [1.1, 0.8, 0.8, 0], order: 1, flags: [0.3, 0, 0.9, 0] })), at: 0.25 },
   ];
-  // peeling skin of the room: flakes sit flat on the walls and ceiling; when the other world's front
-  // reaches one it rusts, curls off the surface, floats up and is gone (each flake once, never at random)
+  // peeling skin of the room: every 12 cm cell of the walls is one flake lying exactly on it (the shader
+  // shares the grid, the ragged cell outline and the wallpaper mapping); when the other world's front
+  // reaches a cell that really turns, its flake comes off, chars, is eaten away and rises like burnt paper
   {
-    const seeds = [], J = (a, b) => a + Math.random() * (b - a), cell = 0.13;
-    const grid = (u0, u1, v0, v1, put) => { for (let u = u0; u < u1; u += cell) for (let v = v0; v < v1; v += cell) if (Math.random() < 0.85) seeds.push(put(J(u, u + cell), J(v, v + cell))); };
-    grid(-2.4, 2.4, 0.05, 2.55, (z, y) => [[-2.195, y, z], [1, 0, 0]]);
-    grid(-2.4, 2.4, 0.05, 2.55, (z, y) => [[2.195, y, z], [-1, 0, 0]]);
-    grid(-2.1, 2.1, 0.05, 2.55, (x, y) => [[x, y, -2.495], [0, 0, 1]]);
-    grid(-2.1, 2.1, 0.05, 2.55, (x, y) => [[x, y, 2.495], [0, 0, -1]]);
-    grid(-2.1, 2.1, -2.4, 2.4, (x, z) => [[x, 2.595, z], [0, -1, 0]]);
-    for (let k = 0; k < 220; k++) seeds.push([[J(-2.1, 2.1), 0.006, J(-2.4, 2.4)], [0, 1, 0]]);
-    // each flake is one quad (c.w = 1) plus four dust grains (c.w = 2..5) it crumbles into
-    const PER = 5, N = seeds.length * PER, v = new Float32Array(N * 4 * 12), idx = new Uint32Array(N * 6);
+    const CS = 0.12, seeds = [];
+    const inDoor = (x, y) => x > 0.2 && x < 1.2 && y < 2.1, inWin = (z, y) => z > -1.2 && z < 0 && y > 0.9 && y < 2.0;
+    for (let i = Math.floor(-2.5 / CS); (i + 0.5) * CS < 2.5; i++) for (let j = 0; (j + 0.5) * CS < 2.6; j++) {
+      const z = (i + 0.5) * CS, y = (j + 0.5) * CS;
+      if (z < -2.49 || z > 2.49) continue;
+      if (!inWin(z, y)) seeds.push([[-2.2, y, z], [1, 0, 0]]);
+      seeds.push([[2.2, y, z], [-1, 0, 0]]);
+    }
+    for (let i = Math.floor(-2.2 / CS); (i + 0.5) * CS < 2.2; i++) for (let j = 0; (j + 0.5) * CS < 2.6; j++) {
+      const x = (i + 0.5) * CS, y = (j + 0.5) * CS;
+      if (x < -2.19 || x > 2.19) continue;
+      seeds.push([[x, y, -2.5], [0, 0, 1]]);
+      if (!inDoor(x, y)) seeds.push([[x, y, 2.5], [0, 0, -1]]);
+    }
+    // each flake is one quad (c.w = 1) plus two crumbs (c.w = 2, 3) it sheds
+    const PER = 3, N = seeds.length * PER, v = new Float32Array(N * 4 * 12), idx = new Uint32Array(N * 6);
     seeds.forEach(([p, n], k) => {
-      const r1 = Math.random(), sz = Math.random(), r2 = Math.random();
       for (let d = 0; d < PER; d++) {
         const q = k * PER + d;
-        [[0, 0], [1, 0], [1, 1], [0, 1]].forEach(([u, w], c) => v.set([...p, ...n, u, w, r1, sz, r2, 1 + d], (q * 4 + c) * 12));
+        [[0, 0], [1, 0], [1, 1], [0, 1]].forEach(([u, w], c) => v.set([...p, ...n, u, w, 0, Math.random(), 0, 1 + d], (q * 4 + c) * 12));
         idx.set([0, 1, 2, 0, 2, 3].map(x => x + q * 4), q * 6);
       }
     });
-    O.ash = add(R.object(R.mesh({ v, i: idx }), T.wallClean, { pipe: 'blend', extra: [0, 0, 0, 1], order: 5 }));
+    O.ash = add(R.object(R.mesh({ v, i: idx }), T.wall, { tex2: T.wallClean, pipe: 'blend', extra: [0, 0, 0, 1], order: 5 }));
     O.ash.noCull = true;
   }
   // trash builds up as the night goes on (each pile forms out of the ash when the other world reaches it)

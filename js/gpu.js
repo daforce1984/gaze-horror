@@ -67,55 +67,49 @@ fn hash21(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 
       lp.z += (hash21(vec2f(vr + 5.0, floor(t * 19.0))) - 0.5) * 0.15 * vz;
     }
   }
-  if (O.extra.w > 0.5) {   // peeling flake: p = its place on the surface, n = surface normal, uv = corner, c = (rand, size, rand)
+  if (O.extra.w > 0.5) {   // peeling flake = one wall cell: p = cell centre on the wall, n = inward normal, uv = corner, c = (-, size, -, part)
     let t = G.camPos.w;
-    let behind = G.shift.w - frontDist(p);                  // how far the front has already gone past this spot
-    let life = clamp(behind / (0.9 + c.z * 0.9), 0.0, 1.0);
-    let alive = step(0.0, behind) * step(life, 0.999) * step(0.001, G.shift2.z) * step(0.35, changeAt(p));   // only what actually turns peels
+    let cell = floor(wallPlane(p, n) / CS);
+    let rr = cellRand(cell, n);
+    let lcell = cellLife(cell, p, n);
+    let life = clamp(lcell, 0.0, 1.0);
+    let alive = step(0.0, lcell) * step(life, 0.999) * step(0.001, G.shift2.z) * step(0.35, changeAt(p));   // only what actually turns peels
     let peel = smoothstep(0.0, 0.3, life);
-    var t1 = cross(n, vec3f(0.0, 1.0, 0.0));
-    if (length(t1) < 0.1) { t1 = vec3f(1.0, 0.0, 0.0); }
-    t1 = normalize(t1);
+    var t1 = normalize(cross(n, vec3f(0.0, 1.0, 0.0)));
     let t2 = cross(n, t1);
-    // curl out of the surface around its own edge, then tumble slowly as it rises
-    let ang = peel * (0.9 + c.x * 1.1) + life * (1.2 + c.x * 2.0) * sign(c.z - 0.5) + sin(t * 6.0 + c.x * 30.0) * 0.7 * life;   // flutter
+    let ang = peel * (0.9 + rr * 1.1) + life * (1.2 + rr * 2.0) * sign(fract(rr * 7.0) - 0.5) + sin(t * 6.0 + rr * 30.0) * 0.7 * life;   // curl, then flutter
     let a2 = t2 * cos(ang) + n * sin(ang);
-    let size = mix(0.06, 0.13, c.y) * alive;
+    let size = CS * 1.4 * alive;   // a little bigger than its cell: the ragged cell edge is cut out per pixel
     let q = (uv - vec2f(0.5)) * size;
-    // scatter: each flake gets its own direction and speed off the surface (some up, some sideways, a few
-    // falling), plus turbulence, so nothing moves in step
     // burnt paper in an updraft: pushed off the wall, then carried up, drifting and fluttering; walls and ceiling stop it
-    let hr = fract(sin(vec3f(c.x * 91.7, c.z * 57.3, c.y * 23.1) + p.yzx * 3.7) * 43758.5453) * 2.0 - vec3f(1.0);
+    let hr = fract(sin(vec3f(rr * 91.7, rr * 57.3, rr * 23.1) + p.yzx * 3.7) * 43758.5453) * 2.0 - vec3f(1.0);
     let lf = max(life - 0.12, 0.0);
-    let up = pow(lf, 1.25) * (0.8 + 0.9 * fract(c.z * 13.7));
-    let away = n * (0.12 + 0.3 * fract(c.x * 7.1)) * smoothstep(0.0, 0.5, lf);
+    let up = pow(lf, 1.25) * (0.8 + 0.9 * fract(rr * 13.7));
+    let away = n * (0.12 + 0.3 * fract(rr * 7.1)) * smoothstep(0.0, 0.5, lf);
     let drift = vec3f(hr.x, 0.0, hr.z) * lf * 0.5;
-    let sway = vec3f(sin(t * 2.1 + c.x * 20.0), 0.0, cos(t * 1.7 + c.z * 13.0)) * 0.1 * lf + vec3f(0.0, sin(t * 3.3 + c.y * 9.0) * 0.03 * lf, 0.0);
+    let sway = vec3f(sin(t * 2.1 + rr * 20.0), 0.0, cos(t * 1.7 + rr * 13.0)) * 0.1 * lf + vec3f(0.0, sin(t * 3.3 + rr * 9.0) * 0.03 * lf, 0.0);
     var center = p + n * (0.003 + peel * 0.07) + away + drift + sway + vec3f(0.0, up, 0.0);
-    // collisions: fold back inside the room (a soft bounce off walls, sliding along the ceiling)
     let lo = vec3f(-2.16, 0.03, -2.46); let hi = vec3f(2.16, 2.55, 2.46);
     center = select(center, lo + (lo - center) * 0.25, center < lo);
     center = select(center, hi - (center - hi) * 0.25, center > hi);
     var wp = center + t1 * q.x + a2 * q.y;
     if (c.w > 1.5) {   // a dust grain shed by this flake as it crumbles: drifts away, sinks a little, fades
       let di = c.w - 1.0;
-      let h = fract(sin(vec3f(di * 12.9, di * 78.2, di * 37.7) + c.xyz * 43.1) * 43758.5);
+      let h = fract(sin(vec3f(di * 12.9, di * 78.2, di * 37.7) + vec3f(rr, rr * 3.1, rr * 7.7) * 43.1) * 43758.5);
       let shed = clamp((life - 0.3 - h.x * 0.25) / 0.45, 0.0, 1.0);
       let dir = normalize(h * 2.0 - vec3f(1.0) + n * 0.6 + vec3f(0.0, 0.15, 0.0));
-      let gp = center + (t1 * (h.y - 0.5) + a2 * (h.z - 0.5)) * mix(0.06, 0.13, c.y) + dir * shed * (0.12 + h.y * 0.22) + vec3f(0.0, -shed * shed * 0.08, 0.0);
+      let gp = center + (t1 * (h.y - 0.5) + a2 * (h.z - 0.5)) * CS + dir * shed * (0.12 + h.y * 0.22) + vec3f(0.0, -shed * shed * 0.08, 0.0);
       let gs = mix(0.006, 0.016, h.z) * step(0.001, shed) * (1.0 - shed) * alive;
       let f = normalize(gp - G.camPos.xyz); let r = normalize(cross(f, vec3f(0.0, 1.0, 0.0))); let u2 = cross(r, f);
       wp = gp + (r * (uv.x - 0.5) + u2 * (uv.y - 0.5)) * gs;
       o.pos = G.viewProj * vec4f(wp, 1.0);
-      o.wp = wp; o.n = vec3f(0.0); o.uv = uv; o.col = vec4f(c.x, 2.0 + shed, (1.0 - shed), 1.0);   // col.y > 1.5 marks dust
+      o.wp = wp; o.n = vec3f(0.0); o.uv = uv; o.col = vec4f(rr, 2.0 + shed, (1.0 - shed), 0.0);   // col.y > 1.5 marks dust
       return o;
     }
     o.pos = G.viewProj * vec4f(wp, 1.0);
     o.wp = wp;
-    // which bit of wallpaper this flake was (same world mapping for every flake)
-    let su = select(select(vec2f(p.x, p.z), vec2f(p.x, p.y), abs(n.z) > 0.5), vec2f(p.z, p.y), abs(n.x) > 0.5);
-    o.n = vec3f(su * 0.9, 0.0);
-    o.uv = uv; o.col = vec4f(c.x, life, alive * (1.0 - smoothstep(0.65, 1.0, life)), 1.0);
+    o.n = p + n * 0.003 + t1 * q.x + t2 * q.y;   // where on the wall this pixel of the flake was
+    o.uv = uv; o.col = vec4f(cell.x, life, alive * (1.0 - smoothstep(0.65, 1.0, life)), cell.y);
     return o;
   }
   var w = O.model * vec4f(lp, 1.0);
@@ -200,6 +194,26 @@ fn changeAt(p: vec3f) -> f32 {
   let v = rotField(p);
   return clamp(maskAt(v, G.shift2.y) - maskAt(v, G.shift2.x), 0.0, 1.0);
 }
+// ---- the wall's skin as 12 cm cells: each cell is one flake; the wall and its flake agree on everything
+const CS = 0.12;
+fn isXWall(n: vec3f) -> bool { return abs(n.x) > 0.5; }
+fn wallPlane(p: vec3f, n: vec3f) -> vec2f { return select(vec2f(p.x, p.y), vec2f(p.z, p.y), isXWall(n)); }
+fn cellJitter(p: vec3f) -> vec2f { return vec2f(noise3(p * 23.0), noise3(p * 23.0 + vec3f(7.3))) * 0.05 - vec2f(0.025); }
+fn cellOf(p: vec3f, n: vec3f) -> vec2f { return floor((wallPlane(p, n) + cellJitter(p)) / CS); }
+fn cellCenter(cell: vec2f, p: vec3f, n: vec3f) -> vec3f {
+  let c = (cell + vec2f(0.5)) * CS;
+  return select(vec3f(c.x, c.y, p.z), vec3f(p.x, c.y, c.x), isXWall(n));
+}
+fn cellRand(cell: vec2f, n: vec3f) -> f32 { return hash21(cell * 1.37 + vec2f(n.x * 17.0 + n.z * 29.0, n.z * 11.0)); }
+fn cellLife(cell: vec2f, p: vec3f, n: vec3f) -> f32 {
+  let cc = cellCenter(cell, p, n);
+  return clamp((G.shift.w - frontDist(cc)) / (0.9 + cellRand(cell, n) * 0.9), -1.0, 1.0);
+}
+// same mapping the walls got in Blender (world_uv, tile 2 m, V flipped by glTF) times the engine's uv scale 2
+fn wallUV(p: vec3f, n: vec3f) -> vec2f {
+  let u = select(select(p.x, -p.x, n.z > 0.0), select(-p.z, p.z, n.x > 0.0), isXWall(n));
+  return vec2f(u, 2.0 - p.y);
+}
 fn decayMask(p: vec3f) -> f32 {
   return maskAt(rotField(p), roomDecay(p));
 }
@@ -283,31 +297,41 @@ const LIT = SHARED + /* wgsl */`
     let dc = mix(vec3f(0.14, 0.012, 0.008), vec3f(0.04, 0.005, 0.005), cool);   // dark red crumbs
     return vec4f(fog(dc, i.wp), da);
   }
-  if (O.extra.w > 0.5) {   // peeling flake: old wallpaper on its face, rust eating in from the ragged edge
-    let q = (i.uv - vec2f(0.5)) * 2.0;
-    let edge = max(abs(q.x), abs(q.y)) * 0.6 + length(q) * 0.4 + (noise3(vec3f(i.uv * 6.0, i.col.x * 17.0)) - 0.5) * 0.55;
-    // eaten away: little bites from the rim inwards and holes opening inside, until nothing is left (no coloured rim)
+  if (O.extra.w > 0.5) {   // peeling flake: its own patch of the wall (same pixels, same ragged outline), then charred and eaten away
+    let org = i.n;
+    let wn = select(vec3f(0.0, 0.0, -sign(org.z)), vec3f(-sign(org.x), 0.0, 0.0), abs(org.x) > 2.1);   // inward wall normal
+    let cell = vec2f(i.col.x, i.col.w);
+    if (any(abs(cellOf(org, wn) - cell) > vec2f(0.5))) { discard; }   // the wall's ragged cell edge
     let life = i.col.y;
-    let bites = noise3(vec3f(i.uv * 9.0, i.col.x * 13.0)) * 0.55 + noise3(vec3f(i.uv * 23.0, i.col.x * 7.0)) * 0.3 + noise3(vec3f(i.uv * 51.0, i.col.x * 3.0)) * 0.15;
-    let inner = (1.0 - edge) * 0.55 + bites * 0.45;
-    if (inner < smoothstep(0.1, 1.0, life) * 0.95) { discard; }
-    let a = (1.0 - smoothstep(0.62, 0.8, edge)) * i.col.z * O.tint.a;
-    if (a < 0.01) { discard; }
-    let rustN = noise3(vec3f(i.uv * 9.0, i.col.x * 5.0));
-    let rustAmt = clamp(0.25 + i.col.y * 1.8 + smoothstep(0.25, 0.7, edge) * 0.9 + (rustN - 0.5) * 0.5, 0.0, 1.0);
-    let rust = mix(vec3f(0.36, 0.14, 0.05), vec3f(0.12, 0.05, 0.03), rustN);
-    // what falls away is not paper any more: dark, clotted red-black lumps
-    let clot = noise3(vec3f(i.uv * 7.0, i.col.x * 9.0));
-    var col = mix(vec3f(0.11, 0.006, 0.005), vec3f(0.035, 0.004, 0.004), clot) * (0.85 + 0.3 * paper.r);
-    col = col * (0.3 + 0.2 * G.bulbPos.w / 4.0 + G.ambient.r * 4.0);
-
-    return vec4f(fog(col, i.wp), a);
+    let seed = cellRand(cell, wn);
+    let bites = noise3(vec3f(i.uv * 9.0, seed * 13.0)) * 0.55 + noise3(vec3f(i.uv * 23.0, seed * 7.0)) * 0.3 + noise3(vec3f(i.uv * 51.0, seed * 3.0)) * 0.15;
+    let q = (i.uv - vec2f(0.5)) * 2.0;
+    let inner = (1.0 - max(abs(q.x), abs(q.y))) * 0.5 + bites * 0.5;
+    if (inner < smoothstep(0.25, 1.0, life) * 0.95) { discard; }   // eaten away, bite by bite
+    let wuv = wallUV(org, wn);
+    let face = mix(textureSampleLevel(tex2, samp, wuv, 0.0).rgb, textureSampleLevel(tex, samp, wuv, 0.0).rgb, maskAt(rotField(org), G.shift2.x));
+    let lit = face * lighting(org, wn, 0.1, 0.05);
+    let clot = noise3(vec3f(i.uv * 7.0, seed * 9.0));
+    let crimson = mix(vec3f(0.11, 0.006, 0.005), vec3f(0.035, 0.004, 0.004), clot) * (0.3 + 0.2 * G.bulbPos.w / 4.0 + G.ambient.r * 4.0);
+    let col = mix(lit, crimson, smoothstep(0.1, 0.45, life));
+    return vec4f(fog(col, i.wp), i.col.z * O.tint.a);
   }
   var ember = 0.0;
   if (O.extra.x > 0.5 && O.extra.x < 1.5) {   // a decaying surface (walls, floor, ceiling)
-    let dm = decayMask(i.wp);
+    var dm = decayMask(i.wp);
+    var recess = 0.0;
+    if (G.shift.w < 50.0 && abs(n0.y) < 0.5) {
+      let cell = cellOf(i.wp, n0);
+      let cc = cellCenter(cell, i.wp, n0);
+      if (changeAt(cc) > 0.35) {
+        let lf = cellLife(cell, i.wp, n0);
+        dm = maskAt(rotField(i.wp), select(G.shift2.x, G.shift2.y, lf > 0.0));   // this cell's skin is gone the moment its flake lets go
+        recess = select(0.0, 1.0 - smoothstep(0.0, 0.5, lf), lf > 0.0);         // freshly bared: still in the flake's shadow
+      }
+    }
     let rim = 1.0 - abs(dm * 2.0 - 1.0);           // water-stain edge where rot meets clean paper
     t = mix(t2, t, dm);
+    t = vec4f(t.rgb * (1.0 - 0.45 * recess), t.a);
     let burn = burnBand(i.wp);
     let chg = select(0.0, changeAt(i.wp), burn > 0.0);   // does this spot actually turn in this shift?
     // while the front passes, the edge between the two worlds chars and glows like burning paper
