@@ -195,7 +195,8 @@ function buildScene() {
     M_wall: { t: T.wall, t2: T.wallClean, decay: 1, n: T.wallN, mr: T.wallM, uv: 2 }, M_floor: { t: T.floor, t2: T.floorClean, decay: 1, spec: 0.05, n: T.floorN, mr: T.floorM },
     M_ceiling: { t: T.ceiling, t2: T.ceilClean, decay: 1, n: T.ceilN, mr: T.ceilM },
     M_wood: { t: T.woodLight, n: T.woodLightN, mr: T.woodLightM }, M_wooddark: { t: T.wood, tint: [0.8, 0.75, 0.72], n: T.woodN, mr: T.woodM },
-    M_door: { t: T.door, t2: R.solidTexture([232, 230, 225, 255]), decay: 1, spec: 0.12, n: T.doorN, mr: T.doorM },   // a plain white modern door first M_curtain: { t: T.curtain, t2: T.curtainModern, decay: 1, wrap: 0.4, n: T.curtainN, mr: T.curtainM },
+    // (the door starts plain white modern)
+    M_door: { t: T.door, t2: R.solidTexture([232, 230, 225, 255]), decay: 1, spec: 0.12, n: T.doorN, mr: T.doorM }, M_curtain: { t: T.curtain, t2: T.curtainModern, decay: 1, wrap: 0.4, n: T.curtainN, mr: T.curtainM },
     M_window: { t: T.window, unlit: true, tint: [0.3, 0.32, 0.4] }, M_tvscreen: { t: O.tvTex, unlit: true, key: 'screen' },
     M_clockface: { t: O.clockTex, key: 'clockface' }, M_bulb: { unlit: true, key: 'bulb' }, M_corridor: { unlit: true, key: 'corridor', tint: [0, 0, 0] },
     M_bag: { t: T.plastic, tint: [0.9, 0.9, 0.95], spec: 1.4 }, M_bagwhite: { spec: 0.9 }, M_paper: { t: T.paper, wrap: 0.3 }, M_cardboard: { t: T.paper, tint: [0.75, 0.6, 0.42] },
@@ -222,7 +223,7 @@ function buildScene() {
         nrm: ghost ? null : m.n || gpuTex(maps.normal, false), mr: ghost ? null : m.mr || gpuTex(maps.mr, false), mrAO: m.mr ? true : maps.mrAO, rough: m.mr ? 1 : pr.material.rough, metal: m.mr ? 1 : pr.material.metal,
         pipe: pr.material.cutout && pipe === 'opaque' ? 'cutout' : ghost && pr.geo.jw && node.skin ? 'ghostSkin' : pipe, skinned: !!(ghost && pr.geo.jw && node.skin), model: node.matrix.slice(), tint, emissive: [...(m.emissive || [0, 0, 0]), ghost ? (m.aoLift ?? (maps.base ? 1 : 0)) : pr.material.cutout ? 0.5 : 0],
         flags: [m.wrap ?? 0.1, m.unlit ? 1 : 0, spec, ghost ? 2 : 0], uvx: [m.uv || 1, m.uv || 1, ghost && pr.material.name === 'M_hair' ? 1 : 0, ghost && (m.t || maps.base) ? 1 : 0],
-        castShadow: !NO_SHADOW.has(node.name) && (Math.max(...pr.max.map((v, k) => v - pr.min[k])) > 0.18 || gfxPreset() !== GFX.low),   // real-time shadows from everything except on low tex2: m.t2, extra: [m.decay ? 1 : /artwork|polaroid/i.test(pr.material.name) ? 2 : 0, 0, 0, 0],   // tiny things cast no shadow (6 draws each)
+        castShadow: !NO_SHADOW.has(node.name) && (Math.max(...pr.max.map((v, k) => v - pr.min[k])) > 0.18 || gfxPreset() !== GFX.low), tex2: m.t2, extra: [m.decay ? 1 : /artwork|polaroid/i.test(pr.material.name) ? 2 : 0, 0, 0, 0],   // real-time shadows from everything except on low (there only the big ones)
       }));
       o.base = node.matrix; o.min = pr.min; o.max = pr.max;
       if (m.key) O[m.key] = o;
