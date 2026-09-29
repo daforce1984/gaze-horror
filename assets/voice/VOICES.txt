@@ -1,0 +1,102 @@
+응시 — ElevenLabs 음성 기록
+생성 도구: tools/el/el_gen.py (브라우저 로그인 세션, text-to-dialogue API) / 대사 원본: assets/voice/lines.json
+검수: tools/el/el_stt.py (Scribe STT로 한국어 발음 확인, 오인식 대사는 재생성)
+기록일: 2026-09-30
+
+[GIRL] 수아 (귀신 아이)
+  목소리: Luna - Soft, Clear, Bright
+  Voice ID: Ss1VfT7ri4lqnvTDWII0
+  모델: Eleven v4 (eleven_v4)
+  Stability: Creative (stability 0.0)
+  비고: 한국어 서울, Voice Library. 사용자 지정. 게임에서 1.06배로 재생(조금 어리게) + 어두운 리버브(방 부패에 비례)
+  대사 수: 60
+
+[MOTHER] 엄마 (자동응답기 메시지)
+  목소리: Park Hyun-mi
+  Voice ID: JxIGrv4AVuvbo1Dxzryu
+  모델: Eleven v3 (eleven_v3)
+  Stability: 0.5 (Natural)
+  비고: 한국어 중년 여성, Voice Library
+  대사 수: 4
+
+[ANCHOR] 뉴스 앵커 (TV 11번)
+  목소리: JasonK - Calm, Clear and neutral
+  Voice ID: lO4E4qxAvq4BhWUWF8Ci
+  모델: Eleven v3 (eleven_v3)
+  Stability: 0.5 (Natural)
+  비고: 한국어 남성(서울), Voice Library
+  대사 수: 1
+
+이전에 시도했다가 교체한 목소리:
+  Piku (EeQEodFZVtBkjtgK3HBc) — 영어권 아이 캐릭터 목소리. 한국어로 안 들려서 교체
+  Annie - Friendly, Soft and Clear (Lb7qkOn5hF8p7qfCDH8q) — 한국어 여성. 사용자 지정 Luna로 교체
+  (Voice Design으로 아이 목소리 생성은 ElevenLabs 정책상 차단되어 사용 안 함)
+
+태그 스타일 (사용자 지정): [crazy][crying]가지마!!, [crazy]히..히히히히히히힛!! 처럼 광기와 슬픔을 겹쳐 씀
+
+대사 목록 (id | 목소리 | 텍스트):
+  c_intro | GIRL | [whispers][trembling] 엄마…? [crazy][giggles] 왔어?
+  c_first | GIRL | [crazy][giggles] 히히힛, 엄마, 이거 보고 싶었어? 내가 갖다 줄게.
+  c_bring1 | GIRL | [whispers][sniffles] 가져왔어.
+  c_bring2 | GIRL | [crazy][crying] 이것도 줄게, 엄마.
+  c_bring3 | GIRL | [whispers] 엄마 거야. [crazy][giggles] 만져 봐.
+  c_heavy | GIRL | [straining][crying] 으응… 무거워…
+  c_cold | GIRL | [whispers][sad] 엄마 손… 차갑다. [crazy] 히히… 나처럼.
+  c_cctv | GIRL | [whispers][crazy] 히히… 엄마 뒤에 있어.
+  c_doll | GIRL | [crazy][screaming][crying] 내 인형 만지지 마!!
+  c_song | GIRL | [softly][crying] 이 노래… 엄마가 불러 줬던 거.
+  c_wait | GIRL | [sobbing] 나 착하게 기다렸어. [crazy][whispers] 소리도 안 냈어.
+  c_why | GIRL | [crying] 엄마… [crazy] 히..히히… 왜 안 왔어?
+  c_rope | GIRL | [crazy][crying] 가지 마!! [sobbing] 또… 가지 마…
+  c_turn | GIRL | [coldly] 이번엔… [crazy] 히히히힛… 엄마가 기다려.
+  c_look | GIRL | [whispers][crazy] 나를 봐.
+  c_stay | GIRL | [whispers][crying] 같이 있자… 계속.
+  c_found | GIRL | [crazy] 히히..히히히히힛! 찾았다.
+  c_clock | GIRL | [whispers][sad] 시계가 멈췄을 때… [crazy] 나도 멈췄어.
+  c_door | GIRL | [whispers] 문은… 밖에서 잠겼어. [crazy][crying] 엄마가 잠갔잖아!!
+  c_take | GIRL | [softly][crying] 이거… 나야? 엄마랑… 나.
+  c_bye | GIRL | [crying][softly] 엄마… 이제 가도 돼. 문 열어 줄게.
+  c_end | GIRL | [whispers][sobbing] 엄마… 또 와줘.
+  m_tape0 | MOTHER | [cheerful] 수아야~ 엄마야. 오늘 일 끝나고 케이크 사 갈게. 저녁 꼭 챙겨 먹고, TV 보고 있어. 사랑해!
+  m_tape1 | MOTHER | [tired] 수아야, 엄마야. 엄마 오늘도 좀 늦어. TV 켜 놨지? 채널 돌리지 말고… 얌전히 보고 있어.
+  m_tape2 | MOTHER | [annoyed] 문 두드리지 말라고 했지. 옆집에서 또 뭐라 그러잖아. [sighs] …금방 갈게. 금방.
+  m_tape3 | MOTHER | [drunk, slurring] 수아야… 엄마 너무 힘들어. [long pause] 조금만… 조금만 더 기다려. [crying] 미안해.
+  n_news | ANCHOR | [serious] 다음 소식입니다. 한 빌라 삼백삼 호에서 일곱 살 여자아이가 숨진 채 발견됐습니다. 아이는 밖에서 잠긴 방 안에 혼자 있었으며, 경찰은 삼 주째 연락이 닿지 않는 아이의 어머니를 찾고 있습니다.
+  hs_start | GIRL | [crazy][excited] 엄마! 일어났다! [giggles] 히히힛, 우리 숨바꼭질 하자. 엄마가 술래야!
+  hs_count | GIRL | [crazy][singsong] 하나… 둘… 셋… 넷… 다섯… 여섯… 일곱… 여덟… 아홉… 열!
+  hs_ready | GIRL | [crazy] 히..히히히히힛! 다 숨었다! 찾아봐~
+  hs_found1 | GIRL | [crazy] 히..히히히힛! 들켰다!
+  hs_found2 | GIRL | [crazy][excited] 와, 엄마 잘 찾는다! 히히.
+  hs_again | GIRL | [crazy][excited] 한 번 더! 이번엔 못 찾을걸?
+  hs_hint | GIRL | [whispers][crazy] 히히… 나 여기 있는데~
+  hs_wrong | GIRL | [crazy] 히..히히히! 거기 아니야~
+  hs_fail | GIRL | [crazy] 히..히히히히히히힛!! 엄마 바보~ 여기 있었지롱.
+  hs_behind | GIRL | [whispers][eerie] 엄마… 바로 뒤에 있어.
+  hs_cheat | GIRL | [crazy] 히..히히히히힛!! 속았지? 커튼엔 아무도 없었어!
+  hs_closer | GIRL | [whispers] 가까이… 왔다… [crazy] 히..히히히.
+  hs_under | GIRL | [whispers][crazy] 엄마 밑에 있어… 안 보이지?
+  hs_eyes | GIRL | [softly][crazy] 눈 감아. 뭐가 달라졌게?
+  hs_song | GIRL | [singing][crying] 무궁화 꽃이… 피었습니다.
+  an_intro | GIRL | [crazy][excited] 이번엔 내가 방을 이상하게 바꿔 놓을게! 히..히히히힛! 엄마가 원래대로 돌려놔~
+  an_more | GIRL | [whispers][crazy] 이번엔… 나도 움직일 거야.
+  an_fix1 | GIRL | [crazy][giggles] 히히히힛, 에이~ 들켰다.
+  an_fix2 | GIRL | [giggles] 엄마 눈 좋다~ 히히.
+  an_done | GIRL | [crazy] 히..히히히히히히힛!! 와~ 다 찾았다! [crying] 엄마 최고!
+  an_fail | GIRL | [crazy] 히..히히히히히히힛!! 엄마 바보~ [sobbing] 하나도 못 고쳤지롱.
+  an_last | GIRL | [whispers][crying] 불이 죽어 간다… [crazy] 이제 엄마도 나처럼 어둠 속에서 찾아.
+  an_spawn1 | GIRL | [crazy][giggles] 히히… 이것 좀 봐~
+  an_spawn2 | GIRL | [whispers][crazy] 또 바꿨다~ 히..히히.
+  an_spawn3 | GIRL | [crazy][crying] 엄마, 이상하지? 이상하지?!
+  an_spawn4 | GIRL | [crazy][singsong] 뭐가~ 달라졌게~
+  an_danger | GIRL | [crazy][screaming] 빨리! 빨리 찾아!! 히..히히히히힛!!
+  an_rescue | GIRL | [crying] 에이… [crazy] 히..히히, 아깝다.
+  an_doll | GIRL | [crazy][whispers] 내 인형이… 엄마 보고 싶대. 히히힛.
+  an_lamp | GIRL | [crazy][giggles] 빨개졌다~ 히..히히히힛!!
+  crawl_near | GIRL | [whispers][crazy][breathing heavily] 엄마… 거의 다 왔어… 히..히히.
+  crawl_hurt | GIRL | [screaming][crying] 아파!! 왜 밀어내!!
+  shift_start | GIRL | [crazy][crying] 싫어… 싫어!! 방이… 방이 썩어!!
+  hs_found3 | GIRL | [crazy][crying] 찾았다… 찾았어!! 히..히히히힛!!
+  amb1 | GIRL | [whispers][crying] 엄마… 어디 있어…
+  amb2 | GIRL | [whispers][crazy] 히히… 여기야… 아니, 여기…
+  amb3 | GIRL | [sobbing][whispers] 배고파… 엄마…
+  amb4 | GIRL | [crazy][giggles] 하나, 둘, 셋… 히히힛.
