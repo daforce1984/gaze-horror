@@ -32,9 +32,11 @@ export class Sound {
   voice(id, pos, gain = 1.6) {
     if (!this.ctx || !this.buf[id]) return 0;
     const ctx = this.ctx, t = ctx.currentTime;
-    const dest = pos ? (() => { const p = this.panner(pos); p.connect(this.master); return p; })() : this.master;
+    const WHISPERED = /^(amb\d|hs_hint|hs_closer|hs_behind|hs_under|crawl_near|c_cctv|c_look|an_spawn2|an_more|an_doll)$/;
+    const moving = WHISPERED.test(id) && this.buf[id];
+    const dest = pos || moving ? (() => { const p = this.panner(pos || [0, 1.2, 0]); if (moving) this.orbit(p, this.buf[id].duration / 1.06, pos); p.connect(this.master); return p; })() : this.master;
     const g = ctx.createGain(); g.gain.value = gain; g.connect(dest);
-    const girl = /^(c_|hs_|an_)/.test(id);
+    const girl = /^(c_|hs_|an_|amb|crawl_|shift_)/.test(id);
     // her voice (a young Korean woman's) is pitched up a little to sound like a child; only a dark
     // reverb is added, stronger as the room rots. Nothing that slows or smears the words.
     const k = girl ? Math.min(1, this.voiceFx || 0) : 0;
@@ -252,6 +254,20 @@ export class Sound {
     return b;
   }
   loop(buf) { const s = this.ctx.createBufferSource(); s.buffer = buf; s.loop = true; s.start(0, Math.random() * 2); return s; }
+  // a whisper never stays put: it circles round the listener's head and closes in over its duration
+  orbit(n, dur, start) {
+    if (!n.positionX) return n;
+    const L = this.lpos || [0, 1.15, 0.3], t = this.ctx.currentTime;
+    const a0 = start ? Math.atan2(start[2] - L[2], start[0] - L[0]) : Math.random() * Math.PI * 2;
+    const sweep = (Math.PI * (0.8 + Math.random() * 1.2)) * (Math.random() < 0.5 ? -1 : 1), steps = 16;
+    for (let i = 0; i <= steps; i++) {
+      const k = i / steps, a = a0 + sweep * k, r = 2.2 - 1.7 * k * k, tt = t + dur * k;
+      n.positionX.linearRampToValueAtTime(L[0] + Math.cos(a) * r, tt);
+      n.positionY.linearRampToValueAtTime(L[1] + 0.25 * Math.sin(k * 7 + a0), tt);
+      n.positionZ.linearRampToValueAtTime(L[2] + Math.sin(a) * r, tt);
+    }
+    return n;
+  }
   panner(p) {
     // HRTF convolves every source on the audio thread: fine on a PC, too heavy on phones
     const n = this.ctx.createPanner(); n.panningModel = this.lite ? 'equalpower' : 'HRTF'; n.distanceModel = 'inverse'; n.refDistance = 1; n.rolloffFactor = 0.8;
@@ -264,6 +280,7 @@ export class Sound {
 
   listener(pos, fwd, up) {
     if (!this.ctx) return;
+    this.lpos = pos;
     const L = this.ctx.listener;
     if (L.positionX) {
       L.positionX.value = pos[0]; L.positionY.value = pos[1]; L.positionZ.value = pos[2];
@@ -357,6 +374,10 @@ export class Sound {
       pop: ['pop', 1.2], static: ['static', 0.45], steps: ['steps', 1.1], chime: ['chime', 1.0], curtain: ['curtain', 1.0],
       giggle: [Math.random() < 0.5 ? 'giggle' : 'giggle2', 0.9], whisper: [Math.random() < 0.5 ? 'whisper' : 'whisper2', 0.9],
     };
+    if (name === 'whisper' && this.buf.whisper) {   // moving, spatial
+      const p = this.orbit(this.panner(pos || [0, 1.2, 0]), 5.5, pos); p.connect(this.master);
+      this.sample(REC.whisper[0], p, { gain: REC.whisper[1] }); return;
+    }
     if (REC[name] && this.sample(REC[name][0], dest, { gain: REC[name][1] })) return;
     if (name === 'scare' && this.buf.scare2) {
       this.sample(Math.random() < 0.6 ? 'scare2' : 'scare', this.master, { gain: 1.1 }); this.thump(t, 1.4); this.duck(0.15, 2.5);

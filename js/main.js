@@ -203,7 +203,7 @@ function buildScene() {
     M_ghostcrawl: { t: T.crawlTex, wrap: 0.4, spec: 0.35, aoLift: 1.0 },
     M_dollcloth: { wrap: 0.4 }, M_dolldress: { t: T.fabric, tint: [0.6, 0.16, 0.18], wrap: 0.4 },
   };
-  const NO_SHADOW = new Set(['floor', 'ceiling', 'wall_front', 'wall_back', 'wall_left', 'wall_right', 'trim', 'corridor', 'bulb', 'window_glass', 'clock_face', 'tv_screen']);
+  const NO_SHADOW = new Set(['lamp', 'floor', 'ceiling', 'wall_front', 'wall_back', 'wall_left', 'wall_right', 'trim', 'corridor', 'bulb', 'window_glass', 'clock_face', 'tv_screen']);
   O.nodes = {};
   // PBR maps that came inside the GLB (Poly Haven props, retextured pieces): one GPU texture per image
   const texCache = new Map();
@@ -217,9 +217,9 @@ function buildScene() {
       const spec = m.spec ?? Math.min(1.2, (1 - pr.material.rough) ** 2 * 1.3);
       const o = add(R.object(R.mesh(pr.geo), base || null, {
         nrm: ghost ? null : m.n || gpuTex(maps.normal, false), mr: ghost ? null : m.mr || gpuTex(maps.mr, false), mrAO: m.mr ? true : maps.mrAO, rough: m.mr ? 1 : pr.material.rough, metal: m.mr ? 1 : pr.material.metal,
-        pipe: pr.material.cutout && pipe === 'opaque' ? 'cutout' : pipe, model: node.matrix.slice(), tint, emissive: [...(m.emissive || [0, 0, 0]), ghost ? (m.aoLift || 0) : pr.material.cutout ? 0.5 : 0],
-        flags: [m.wrap ?? 0.1, m.unlit ? 1 : 0, spec, ghost ? 2 : 0], uvx: [m.uv || 1, m.uv || 1, ghost && pr.material.name === 'M_hair' ? 1 : 0, ghost && m.t ? 1 : 0],
-        castShadow: !NO_SHADOW.has(node.name) && Math.max(...pr.max.map((v, k) => v - pr.min[k])) > 0.18, tex2: m.t2, extra: [m.decay ? 1 : 0, 0, 0, 0],   // tiny things cast no shadow (6 draws each)
+        pipe: pr.material.cutout && pipe === 'opaque' ? 'cutout' : pipe, model: node.matrix.slice(), tint, emissive: [...(m.emissive || [0, 0, 0]), ghost ? (m.aoLift ?? (maps.base ? 1 : 0)) : pr.material.cutout ? 0.5 : 0],
+        flags: [m.wrap ?? 0.1, m.unlit ? 1 : 0, spec, ghost ? 2 : 0], uvx: [m.uv || 1, m.uv || 1, ghost && pr.material.name === 'M_hair' ? 1 : 0, ghost && (m.t || maps.base) ? 1 : 0],
+        castShadow: !NO_SHADOW.has(node.name) && Math.max(...pr.max.map((v, k) => v - pr.min[k])) > 0.18, tex2: m.t2, extra: [m.decay ? 1 : /artwork|polaroid/i.test(pr.material.name) ? 2 : 0, 0, 0, 0],   // tiny things cast no shadow (6 draws each)
       }));
       o.base = node.matrix; o.min = pr.min; o.max = pr.max;
       if (m.key) O[m.key] = o;
@@ -249,7 +249,7 @@ function buildScene() {
   O.docCanvas = {};
   const doc = (key, canvas, model, pipe = 'opaque') => {
     O.docCanvas[key] = canvas;
-    const o = add(R.object(quad, R.texture(canvas), { pipe, model, clamp: true, flags: [0.3, 0, 0.15, 0], tint: [0.95, 0.95, 0.95, 1] }));
+    const o = add(R.object(quad, R.texture(canvas), { pipe, model, clamp: true, flags: [0.3, 0, 0.15, 0], tint: [0.95, 0.95, 0.95, 1], extra: [2, 0, 0, 0] }));   // extra.x 2: a picture that melts as the room rots
     o.base = model; o.min = [-0.5, -0.5, 0]; o.max = [0.5, 0.5, 0];
     O[key + 'Obj'] = o;
     return o;
@@ -408,7 +408,7 @@ function hsNewBeat() { hsToken++; snd.stopVoices(); subQueue = []; }
 const LINES = {
   an_spawn1: '히히… 이것 좀 봐~', an_spawn2: '또 바꿨다~ 히히.', an_spawn3: '엄마, 이상하지? 이상하지?!', an_spawn4: '뭐가~ 달라졌게~',
   an_danger: '빨리! 빨리 찾아!! 히..히히히히힛!!', an_rescue: '에이… 히..히히, 아깝다.', an_doll: '내 인형이… 엄마 보고 싶대. 히히힛.',
-  an_lamp: '흔들흔들~ 히..히히히힛!!', crawl_near: '엄마… 거의 다 왔어… 히..히히.', crawl_hurt: '아파!! 왜 밀어내!!',
+  an_lamp: '빨개졌다~ 히..히히히힛!!', crawl_near: '엄마… 거의 다 왔어… 히..히히.', crawl_hurt: '아파!! 왜 밀어내!!',
   shift_start: '싫어… 싫어!! 방이… 방이 썩어!!', hs_found3: '찾았다… 찾았어!! 히..히히히힛!!',
   amb1: '엄마… 어디 있어…', amb2: '히히… 여기야… 아니, 여기…', amb3: '배고파… 엄마…', amb4: '하나, 둘, 셋… 히히힛.',
 };
@@ -742,7 +742,7 @@ const ANOM = {
   doll: { node: 'item_doll', name: '인형', sfx: 'bang', cue: '…등 뒤에서, 작은 발소리.', to: [-0.7, 0, 2.2] },   // climbs down, grows, and stands behind you (clear of the chair back) facing you
   frame: { node: 'item_frame', name: '가족사진', sfx: 'creak', cue: '…액자가 삐걱삐걱 흔들리는 소리.', loopSfx: 3.5 },
   cushion: { node: 'cushion', name: '방석', sfx: 'whisper', cue: '…누가 속삭인다.', lift: 1.0 },
-  lamp: { node: 'lamp', name: '전등', sfx: 'creak', cue: '…머리 위에서 끼익, 끼익.', loopSfx: 2.2, drop: 0.95 },   // drops on a longer cord to eye level, swings hard, the light turns red
+  lamp: { node: 'lamp', name: '전등', sfx: 'whisper', cue: '…방 안이 붉게 물들었다. 천장의 전등.' },   // the ceiling light turns deep red
   curtain: { name: '커튼', sfx: 'giggle', cue: '…커튼 쪽에서 킥킥.', ghost: true },
   crawl: { name: '기어오는 아이', sfx: 'steps', cue: '…바닥을 긁으며 기어오는 소리.', ghost: true },
 };
@@ -2034,12 +2034,9 @@ function frame(dt) {
   G.set(m4.mul(proj, view), 0);
 
   // lamp
+  // the light is set into the ceiling: it never moves, it only dims (and turns red for the lamp anomaly)
   const lampK = smooth(0, 1, (AN.act.lamp || AN.back?.lamp)?.k || 0);
-  const sw = 0.05 + S.lampSwing * 0.25 + lampK * 0.5;
-  const ax = Math.sin(time * 1.3) * sw, az = Math.cos(time * 1.1) * sw * 0.7;
-  const R0 = m4.trs([0, RH - lampK * ANOM.lamp.drop, -0.6], 0, [1, 1, 1], ax, az);
-  setModel(O.nodes.lamp, R0); setModel(O.nodes.bulb, R0);
-  const bulbPos = [R0[12] + R0[4] * -0.54, R0[13] + R0[5] * -0.54, R0[14] + R0[6] * -0.54];
+  const bulbPos = [0, RH - 0.09, -0.6];
   const B = (S.bulb ?? 1) * (1 - (S.lampDim || 0) * 0.6);
   O.bulb.emissive = [B * 7, B * 5.2 * (1 - lampK * 0.75), B * 3.2 * (1 - lampK * 0.85), 0]; O.bulb.tint = [0.08, 0.07, 0.06, 1];
   O.halo.model = billboard(bulbPos, 0.55 + B * 0.2, true);

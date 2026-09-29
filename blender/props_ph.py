@@ -86,6 +86,21 @@ def _rgb(img):
     return _RGB[img.name]
 
 
+def ph_import_file(path):
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=path)
+    new = [o for o in bpy.data.objects if o not in before]
+    meshes = [o for o in new if o.type == 'MESH']
+    for o in new:
+        if o not in meshes:
+            bpy.data.objects.remove(o, do_unlink=True)
+    ob = meshes[0]
+    ob.rotation_mode = 'XYZ'
+    bpy.ops.object.select_all(action='DESELECT'); ob.select_set(True); bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    return ob
+
+
 def ph_bounds(ob):
     bpy.context.view_layer.update()
     cs = [ob.matrix_world @ Vector(c) for c in ob.bound_box]
@@ -293,16 +308,7 @@ def upgrade_props(M):
     replace('item_knife', kn)
     item_origin(kn)
 
-    # ---- bulb: real glass bulb shape, glowing material (the engine drives it)
-    bpy.context.view_layer.update()
-    bulb_old = bpy.data.objects['bulb']
-    bb = ph_bounds(bulb_old)
-    bc = (bb[0] + bb[1]) / 2
-    bl = ph_import('lightbulb_01', res=256, faces=700)
-    ph_place(bl, 1.25, (bc.x, bc.z - 0.02, -bc.y), rotx=PI, anchor='centre')
-    bl.data.materials.clear()
-    bl.data.materials.append(M['bulb'])
-    replace('bulb', bl, origin=(0, RH, -0.6))
+    # (the ceiling light is a flush fixture built in build.py; no hanging bulb any more)
 
 
 # ---- props reconstructed with Hunyuan3D from Codex concept images (tools/hy3d.py), textured by projecting
@@ -311,6 +317,16 @@ HY = os.path.join(os.path.dirname(HERE), 'design', 'ghost3d')
 
 
 def hy_item(key, name, height, faces=6000, color=None, up='z'):
+    baked = os.path.join(os.path.dirname(HERE), 'design', 'mv', key.replace('_front', '') + '_baked.glb')
+    if color is None and os.path.exists(baked):   # textured from all sides already (blender/multiview.py)
+        ob = ph_import_file(baked)
+        mn, mx = ph_bounds(ob)
+        s = height / ((mx.z - mn.z) if up == 'z' else max(mx.x - mn.x, mx.y - mn.y))
+        ob.data.transform(Matrix.Translation(-Vector(((mn.x + mx.x) / 2, (mn.y + mx.y) / 2, mn.z))))
+        ob.data.transform(Matrix.Scale(s, 4))
+        ob['ph'] = 'hy_' + key; ob.name = name
+        print('HY', key, 'multiview baked', len(ob.data.polygons), 'faces')
+        return ob
     path = os.path.join(HY, 'obj_%s.glb' % key)
     tex = os.path.join(HY, 'obj_%s_tex.png' % key)
     if not os.path.exists(path) or (color is None and not os.path.exists(tex)):

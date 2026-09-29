@@ -505,22 +505,20 @@ def build_room():
     if face.data.polygons[0].normal.x > 0:
         face.data.flip_normals()
 
-    # ---- hanging lamp (origin at the ceiling pivot, engine swings it)
+    # ---- ceiling light: a flush fixture set into the ceiling (the engine only dims / tints it)
     PV = (0, RH, -0.6)
-    lp = [cyl('rosette', (0, RH - 0.01, -0.6), 0.05, 0.02, M['ceil'], axis='y'),
-          cyl('cord', (0, RH - 0.23, -0.6), 0.004, 0.44, M['cord'], seg=6),
-          cyl('socket', (0, RH - 0.47, -0.6), 0.02, 0.06, M['plastic'], seg=12)]
-    bm = bmesh.new()
-    bmesh.ops.create_cone(bm, cap_ends=False, segments=28, radius1=0.16, radius2=0.03, depth=0.13)
-    random.seed(4)
-    kill = [f for f in bm.faces if f.calc_center_median().z < -0.02 and random.random() < 0.18]
-    bmesh.ops.delete(bm, geom=kill, context='FACES')
-    sh = from_bm('shade', bm, M['shade'], E(0, RH - 0.5, -0.6))
-    add_mod(sh, 'SOLIDIFY', thickness=0.004)
-    lp.append(sh)
+    lp = [cyl('fx_base', (0, RH - 0.012, -0.6), 0.2, 0.024, M['ceil'], seg=40, axis='y'),
+          cyl('fx_rim', (0, RH - 0.03, -0.6), 0.185, 0.014, M['brass'], seg=40, axis='y')]
     lamp = join('lamp', lp)
     set_origin(lamp, PV)
-    bulb = sphere('bulb', (0, RH - 0.54, -0.6), 0.042, M['bulb'], seg=16, ring=12, scale=(1, 1.25, 1))
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=32, v_segments=12, radius=0.17)
+    for v in list(bm.verts):   # keep the lower half, flattened into a shallow dome
+        if v.co.z > 0.001:
+            bm.verts.remove(v)
+    for v in bm.verts:
+        v.co.z *= 0.42
+    bulb = from_bm('bulb', bm, M['bulb'], E(0, RH - 0.035, -0.6))
     set_origin(bulb, PV)
 
     # ---- lived-in furniture: rug, folding low table (밥상) with a mug and a tray, floor cushion

@@ -88,8 +88,25 @@ def load(path, name, height, target_faces, mat='M_ghosttex', tilt=0.0, rear=0.0)
     print('GHOST', name, n, '->', len(me.polygons), 'faces, dims', tuple(round(d, 3) for d in ob.dimensions))
     return ob
 
-stand = load(argv[0], 'ghost_stand', 1.36, 9000)
-if len(argv) > 1 and os.path.exists(argv[1]):
+MV = os.path.join(ROOT, 'design', 'mv')
+def load_baked(key, name):
+    """a mesh textured from all sides (blender/multiview.py): already cleaned, sized, one UV, one material"""
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=os.path.join(MV, key + '_baked.glb'))
+    obs = [o for o in bpy.data.objects if o not in before and o.type == 'MESH']
+    for o in set(bpy.data.objects) - before:
+        if o.type != 'MESH': bpy.data.objects.remove(o)
+    ob = obs[0]; ob.name = name; ob.data.name = name
+    ob.data.materials[0].name = 'M_' + name + '_mv'
+    print('GHOST', name, 'multiview baked', len(ob.data.polygons), 'faces')
+    return ob
+if os.path.exists(os.path.join(MV, 'stand_baked.glb')):
+    stand = load_baked('stand', 'ghost_stand')
+else:
+    stand = load(argv[0], 'ghost_stand', 1.36, 9000)
+if os.path.exists(os.path.join(MV, 'crawl_baked.glb')):
+    crouch = load_baked('crawl', 'ghost_crouch')
+elif len(argv) > 1 and os.path.exists(argv[1]):
     crouch = load(argv[1], 'ghost_crouch', 0.5, 7000, 'M_ghostcrawl', math.radians(25), 0.5)   # on all fours, crawling towards you
 else:   # keep the previous crouching mesh until a new one exists
     before = set(bpy.data.objects)
@@ -106,6 +123,6 @@ for o in [o for o in sc.objects if o.type == 'MESH']:
     sc.render.bake.target = 'VERTEX_COLORS'; bpy.ops.object.bake(type='AO')
 bpy.ops.object.select_all(action='SELECT')
 out = os.path.join(ROOT, 'assets', 'ghost.glb')
-bpy.ops.export_scene.gltf(filepath=out, export_format='GLB', export_apply=True, export_image_format='NONE', export_vertex_color='ACTIVE',
+bpy.ops.export_scene.gltf(filepath=out, export_format='GLB', export_apply=True, export_image_format='WEBP', export_vertex_color='ACTIVE',
                           export_materials='EXPORT', export_yup=True, export_texcoords=True, export_normals=True)
 print('EXPORTED', out, os.path.getsize(out))

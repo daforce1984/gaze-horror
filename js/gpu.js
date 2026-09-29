@@ -70,18 +70,24 @@ fn hash21(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 
     t1 = normalize(t1);
     let t2 = cross(n, t1);
     // curl out of the surface around its own edge, then tumble slowly as it rises
-    let ang = peel * (0.9 + c.x * 1.1) + life * life * (1.5 + c.x * 6.0) * sign(c.z - 0.5);
+    let ang = peel * (0.9 + c.x * 1.1) + life * (1.2 + c.x * 2.0) * sign(c.z - 0.5) + sin(t * 6.0 + c.x * 30.0) * 0.7 * life;   // flutter
     let a2 = t2 * cos(ang) + n * sin(ang);
     let size = mix(0.06, 0.13, c.y) * alive;
     let q = (uv - vec2f(0.5)) * size;
     // scatter: each flake gets its own direction and speed off the surface (some up, some sideways, a few
     // falling), plus turbulence, so nothing moves in step
+    // burnt paper in an updraft: pushed off the wall, then carried up, drifting and fluttering; walls and ceiling stop it
     let hr = fract(sin(vec3f(c.x * 91.7, c.z * 57.3, c.y * 23.1) + p.yzx * 3.7) * 43758.5453) * 2.0 - vec3f(1.0);
-    let dirv = normalize(n * (0.6 + 0.8 * fract(c.x * 7.1)) + hr * 1.3 + vec3f(0.0, 0.25, 0.0));
-    let spd = 0.35 + 1.1 * fract(c.z * 13.7 + c.x * 3.1);
-    let fly = pow(max(life - 0.15, 0.0), 1.3) * spd;
-    let turb = vec3f(sin(t * 1.7 + c.x * 20.0), sin(t * 1.3 + c.z * 17.0) * 0.6, cos(t * 1.9 + c.y * 23.0)) * 0.09 * life;
-    let center = p + n * (0.003 + peel * 0.07) + dirv * fly + turb + vec3f(0.0, -0.25 * life * life * fract(c.y * 5.3), 0.0);
+    let lf = max(life - 0.12, 0.0);
+    let up = pow(lf, 1.25) * (0.8 + 0.9 * fract(c.z * 13.7));
+    let away = n * (0.12 + 0.3 * fract(c.x * 7.1)) * smoothstep(0.0, 0.5, lf);
+    let drift = vec3f(hr.x, 0.0, hr.z) * lf * 0.5;
+    let sway = vec3f(sin(t * 2.1 + c.x * 20.0), 0.0, cos(t * 1.7 + c.z * 13.0)) * 0.1 * lf + vec3f(0.0, sin(t * 3.3 + c.y * 9.0) * 0.03 * lf, 0.0);
+    var center = p + n * (0.003 + peel * 0.07) + away + drift + sway + vec3f(0.0, up, 0.0);
+    // collisions: fold back inside the room (a soft bounce off walls, sliding along the ceiling)
+    let lo = vec3f(-2.16, 0.03, -2.46); let hi = vec3f(2.16, 2.55, 2.46);
+    center = select(center, lo + (lo - center) * 0.25, center < lo);
+    center = select(center, hi - (center - hi) * 0.25, center > hi);
     var wp = center + t1 * q.x + a2 * q.y;
     if (c.w > 1.5) {   // a dust grain shed by this flake as it crumbles: drifts away, sinks a little, fades
       let di = c.w - 1.0;
@@ -268,14 +274,11 @@ const LIT = SHARED + /* wgsl */`
   if (O.extra.w > 0.5) {   // peeling flake: old wallpaper on its face, rust eating in from the ragged edge
     let q = (i.uv - vec2f(0.5)) * 2.0;
     let edge = max(abs(q.x), abs(q.y)) * 0.6 + length(q) * 0.4 + (noise3(vec3f(i.uv * 6.0, i.col.x * 17.0)) - 0.5) * 0.55;
-    // burning: the flake burns in from its ragged edge; a glowing line, a charred band, then nothing
+    // eaten away: little bites from the rim inwards and holes opening inside, until nothing is left (no coloured rim)
     let life = i.col.y;
-    let inner = 1.0 - edge + (noise3(vec3f(i.uv * 11.0, i.col.x * 13.0)) - 0.5) * 0.35;   // 1 at the middle, 0 at the rim
-    let cut = smoothstep(0.05, 0.95, life) * 1.15 - 0.1;
-    let past = inner - cut;
-    if (past < 0.0) { discard; }
-    let glow = 1.0 - smoothstep(0.0, 0.06, past);
-    let charB = 1.0 - smoothstep(0.04, 0.22, past);
+    let bites = noise3(vec3f(i.uv * 9.0, i.col.x * 13.0)) * 0.55 + noise3(vec3f(i.uv * 23.0, i.col.x * 7.0)) * 0.3 + noise3(vec3f(i.uv * 51.0, i.col.x * 3.0)) * 0.15;
+    let inner = (1.0 - edge) * 0.55 + bites * 0.45;
+    if (inner < smoothstep(0.1, 1.0, life) * 0.95) { discard; }
     let a = (1.0 - smoothstep(0.62, 0.8, edge)) * i.col.z * O.tint.a;
     if (a < 0.01) { discard; }
     let rustN = noise3(vec3f(i.uv * 9.0, i.col.x * 5.0));
@@ -285,12 +288,11 @@ const LIT = SHARED + /* wgsl */`
     let clot = noise3(vec3f(i.uv * 7.0, i.col.x * 9.0));
     var col = mix(vec3f(0.11, 0.006, 0.005), vec3f(0.035, 0.004, 0.004), clot) * (0.85 + 0.3 * paper.r);
     col = col * (0.3 + 0.2 * G.bulbPos.w / 4.0 + G.ambient.r * 4.0);
-    col = mix(col, vec3f(0.015, 0.01, 0.008), charB * 0.9);
-    col += vec3f(0.35, 0.04, 0.01) * glow * (0.6 + 0.4 * noise3(vec3f(i.uv * 20.0, G.camPos.w * 3.0)));
+
     return vec4f(fog(col, i.wp), a);
   }
   var ember = 0.0;
-  if (O.extra.x > 0.5) {
+  if (O.extra.x > 0.5 && O.extra.x < 1.5) {   // a decaying surface (walls, floor, ceiling)
     let dm = decayMask(i.wp);
     let rim = 1.0 - abs(dm * 2.0 - 1.0);           // water-stain edge where rot meets clean paper
     t = mix(t2, t, dm);
@@ -306,9 +308,8 @@ const LIT = SHARED + /* wgsl */`
     let metal = mix(vec3f(0.2, 0.07, 0.03), vec3f(0.46, 0.2, 0.07), rn) * (1.0 - 0.7 * drip) + vec3f(0.1, 0.0, 0.0) * drip * rn;
     t = vec4f(mix(t.rgb, metal, ow * 0.85), t.a);
     let rustC = mix(vec3f(0.34, 0.13, 0.05), vec3f(0.14, 0.06, 0.03), noise3(i.wp * 14.0));
-    t = vec4f(mix(t.rgb, rustC, clamp(burn * chg * (0.3 + rim * 0.6), 0.0, 0.7)), t.a);
-    ember = rim * rim * burn * chg * (0.5 + 0.5 * noise3(i.wp * 9.0 + vec3f(0.0, G.camPos.w * 1.5, 0.0))) * 0.9;   // the burning line, only where it turns
-    t = vec4f(t.rgb * (1.0 - 0.8 * burn * chg * smoothstep(0.2, 0.6, dm)), t.a);                          // charred just behind it
+
+
   }
   // things that form out of the ash: burn in from the floor up with a glowing edge
   var formEdge = 0.0;
@@ -321,7 +322,26 @@ const LIT = SHARED + /* wgsl */`
   let a = t.a * O.tint.a;
   if (a < O.emissive.w) { discard; }
   var col: vec3f;
-  let alb = t.rgb * O.tint.rgb;
+  var alb = t.rgb * O.tint.rgb;
+  // everything in the room rots with it: drained colour, grime, blood; photos and drawings melt (extra.x == 2)
+  if ((O.extra.x < 0.5 || O.extra.x > 1.5) && O.flags.y < 0.5 && O.flags.w < 0.5) {
+    let dlp = roomDecay(i.wp);
+    let kc = smoothstep(0.3, 1.0, dlp);
+    if (kc > 0.0) {
+      var a2 = alb;
+      if (O.extra.x > 1.5) {
+        let mu = i.uv + vec2f((noise3(vec3f(i.uv.y * 9.0, 3.0, 1.0)) - 0.5) * 0.03, -abs(noise3(vec3f(i.uv.x * 16.0, 0.0, 2.0)) - 0.35) * 0.18) * kc;
+        a2 = textureSampleLevel(tex, samp, mu, 0.0).rgb * O.tint.rgb;
+        a2 = mix(a2, vec3f(dot(a2, vec3f(0.3, 0.59, 0.11))) * vec3f(1.0, 0.72, 0.66), 0.7 * kc);
+      }
+      a2 = mix(a2, vec3f(dot(a2, vec3f(0.3, 0.59, 0.11))) * vec3f(0.85, 0.7, 0.6), kc * 0.6) * (1.0 - 0.45 * kc);
+      let stain = smoothstep(0.55, 0.75, noise3(i.wp * 6.0 + vec3f(3.3))) * kc;
+      a2 = mix(a2, vec3f(0.1, 0.06, 0.035), stain * 0.7);
+      let blood = smoothstep(0.68, 0.8, noise3(i.wp * 11.0 + vec3f(7.1))) * smoothstep(0.5, 1.0, dlp);
+      a2 = mix(a2, vec3f(0.22, 0.01, 0.01), blood * 0.85);
+      alb = a2;
+    }
+  }
   if (O.flags.y > 0.5) {
     col = alb;
   } else {
