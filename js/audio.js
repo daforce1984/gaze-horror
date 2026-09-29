@@ -6,7 +6,8 @@ const VOICES = ['c_intro', 'c_first', 'c_bring1', 'c_bring2', 'c_bring3', 'c_hea
   'c_wait', 'c_why', 'c_rope', 'c_turn', 'c_look', 'c_stay', 'c_found', 'c_clock', 'c_door', 'c_take', 'c_bye', 'c_end',
   'm_tape0', 'm_tape1', 'm_tape2', 'm_tape3', 'n_news',
   'hs_start', 'hs_count', 'hs_ready', 'hs_found1', 'hs_found2', 'hs_again', 'hs_hint', 'hs_wrong', 'hs_fail', 'hs_behind', 'hs_cheat', 'hs_closer', 'hs_under', 'hs_eyes', 'hs_song',
-  'an_intro', 'an_more', 'an_fix1', 'an_fix2', 'an_done', 'an_fail', 'an_last'];
+  'an_intro', 'an_more', 'an_fix1', 'an_fix2', 'an_done', 'an_fail', 'an_last',
+  'an_spawn1', 'an_spawn2', 'an_spawn3', 'an_spawn4', 'an_danger', 'an_rescue', 'an_doll', 'an_lamp', 'crawl_near', 'crawl_hurt', 'shift_start', 'hs_found3', 'amb1', 'amb2', 'amb3', 'amb4'];
 
 export class Sound {
   constructor() {

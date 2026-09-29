@@ -70,12 +70,18 @@ fn hash21(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 
     t1 = normalize(t1);
     let t2 = cross(n, t1);
     // curl out of the surface around its own edge, then tumble slowly as it rises
-    let ang = peel * (0.9 + c.x * 1.1) + life * life * (1.5 + c.x * 3.0);
+    let ang = peel * (0.9 + c.x * 1.1) + life * life * (1.5 + c.x * 6.0) * sign(c.z - 0.5);
     let a2 = t2 * cos(ang) + n * sin(ang);
     let size = mix(0.06, 0.13, c.y) * alive;
     let q = (uv - vec2f(0.5)) * size;
-    let rise = pow(max(life - 0.18, 0.0), 1.5) * (1.2 + c.x * 0.8);
-    let center = p + n * (0.003 + peel * 0.07) + vec3f(0.0, rise, 0.0) + t1 * sin(t * 1.3 + c.x * 9.0) * 0.05 * life;
+    // scatter: each flake gets its own direction and speed off the surface (some up, some sideways, a few
+    // falling), plus turbulence, so nothing moves in step
+    let hr = fract(sin(vec3f(c.x * 91.7, c.z * 57.3, c.y * 23.1) + p.yzx * 3.7) * 43758.5453) * 2.0 - vec3f(1.0);
+    let dirv = normalize(n * (0.6 + 0.8 * fract(c.x * 7.1)) + hr * 1.3 + vec3f(0.0, 0.25, 0.0));
+    let spd = 0.35 + 1.1 * fract(c.z * 13.7 + c.x * 3.1);
+    let fly = pow(max(life - 0.15, 0.0), 1.3) * spd;
+    let turb = vec3f(sin(t * 1.7 + c.x * 20.0), sin(t * 1.3 + c.z * 17.0) * 0.6, cos(t * 1.9 + c.y * 23.0)) * 0.09 * life;
+    let center = p + n * (0.003 + peel * 0.07) + dirv * fly + turb + vec3f(0.0, -0.25 * life * life * fract(c.y * 5.3), 0.0);
     var wp = center + t1 * q.x + a2 * q.y;
     if (c.w > 1.5) {   // a dust grain shed by this flake as it crumbles: drifts away, sinks a little, fades
       let di = c.w - 1.0;
@@ -279,6 +285,13 @@ const LIT = SHARED + /* wgsl */`
     let burn = burnBand(i.wp);
     // while the front passes, the edge between the two worlds chars and glows like burning paper
     t = vec4f(t.rgb * (1.0 - 0.45 * rim * step(0.02, roomDecay(i.wp))), t.a);   // (the flaking itself is real geometry now)
+    // deep in the other world the paper is gone: rusted metal, dark drips running down
+    let dl = roomDecay(i.wp);
+    let ow = smoothstep(0.55, 0.95, dl) * dm;
+    let rn = noise3(i.wp * 5.0) * 0.6 + noise3(i.wp * 23.0) * 0.4;
+    let drip = smoothstep(0.55, 0.8, noise3(vec3f(i.wp.x * 34.0 + i.wp.z * 34.0, i.wp.y * 1.6, i.wp.z * 7.0)));
+    let metal = mix(vec3f(0.2, 0.07, 0.03), vec3f(0.46, 0.2, 0.07), rn) * (1.0 - 0.7 * drip) + vec3f(0.1, 0.0, 0.0) * drip * rn;
+    t = vec4f(mix(t.rgb, metal, ow * 0.85), t.a);
     let rustC = mix(vec3f(0.34, 0.13, 0.05), vec3f(0.14, 0.06, 0.03), noise3(i.wp * 14.0));
     t = vec4f(mix(t.rgb, rustC, clamp(burn * (0.4 + rim * 0.8), 0.0, 0.85)), t.a);   // rust creeping just behind the front
     ember = rim * rim * rim * burn * (0.5 + 0.5 * noise3(i.wp * 9.0 + vec3f(0.0, G.camPos.w * 0.8, 0.0)));
@@ -323,7 +336,7 @@ const LIT = SHARED + /* wgsl */`
     let cx = 2.2 - abs(i.wp.x); let cz = 2.5 - abs(i.wp.z);
     let edge = secondMin(cx, cz, i.wp.y, 2.6 - i.wp.y);     // near two boundaries = in a corner / along an edge
     let wall = min(min(cx, cz), min(i.wp.y + 0.6, 2.6 - i.wp.y));
-    let dk = clamp(roomDecay(i.wp) * 1.3, 0.0, 1.0);
+    let dk = clamp(roomDecay(i.wp) * 1.1, 0.0, 1.0) * 0.8;
     let k = select(dk, 0.0, O.flags.y > 0.5 || O.flags.w > 0.5);   // not the TV picture, clock face or glowing things
     col = col * mix(1.0, 0.08 + 0.92 * smoothstep(0.0, 1.5, edge) * mix(0.55, 1.0, smoothstep(0.0, 0.9, wall)), k);
   }

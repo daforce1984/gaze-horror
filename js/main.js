@@ -402,6 +402,20 @@ function hsAfter(sec, fn) { const tok = hsToken; after(sec, () => { if (tok === 
 // one subtitle channel during the chapter: the newest line replaces the old one
 function hsSay(text, dur) { sayNow(text, dur); }
 function hsNewBeat() { hsToken++; snd.stopVoices(); subQueue = []; }
+// the girl's extra lines (subtitle = spoken words); `quiet` skips it while another line is playing
+const LINES = {
+  an_spawn1: '히히… 이것 좀 봐~', an_spawn2: '또 바꿨다~ 히히.', an_spawn3: '엄마, 이상하지? 이상하지?!', an_spawn4: '뭐가~ 달라졌게~',
+  an_danger: '빨리! 빨리 찾아!! 히..히히히히힛!!', an_rescue: '에이… 히..히히, 아깝다.', an_doll: '내 인형이… 엄마 보고 싶대. 히히힛.',
+  an_lamp: '흔들흔들~ 히..히히히힛!!', crawl_near: '엄마… 거의 다 왔어… 히..히히.', crawl_hurt: '아파!! 왜 밀어내!!',
+  shift_start: '싫어… 싫어!! 방이… 방이 썩어!!', hs_found3: '찾았다… 찾았어!! 히..히히히힛!!',
+  amb1: '엄마… 어디 있어…', amb2: '히히… 여기야… 아니, 여기…', amb3: '배고파… 엄마…', amb4: '하나, 둘, 셋… 히히힛.',
+};
+function line(id, pos, { quiet = true, gain = 2.0 } = {}) {
+  if (quiet && (snd.voices || []).length) return 0;
+  const d = voice(id, pos, gain);
+  if (d) hsSay(`“${LINES[id]}”`, Math.max(2, d + 0.5));
+  return d;
+}
 function hsTip(html) { const el = ui.hsTip || (ui.hsTip = $('#hsTip')); put(el, 'innerHTML', html || ''); cls(el, 'show', !!html); }
 function hsStart() {
   HS.on = true; ui.hud.classList.add('hs');
@@ -523,8 +537,8 @@ function hsFound() {
     hsAfter(1.4, () => { if (S.ghost?.mode === 'found') S.ghost.target = 0; });
   }
   S.flash = 0.18; S.flashCol = [1, 0.95, 0.85];
-  const line = HS.round === 1 ? ['hs_found1', '헤헤, 들켰다!'] : HS.round === 3 ? ['c_found', '찾았다…'] : ['hs_found2', '와, 엄마 잘 찾는다!'];
-  voice(line[0], h.c, 2.2); hsSay(`“${line[1]}”`, 2.2);
+  const fl = HS.round === 1 ? ['hs_found1', '히히, 들켰다!'] : HS.round === 3 ? ['c_found', '히히히힛! 찾았다.'] : HS.round >= 4 ? ['hs_found3', '찾았다… 찾았어!! 히..히히히힛!!'] : ['hs_found2', '와, 엄마 잘 찾는다! 히히.'];
+  voice(fl[0], h.c, 2.2); hsSay(`“${fl[1]}”`, 2.4);
   if (HS.round === 1) {   // the reward floats to your lap while you can still look around
     hsAfter(0.9, () => { S.job = { w: W.remote, t: 0, phase: 'lift', carry: false, from: W.remote.c.slice(), pos: W.remote.c.slice(), spin: 0, free: true }; });
     hsAfter(2.4, () => anStart(1));
@@ -564,11 +578,11 @@ function hsStory() {
   hsNewBeat();
   S.insanity = 0; S.fear = 0;
   HS.phase = 'story'; log('story_start', {});
-  S.tv.on = false; S.decayTarget = 0.55; S.lampDim = 0.35;
+  S.tv.on = false; S.decayTarget = 1.0; S.lampDim = 0.35;
   const p = v3.add([EYE[0], 0, EYE[2]], [0.15, 0, -1.05]);
   S.ghost = { p, kind: 'stand', alpha: 0, target: 1, mode: 'close' };
   S.yaw = 0.05; S.pitch = -0.05;
-  voice('c_rope', [p[0], 1.1, p[2]], 2.2); hsSay('“엄마… 이번엔 안 나갈 거지? 또 가지 마.”', 3.4);
+  voice('c_rope', [p[0], 1.1, p[2]], 2.2); hsSay('“가지 마!! 또… 가지 마…”', 3.4);
   hsAfter(3.6, () => { hsSay('그 애가 벽의 가족사진을 가리킨다.', 3); S.flags.photoGlow = 1; });
   hsAfter(6.8, () => { hsTip('<b>가족사진</b>을 눌러 봐요'); HS.phase = 'photo'; log('input_enabled', { n: 'photo' }); });
 }
@@ -682,13 +696,13 @@ function turnAround() {
 // the old surface chars and flakes away as ash, the rotten room is underneath. New things form out of the ash, never pop in.
 const SHIFT = { on: false, o: [0, 1.2, -2.4], r: 99, from: 0, to: 0, burn: 0, speed: 1, t: 0, big: false, cr: 0 };
 function startShift(to) {
-  const from = S.decay, big = to - from > 0.16;   // the first stains creep in quietly; the siren is for the real shifts
+  const from = S.decay, big = to - from > 0.35;   // the first stains creep in quietly; the siren is for the real shifts
   // it starts in front of you, so you watch it come
   let o = v3.add(EYE, v3.scale(flatFwd(), 2.4)); o = [clamp(o[0], -2.1, 2.1), 1.3, clamp(o[2], -2.4, 2.4)];
   if (S.ghost && S.ghost.alpha > 0.3 && !S.ghost.camOnly) o = [S.ghost.p[0], 1.1, S.ghost.p[2]];
   Object.assign(SHIFT, { on: true, o, r: 0, from, to, big, t: 0, speed: big ? 0.8 : 0.55, burn: 0, cr: 0 });
   log('shift', { from: +from.toFixed(2), to: +to.toFixed(2), big });
-  if (big) { snd.play('siren'); snd.duck(0.35, 7); }
+  if (big) { snd.play('siren'); snd.duck(0.35, 7); after(1.2, () => line('shift_start', null, { quiet: false })); }
   snd.play('crackle', o);
 }
 function shiftUpdate(dt) {
@@ -763,8 +777,8 @@ function anStart(phase) {
   AN.baseDim = phase === 3 ? 0.72 : 0; AN.streak = 0; AN.crawlShown = AN.crawlShown || false;
   HS.phase = 'anom'; HS.spot = null; S.ghost = null;
   ui.hud.classList.add('turnon');
-  S.decayTarget = [0, 0.15, 0.35, 0.5][phase];
-  const bigShift = S.decayTarget - S.decay > 0.16;
+  S.decayTarget = [0, 0.3, 0.8, 1.0][phase];   // each shift is a real change: by the last night the room is the other world
+  const bigShift = S.decayTarget - S.decay > 0.35;
   log('anom_start', { phase });
   if (phase === 1) {
     AN.script = ['tv', 'doll'];   // taught in order after the table: in front, then behind you
@@ -811,6 +825,7 @@ function anSpawn(k, force = false) {
   const pos = anBox(k).c;
   snd.play(a.sfx, pos);
   log('anom_spawn', { k, n: Object.keys(AN.act).length });
+  if (!force && Math.random() < 0.45) hsAfter(0.8, () => line(k === 'doll' ? 'an_doll' : k === 'lamp' ? 'an_lamp' : pick(['an_spawn1', 'an_spawn2', 'an_spawn3', 'an_spawn4']), pos));
   anHud();
   return true;
 }
@@ -825,10 +840,10 @@ function anFix(k) {
   if (k === 'tv') { S.tv.on = false; }
   if (k === 'door') S.doorOpenT = 0;
   if (k === 'curtain') { S.curtainTarget = 1; hsAfter(1.4, () => { S.curtainTarget = 0; }); if (S.ghost) S.ghost.target = 0; snd.play('giggle', pos); }
-  if (k === 'crawl') { if (S.ghost) { S.ghost.target = 0; S.ghost.twitch = 1; } S.glitch = 0.8; snd.play('whisper', pos); if (s.teach) hsTip(''); }
+  if (k === 'crawl') { if (S.ghost) { S.ghost.target = 0; S.ghost.twitch = 1; } S.glitch = 0.8; line('crawl_hurt', pos, { quiet: false }); if (s.teach) hsTip(''); }
   // pending restore animation: s.k runs back to 0 in anApply
   AN.back = AN.back || {}; AN.back[k] = s;
-  if (Object.keys(AN.act).length < 3 && AN.danger > 0) { AN.danger = 0; S.lampDim = AN.baseDim; hsTip(''); log('anom_rescue', {}); }
+  if (Object.keys(AN.act).length < 3 && AN.danger > 0) { AN.danger = 0; S.lampDim = AN.baseDim; hsTip(''); log('anom_rescue', {}); hsAfter(0.6, () => line('an_rescue', pos, { quiet: false })); }
   // her reactions: short, never blocking
   const lines = [['an_fix1', '에이~ 들켰다.'], ['an_fix2', '엄마 눈 좋다~'], ['hs_found1', '헤헤, 들켰다!']];
   if (AN.fixed === 1 || Math.random() < 0.35) { const l = pick(lines); voice(l[0], pos, 1.8); hsSay(`“${l[1]}”`, 2); }
@@ -895,6 +910,8 @@ function anTap(px, py, dir) {
 function anUpdate(dt) {
   if (!AN.on || S.paused) return;
   AN.lock = Math.max(0, AN.lock - dt);
+  AN.ambT = (AN.ambT ?? rnd(18, 30)) - dt;
+  if (AN.ambT <= 0) { AN.ambT = rnd(22, 40); const a = [rnd(-2, 2), 1.2, rnd(-2.3, 2.3)]; if (!inView(a, 1.2).visible) line(pick(['amb1', 'amb2', 'amb3', 'amb4']), a); }
   const keys = Object.keys(AN.act), n = keys.length;
   for (const k of keys) {
     const s = AN.act[k];
@@ -920,13 +937,13 @@ function anUpdate(dt) {
       const step = v3.scale(v3.norm(to), Math.min(0.2, dist - 0.7));
       cr.p[0] += step[0]; cr.p[2] += step[2];
       snd.play('steps', [cr.p[0], 0.1, cr.p[2]]);
-      if (dist < 1.4) { S.fear = Math.max(S.fear, 0.5); hsSay('…바로 뒤에서, 숨소리.', 1.6); }
+      if (dist < 1.4) { S.fear = Math.max(S.fear, 0.5); if (!cr.spoke) { cr.spoke = true; line('crawl_near', [cr.p[0], 0.4, cr.p[2]], { quiet: false }); } else hsSay('…바로 뒤에서, 숨소리.', 1.6); }
     }
     if (seen) S.ghost.twitch = Math.max(S.ghost.twitch || 0, 0.3);
   }
   // three at once: a few seconds to fix one
   if (n >= 3) {
-    if (AN.danger <= 0) { AN.danger = AN.phase === 1 ? 12 : 8; log('anom_danger', { active: keys }); snd.play('whisper'); }
+    if (AN.danger <= 0) { AN.danger = AN.phase === 1 ? 12 : 8; log('anom_danger', { active: keys }); line('an_danger', null, { quiet: false }); }
     AN.danger -= dt; S.lampDim = Math.max(AN.baseDim, 0.45); S.fear = Math.max(S.fear, 0.4);
     hsTip(`이상한 곳이 <b>3개</b>! 하나라도 고쳐요 · ${Math.ceil(AN.danger)}`);
     if (AN.danger <= 0) { anFail('three'); return; }

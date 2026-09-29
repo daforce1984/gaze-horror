@@ -14,7 +14,7 @@ cap = next(q for q in json.load(open('/tmp/claude-1000/-mnt-d--AI-GENERATED-----
 url = cap['url']; body0 = json.loads(json.loads(json.dumps(cap['body'])) or '{}') if cap['body'] else {}
 hdr = {k: v for k, v in cap['headers'].items() if k.lower() in ('authorization', 'content-type', 'x-generation-actor', 'x-generation-surface')}
 hdr['content-type'] = 'application/json'
-model = body0.get('model_id', 'eleven_v3')
+model = os.environ.get('EL_MODEL', 'eleven_v4')   # Eleven v4 by default (user preference, 2026-09-29); v3 via EL_MODEL=eleven_v3
 el.ensure(); tab, ws = el.pick_tab(); s = el.Session(ws)
 want = set(sys.argv[1:])
 for ln in data['lines']:
