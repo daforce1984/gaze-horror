@@ -420,7 +420,8 @@ function hsAfter(sec, fn) { const tok = hsToken; after(sec, () => { if (tok === 
 // one subtitle channel during the chapter: the newest line replaces the old one
 function hsSay(text, dur) { sayNow(text, dur); }
 function hsAfterVoice(fn, pad = 0.35) {   // run fn once she has finished her line
-  const tok = hsToken, wait = () => { if (tok !== hsToken) return; if ((snd.voices || []).length) after(0.1, wait); else after(pad, () => { if (tok === hsToken) fn(); }); };
+  const tok = hsToken, t0 = S.time, busy = () => (snd.voices || []).length && snd.ctx?.state === 'running' && S.time - t0 < 6;   // never wait forever
+  const wait = () => { if (tok !== hsToken) return; if (busy()) after(0.1, wait); else after(pad, () => { if (tok === hsToken) fn(); }); };
   after(0.2, wait);
 }
 function hsNewBeat() { hsToken++; snd.stopVoices(); subQueue = []; }
