@@ -1,6 +1,7 @@
 import { Renderer } from './gpu.js';
 import { plane } from './geometry.js';
 import { loadGLB, skinMatrices } from './gltf.js';
+import { Cloth } from './cloth.js';
 import { m4, v3, clamp, lerp, smooth, damp, rayAABB } from './math.js';
 import { Telemetry } from './telemetry.js';
 import { Sound } from './audio.js';
@@ -225,8 +226,7 @@ function buildScene() {
       if (m.key) O[m.key] = o;
       return o;
     });
-    if (node.name === 'curtain_L' || node.name === 'curtain_R') for (const o of list) o.extra[1] = -1;   // cloth (vertex shader)
-  O.nodes[node.name] = list;
+    O.nodes[node.name] = list;
     return list;
   };
   for (const name in GLB.room) addNode(GLB.room[name]);
@@ -684,7 +684,7 @@ function hsCues(time) {
     const pulse = Math.max(0, Math.sin(time * 2.3 + k.length)) ** 3 * amp;
     if (h.cue === 'curtain') {
       const base = O.nodes.curtain_L[0].base;
-      if (S.curtainOpen < 0.05) setModel(O.nodes.curtain_L, m4.trs([base[12] + pulse * 0.05, base[13], base[14]], 0, [1 + pulse * 1.4, 1, 1 - pulse * 0.05]));
+      if (pulse > 0.3) clothPoke(HIDE.curtain.ghost[2] + Math.sin(time * 1.3) * 0.2, 0.9 + Math.sin(time * 0.7) * 0.4, pulse * 1.5);   // she fidgets behind it
     }
     if (h.cue === 'shelf') { const b = O.nodes.bookshelf[0].base; setModel(O.nodes.bookshelf, m4.trs([b[12] + (Math.random() - 0.5) * 0.006 * pulse, b[13], b[14]], (Math.random() - 0.5) * 0.01 * pulse)); }
     if (h.cue === 'desk') { const b = O.nodes.drawer[0].base; setModel(O.nodes.drawer, m4.trs([b[12] - pulse * 0.03, b[13], b[14]])); }
@@ -777,6 +777,35 @@ function setupModern() {
   for (const x of N('deco_suitcase')) x.visible = false;
   MODERN.push({ mod: [], old: N('deco_suitcase'), pos: [1.95, 0.3, 1.35], oldNames: ['deco_suitcase'], modern: true });
 }
+// ---- the curtains are simulated cloth (js/cloth.js); the modelled panels only lend their size and material
+const CLOTH = [];
+function setupCloth() {
+  for (const [name, gatherTo] of [['curtain_L', 'z0'], ['curtain_R', 'z1']]) {
+    const src = O.nodes[name]?.[0]; if (!src) continue;
+    const b = src.base, mn = [b[12] + src.min[0], b[13] + src.min[1], b[14] + src.min[2]], mx = [b[12] + src.max[0], b[13] + src.max[1], b[14] + src.max[2]];
+    const cl = new Cloth({ x: (mn[0] + mx[0]) / 2, z0: mn[2], z1: mx[2], yTop: mx[1], yBot: mn[1], pleat: 0.05, folds: 8, cols: 26, rows: 36 });
+    const o = add(R.object(R.mesh({ v: cl.v, i: cl.i }), src.tex, { tex2: src.tex2, nrm: src.nrm, mr: src.mr, tint: src.tint.slice(), flags: [0.15, 0, 0.35, 0], extra: [src.extra[0], 0, 0, 0], castShadow: false }));   // low wrap: folds and bulges read in the light
+    o.noCull = true; o.pbr = src.pbr.slice();
+    for (const x of O.nodes[name]) x.visible = false;
+    CLOTH.push({ cl, o, gatherTo: gatherTo === 'z0' ? mn[2] : mx[2], pokes: [] });
+  }
+  O.cloth = CLOTH;
+}
+function clothUpdate(dt, time) {
+  const g = S.ghost, bodies = [];
+  if (g && g.alpha > 0.3 && !g.camOnly && g.p[0] < -1.5) {   // she stands behind the curtain: her body pushes it out
+    const crouch = g.kind === 'crouch';
+    bodies.push({ x: g.p[0], z: g.p[2], y0: 0.0, y1: crouch ? 0.55 : 1.15, r: crouch ? 0.3 : 0.3 });
+    bodies.push({ x: g.p[0], z: g.p[2], y0: crouch ? 0.4 : 1.1, y1: crouch ? 0.6 : 1.33, r: 0.2 });   // her head
+  }
+  const gather = smooth(0, 1, S.curtainOpen);
+  for (const c of CLOTH) {
+    c.cl.step(dt, time, { gather, gatherTo: c.gatherTo, bodies, pokes: c.pokes });
+    c.pokes.length = 0;
+    R.device.queue.writeBuffer(c.o.mesh.vb, 0, c.cl.v);
+  }
+}
+const clothPoke = (z, y, s) => { for (const c of CLOTH) if (z >= c.cl.z0 - 0.1 && z <= c.cl.z1 + 0.1) c.pokes.push({ z, y, s }); };
 // the twenty 1999 things: not in the modern studio; each forms in when the fire reaches it (level)
 const LATE = [['p_crate', 0.25], ['p_boombox', 0.25], ['p_phone', 0.25], ['p_sidetable', 0.25], ['p_mclock', 0.25], ['p_candle', 0.6],
   ['p_camera', 0.25], ['p_chalk', 0.25], ['p_stool', 0.25], ['p_oillamp', 0.6], ['p_alarm', 0.25], ['p_basket2', 0.5], ['p_bowl', 0.6],
@@ -2248,6 +2277,7 @@ function frame(dt) {
     if (!(S.job && S.job.w.id === 'curtain')) setModel(O.nodes[k], m4.trs([base[12], base[13], base[14]], 0, [1 + co * 1.3, 1, cw]));
   }
   hsCues(time);
+  clothUpdate(dt, time);
   // music box lid (in hand)
   if (O.led) { const on = S.tape < 4 && Math.sin(time * 5) > 0; O.led.emissive = on ? [3, 0.15, 0.08, 0] : [0.05, 0, 0, 0]; }
   if (O.scratchObj) O.scratchObj.visible = !(S.doorOpen > 0.02);
@@ -2572,6 +2602,7 @@ async function main() {
   buildScene();
   setupModern();
   setupLate();
+  setupCloth();
   setupInput();
   setupGyro();
   resize(); addEventListener('resize', resize);
@@ -2619,6 +2650,6 @@ async function main() {
   requestAnimationFrame(loop);
   // test hook: advance the game by hand (the automation tab may be in a hidden window where rAF does not run)
   window.__step = (n = 1, dt = 1 / 60) => { for (let k = 0; k < n; k++) { update(dt); frame(dt); } return R.stats; };
-  window.__game = { anTouch, SHIFT, applyGfx, PERF, hsStory, AN, ANOM, anSpawn, anFix, anTap, anBox, anStart, tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
+  window.__game = { CLOTH, anTouch, SHIFT, applyGfx, PERF, hsStory, AN, ANOM, anSpawn, anFix, anTap, anBox, anStart, tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
 }
 main();

@@ -210,13 +210,40 @@ crig = build_rig(cr, 'ghost_crouch', [('hips', (0, yy(0.7), Hc * 0.8), (0, yy(0.
                                       ('chest', (0, yy(0.33), Hc * 0.85), (0, yy(0.22), Hc * 0.8), 'spine'), ('head', (0, yy(0.22), Hc * 0.8), (0, yy(0.02), Hc * 0.55), 'chest')] + C)
 F = 32   # a crawl cycle: opposite arm and leg reach together, the spine rolls, the head bobs low
 ph = lambda f, o=0: S_(f / F * TAU + o)
+# each limb: planted (on the floor, swinging back) for half the cycle, then lifted and brought forward.
+# Rotations only ever lift a hand/knee off the floor (the rest pose has them on it), never push them down.
+def swing(f, o):
+    x = (f / F + o) % 1.0
+    return (math.cos(x * 2 * math.pi)) if x < 0.5 else math.cos(x * 2 * math.pi)
+def lift(f, o):
+    x = (f / F + o) % 1.0
+    return math.sin((x - 0.5) * 2 * math.pi) if x >= 0.5 else 0.0
 keys(crig, 'crawl', F, {
-    'upperarm.L': lambda f: (-22 * ph(f), 0, 4 * ph(f)), 'upperarm.R': lambda f: (22 * ph(f), 0, -4 * ph(f)),
-    'forearm.L': lambda f: (18 * max(0, ph(f, 0.6)), 0, 0), 'forearm.R': lambda f: (18 * max(0, -ph(f, 0.6)), 0, 0),
-    'thigh.L': lambda f: (18 * ph(f), 0, 0), 'thigh.R': lambda f: (-18 * ph(f), 0, 0),
+    'upperarm.L': lambda f: (-16 * swing(f, 0.0) - 10 * lift(f, 0.0), 0, 3 * lift(f, 0.0)),
+    'upperarm.R': lambda f: (-16 * swing(f, 0.5) - 10 * lift(f, 0.5), 0, -3 * lift(f, 0.5)),
+    'forearm.L': lambda f: (28 * lift(f, 0.0), 0, 0), 'forearm.R': lambda f: (28 * lift(f, 0.5), 0, 0),
+    'thigh.L': lambda f: (12 * swing(f, 0.5) - 8 * lift(f, 0.5), 0, 0), 'thigh.R': lambda f: (12 * swing(f, 0.0) - 8 * lift(f, 0.0), 0, 0),
     'spine': lambda f: (0, 6 * ph(f), 3 * ph(f, 1.5)), 'chest': lambda f: (0, -5 * ph(f), 0),
     'head': lambda f: (8 * ph(f * 2, 0.4), 0, 6 * ph(f)),
 })
+# keep the crawl above the floor: for every key frame, lift the hips by however far the lowest vertex sank
+act = next(x for x in bpy.data.actions if x.name.startswith('crawl'))
+crig.animation_data_create(); crig.animation_data.action = act
+hips = crig.pose.bones[crig['pre'] + 'hips']
+fixes = []
+for f in range(0, 33, 2):
+    bpy.context.scene.frame_set(f)
+    dg = bpy.context.evaluated_depsgraph_get(); e = cr.evaluated_get(dg); me = e.to_mesh()
+    low = min((e.matrix_world @ v.co).z for v in me.vertices); e.to_mesh_clear()
+    fixes.append((f, max(0.0, -low) + 0.004))
+for f, up in fixes:
+    bpy.context.scene.frame_set(f)
+    # hips bone points along -y (towards the head); its local axes: y along the bone. Lift in armature space.
+    hips.location = hips.bone.matrix_local.inverted().to_3x3() @ Vector((0, 0, up))
+    hips.keyframe_insert('location', frame=f)
+crig.animation_data.action = None
+hips.location = (0, 0, 0)
+print('CRAWL lift', [round(u, 3) for _, u in fixes])
 # AO into vertex colours (lifted in the engine)
 sc = bpy.context.scene; sc.render.engine = 'CYCLES'; sc.cycles.samples = 32
 sc.world = bpy.data.worlds.new('W'); sc.world.light_settings.distance = 0.25
