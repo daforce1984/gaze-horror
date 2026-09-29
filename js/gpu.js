@@ -46,7 +46,15 @@ struct VOut {
 
 fn hash21(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 43758.5453); }
 
-@vertex fn vs(@location(0) p: vec3f, @location(1) n: vec3f, @location(2) uv: vec2f, @location(3) c: vec4f) -> VOut {
+// skinned meshes: joint matrices (mesh space), 24 max
+@group(1) @binding(6) var<uniform> J: array<mat4x4f, 24>;
+@vertex fn vsSkin(@location(0) p: vec3f, @location(1) n: vec3f, @location(2) uv: vec2f, @location(3) c: vec4f,
+                  @location(4) ji: vec4f, @location(5) jw: vec4f) -> VOut {
+  let m = J[u32(ji.x)] * jw.x + J[u32(ji.y)] * jw.y + J[u32(ji.z)] * jw.z + J[u32(ji.w)] * jw.w;
+  return vmain((m * vec4f(p, 1.0)).xyz, (m * vec4f(n, 0.0)).xyz, uv, c);
+}
+@vertex fn vs(@location(0) p: vec3f, @location(1) n: vec3f, @location(2) uv: vec2f, @location(3) c: vec4f) -> VOut { return vmain(p, n, uv, c); }
+fn vmain(p: vec3f, n: vec3f, uv: vec2f, c: vec4f) -> VOut {
   var o: VOut;
   var lp = p;
   // ghost mode: wet hair sway + glitch jitter (flags.w == 2)
@@ -712,7 +720,8 @@ export class Renderer {
       { binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
       { binding: 3, visibility: GPUShaderStage.FRAGMENT, texture: {} },
       { binding: 4, visibility: GPUShaderStage.FRAGMENT, texture: {} },
-      { binding: 5, visibility: GPUShaderStage.FRAGMENT, texture: {} }] });
+      { binding: 5, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+      { binding: 6, visibility: GPUShaderStage.VERTEX, buffer: {} }] });
     this.setShadowSize(this.shadowSize);
     // CCTV: a small second view rendered to a texture shown on the TV
     this.camW = 320; this.camH = 240;
@@ -749,6 +758,13 @@ export class Renderer {
       blend: mk(lit, alpha, false),
       add: mk(lit, add, false),
       ghost: mk(ghost, undefined, true),
+      ghostSkin: d.createRenderPipeline({
+        layout, vertex: { module: ghost, entryPoint: 'vsSkin', buffers: [...VBL, { arrayStride: 32, attributes: [
+          { shaderLocation: 4, offset: 0, format: 'float32x4' }, { shaderLocation: 5, offset: 16, format: 'float32x4' }] }] },
+        fragment: { module: ghost, entryPoint: 'fs', targets: [{ format: this.hdrFormat }] },
+        primitive: { topology: 'triangle-list', cullMode: 'none' },
+        depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less-equal' },
+        multisample: { count: this.samples } }),
     };
     const post = d.createShaderModule({ code: POST });
     this.postLayout = d.createBindGroupLayout({ entries: [
@@ -766,6 +782,7 @@ export class Renderer {
     this.mipModule = mip;
     this.width = 0; this.height = 0;
     this.whiteTex = this.solidTexture([255, 255, 255, 255]);
+    this.noJoints = d.createBuffer({ size: 24 * 64, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
     this.flatNormal = this.solidTexture([128, 128, 255, 255], false);
     this.linearWhite = this.solidTexture([255, 255, 255, 255], false);
   }
@@ -851,11 +868,13 @@ export class Renderer {
     d.queue.writeBuffer(vb, 0, geo.v);
     const ib = d.createBuffer({ size: geo.i.byteLength, usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
     d.queue.writeBuffer(ib, 0, geo.i);
+    let vb2 = null;
+    if (geo.jw) { vb2 = d.createBuffer({ size: geo.jw.byteLength, usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST }); d.queue.writeBuffer(vb2, 0, geo.jw); }
     // local bounding sphere (for culling)
     const v = geo.v, mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
     for (let k = 0; k < v.length; k += 12) for (let q = 0; q < 3; q++) { const x = v[k + q]; if (x < mn[q]) mn[q] = x; if (x > mx[q]) mx[q] = x; }
     const c = mn.map((x, q) => (x + mx[q]) / 2), r = Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) / 2;
-    return { vb, ib, count: geo.i.length, c, r };
+    return { vb, ib, vb2, count: geo.i.length, c, r };
   }
 
   // Drawable object
@@ -869,6 +888,7 @@ export class Renderer {
       uvx: opts.uvx || [1, 1, 0, 0], flags: opts.flags || [0, 0, 1, 0], extra: opts.extra || [0, 0, 0, 0], tex2: opts.tex2 || this.whiteTex,
       clamp: !!opts.clamp, order: opts.order || 0, castShadow: opts.castShadow ?? false,
       nrm: opts.nrm || null, mr: opts.mr || null,
+      jointBuf: opts.skinned ? d.createBuffer({ size: 24 * 64, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }) : null, joints: null,
       pbr: [opts.nrm ? 1 : 0, opts.mr ? (opts.mrAO ? 2 : 1) : 0, opts.rough ?? 1, opts.metal ?? 0],
     };
     this.rebind(o);
@@ -893,7 +913,8 @@ export class Renderer {
       { binding: 2, resource: o.clamp ? this.samplerClamp : this.samplerRepeat },
       { binding: 3, resource: o.tex2.createView() },
       { binding: 4, resource: (o.nrm || this.flatNormal).createView() },
-      { binding: 5, resource: (o.mr || this.linearWhite).createView() }] });
+      { binding: 5, resource: (o.mr || this.linearWhite).createView() },
+      { binding: 6, resource: { buffer: o.jointBuf || this.noJoints } }] });
   }
 
   resize(w, h) {
@@ -913,7 +934,7 @@ export class Renderer {
 
   drawScene(pass, bind, objects, planes) {
     pass.setBindGroup(0, bind);
-    const rank = { opaque: 0, cutout: 1, blend: 2, ghost: 3, add: 4 };
+    const rank = { opaque: 0, cutout: 1, blend: 2, ghost: 3, ghostSkin: 3, add: 4 };
     const list = objects.filter(o => (o.visible || this.warm) && !(bind === this.gBindCam && o.noCam) && !(bind === this.gBind && o.camOnly)
       && (!planes || o.noCull || this.warm || sphereIn(planes, o._wc, o._wr))).sort((a, b) => (rank[a.pipe] - rank[b.pipe]) || (a.order - b.order));
     let cur = null;
@@ -922,6 +943,7 @@ export class Renderer {
       if (o.pipe !== cur) { pass.setPipeline(this.pipes[o.pipe]); cur = o.pipe; }
       pass.setBindGroup(1, o.bind);
       pass.setVertexBuffer(0, o.mesh.vb);
+      if (o.mesh.vb2) pass.setVertexBuffer(1, o.mesh.vb2);
       pass.setIndexBuffer(o.mesh.ib, 'uint32');
       pass.drawIndexed(o.mesh.count);
     }
@@ -944,6 +966,7 @@ export class Renderer {
       o._wr = o.mesh.r * sc * 1.1 + 0.02;
     }
     q.writeBuffer(this.objBuf, 0, D.buffer, 0, top * 256);
+    for (const o of objects) if (o.visible && o.jointBuf && o.joints) q.writeBuffer(o.jointBuf, 0, o.joints);
     const enc = d.createCommandEncoder();
     this.frameNo++;
     const T = this.ts && !this.ts.busy && this.frameNo % 15 === 0 ? this.ts : null;   // measure every 15th frame

@@ -1,6 +1,6 @@
 import { Renderer } from './gpu.js';
 import { plane } from './geometry.js';
-import { loadGLB } from './gltf.js';
+import { loadGLB, skinMatrices } from './gltf.js';
 import { m4, v3, clamp, lerp, smooth, damp, rayAABB } from './math.js';
 import { Telemetry } from './telemetry.js';
 import { Sound } from './audio.js';
@@ -217,7 +217,7 @@ function buildScene() {
       const spec = m.spec ?? Math.min(1.2, (1 - pr.material.rough) ** 2 * 1.3);
       const o = add(R.object(R.mesh(pr.geo), base || null, {
         nrm: ghost ? null : m.n || gpuTex(maps.normal, false), mr: ghost ? null : m.mr || gpuTex(maps.mr, false), mrAO: m.mr ? true : maps.mrAO, rough: m.mr ? 1 : pr.material.rough, metal: m.mr ? 1 : pr.material.metal,
-        pipe: pr.material.cutout && pipe === 'opaque' ? 'cutout' : pipe, model: node.matrix.slice(), tint, emissive: [...(m.emissive || [0, 0, 0]), ghost ? (m.aoLift ?? (maps.base ? 1 : 0)) : pr.material.cutout ? 0.5 : 0],
+        pipe: pr.material.cutout && pipe === 'opaque' ? 'cutout' : ghost && pr.geo.jw && node.skin ? 'ghostSkin' : pipe, skinned: !!(ghost && pr.geo.jw && node.skin), model: node.matrix.slice(), tint, emissive: [...(m.emissive || [0, 0, 0]), ghost ? (m.aoLift ?? (maps.base ? 1 : 0)) : pr.material.cutout ? 0.5 : 0],
         flags: [m.wrap ?? 0.1, m.unlit ? 1 : 0, spec, ghost ? 2 : 0], uvx: [m.uv || 1, m.uv || 1, ghost && pr.material.name === 'M_hair' ? 1 : 0, ghost && (m.t || maps.base) ? 1 : 0],
         castShadow: !NO_SHADOW.has(node.name) && Math.max(...pr.max.map((v, k) => v - pr.min[k])) > 0.18, tex2: m.t2, extra: [m.decay ? 1 : /artwork|polaroid/i.test(pr.material.name) ? 2 : 0, 0, 0, 0],   // tiny things cast no shadow (6 draws each)
       }));
@@ -232,6 +232,9 @@ function buildScene() {
   for (const name in GLB.room) addNode(GLB.room[name]);
   O.ghostStand = addNode(GLB.ghost.ghost_stand, 'ghost', true);
   O.ghostCrouch = addNode(GLB.ghost.ghost_crouch, 'ghost', true);
+  O.ghostRig = GLB.ghost.__rig;
+  O.skinStand = { node: GLB.ghost.ghost_stand, buf: new Float32Array(24 * 16), clip: 'idle', t: 0 };
+  O.skinCrouch = { node: GLB.ghost.ghost_crouch, buf: new Float32Array(24 * 16), clip: 'crawl', t: 0 };
   O.screen.flags = [0, 1, 0, 1]; O.screen.tint = [0.15, 0.15, 0.15, 1];
   const sp = GLB.room.tv_screen.prims[0];
   O.tvCenter = [(sp.min[0] + sp.max[0]) / 2, (sp.min[1] + sp.max[1]) / 2, sp.max[2]];
@@ -2302,6 +2305,17 @@ function frame(dt) {
     const list = g.kind === 'crouch' ? O.ghostCrouch : O.ghostStand;
     setVisible(list, g.alpha > 0.005);
     const clipY = g.clip || (g.mode === 'hide' && HS.spot === 'curtain' ? 0.3 : 0);
+    // bones: crawl cycle / idle breathing, and a head-snapping twitch now and then (or when she glitches)
+    const sk = g.kind === 'crouch' ? O.skinCrouch : O.skinStand;
+    if (sk.node?.skin && O.ghostRig) {
+      if (sk !== O.skinCrouch) {
+        if (sk.clip === 'twitch' && sk.t > 1.0) { sk.clip = 'idle'; sk.t = 0; }
+        if (sk.clip === 'idle' && (g.twitch > 0.5 || Math.random() < dt * 0.12)) { sk.clip = 'twitch'; sk.t = 0; }
+      }
+      sk.t += dt * (g.mode === 'crawl' ? 1.3 : 1);
+      skinMatrices(O.ghostRig, sk.node, sk.clip, sk.t, sk.buf);
+      for (const o of list) o.joints = sk.buf;
+    }
     for (const o of list) { o.camOnly = !!g.camOnly; o.castShadow = false; o.extra[1] = clipY; o.extra[2] = Math.min(g.vanish || 0, 1); }   // no cube-shadow for her (6 extra draws of a dense mesh); the blob on the floor stays
     let p = g.p;
     if (g.twitch > 0 || S.glitch > 0.3) {
