@@ -789,11 +789,11 @@ function modernUpdate() {
 const AN = { on: false, phase: 0, goal: 0, fixed: 0, act: {}, next: 0, danger: 0, fails: 0, lock: 0, script: [], hintT: 0 };
 const ANOM = {
   table: { node: 'lowtable', name: '탁자', sfx: 'bang', cue: '…무언가 둥실 떠오르는 소리.', lift: 0.45 },
-  tv: { node: 'tv', name: 'TV', sfx: 'static', cue: '…TV가 저절로 켜졌다.' },
-  doll: { node: 'item_doll', name: '인형', sfx: 'bang', cue: '…등 뒤에서, 작은 발소리.', to: [-0.7, 0, 2.2] },   // climbs down, grows, and stands behind you (clear of the chair back) facing you
-  frame: { node: 'item_frame', name: '가족사진', sfx: 'creak', cue: '…액자가 삐걱삐걱 흔들리는 소리.', loopSfx: 3.5 },
-  cushion: { node: 'cushion', name: '방석', sfx: 'whisper', cue: '…누가 속삭인다.', lift: 1.0 },
-  lamp: { node: 'lamp', name: '전등', sfx: 'whisper', cue: '…방 안이 붉게 물들었다. 천장의 전등.' },   // the ceiling light turns deep red
+  tv: { node: 'tv', name: 'TV', sfx: 'static', cue: '…TV가 저절로 켜졌다.', verb: 'TV를 누르고… 화면을 봐요' },
+  doll: { node: 'item_doll', name: '인형', sfx: 'bang', cue: '…등 뒤에서, 작은 발소리.', to: [-0.7, 0, 2.2], verb: '안 볼 때마다 다가와요. 눌러서 돌려놔요' },   // climbs down, grows, and stands behind you (clear of the chair back) facing you
+  frame: { node: 'item_frame', name: '가족사진', sfx: 'creak', cue: '…액자가 삐걱삐걱 흔들리는 소리.', loopSfx: 3.5, verb: '흔들림이 한가운데를 지날 때 잡아요' },
+  cushion: { node: 'cushion', name: '방석', sfx: 'whisper', cue: '…누가 속삭인다.', lift: 1.0, verb: '도망치는 방석을 한 번 더 잡아요' },
+  lamp: { node: 'lamp', name: '전등', sfx: 'whisper', cue: '…방 안이 붉게 물들었다. 천장의 전등.', verb: '빨간 빛을 확대해서 가만히 바라봐요' },   // the ceiling light turns deep red
   curtain: { name: '커튼', sfx: 'giggle', cue: '…커튼 쪽에서 킥킥.', ghost: true },
   crawl: { name: '기어오는 아이', sfx: 'steps', cue: '…바닥을 긁으며 기어오는 소리.', ghost: true },
 };
@@ -810,7 +810,8 @@ function anBox(k) {
   if (k === 'crawl') { const p = AN.act.crawl?.p || [0, 0, -1.5]; return { min: [p[0] - 0.55, 0, p[2] - 0.55], max: [p[0] + 0.55, 0.75, p[2] + 0.55], c: [p[0], 0.35, p[2]] }; }
   if (!a.box) a.box = nodeBox(a.node, k === 'doll' ? 0.15 : 0.1);
   const b = a.box, s = AN.act[k];
-  if (a.to && s && s.k > 0.5) { const t = a.to; return { min: [t[0] - 0.35, 0, t[2] - 0.35], max: [t[0] + 0.35, 0.7, t[2] + 0.35], c: [t[0], 0.35, t[2]] }; }
+  if (k === 'cushion' && s?.fled) { const e = smooth(0, 1, s.fleeT), q = [b.c[0] + (s.to[0] - b.c[0]) * e, b.c[1] + a.lift + (s.to[1] - b.c[1] - a.lift) * e, b.c[2] + (s.to[2] - b.c[2]) * e]; return { min: [q[0] - 0.35, q[1] - 0.2, q[2] - 0.35], max: [q[0] + 0.35, q[1] + 0.2, q[2] + 0.35], c: q }; }
+  if (a.to && s && s.k > 0.5) { const t = s.pos || a.to; return { min: [t[0] - 0.35, 0, t[2] - 0.35], max: [t[0] + 0.35, 0.7, t[2] + 0.35], c: [t[0], 0.35, t[2]] }; }
   if (a.drop && s) { const d = a.drop * smooth(0, 1, s.k); return { min: [b.min[0] - 0.3, b.min[1] - d, b.min[2] - 0.3], max: [b.max[0] + 0.3, b.max[1] - d, b.max[2] + 0.3], c: [b.c[0], b.c[1] - d, b.c[2]] }; }
   if (!a.lift || !s) return b;
   const up = a.lift * s.k;
@@ -826,7 +827,7 @@ function anHud() {
 function anStart(phase) {
   hsNewBeat();
   AN.on = true; AN.phase = phase; AN.fixed = 0; AN.act = {}; AN.danger = 0; AN.lock = 0;
-  AN.goal = [0, 6, 8, 9][phase]; AN.used = new Set();
+  AN.goal = [0, 5, 7, 8][phase]; AN.used = new Set();
   AN.baseDim = phase === 3 ? 0.72 : 0; AN.streak = 0; AN.crawlShown = AN.crawlShown || false;
   HS.phase = 'anom'; HS.spot = null; S.ghost = null;
   ui.hud.classList.add('turnon');
@@ -880,12 +881,15 @@ function anSpawn(k, force = false) {
   const pos = anBox(k).c;
   snd.play(a.sfx, pos);
   log('anom_spawn', { k, n: Object.keys(AN.act).length });
+  if (a.verb && !(AN.taught = AN.taught || new Set()).has(k)) { AN.taught.add(k); s.teachVerb = true; }
   if (!force && Math.random() < 0.45) hsAfter(0.8, () => line(k === 'doll' ? 'an_doll' : k === 'lamp' ? 'an_lamp' : pick(['an_spawn1', 'an_spawn2', 'an_spawn3', 'an_spawn4']), pos));
   anHud();
   return true;
 }
 function anFix(k) {
   const s = AN.act[k]; if (!s) return;
+  if (s.teachVerb || s.fled || s.stage) hsTip('');
+  if (k === 'tv' && S.ghost?.camOnly) S.ghost = null;
   delete AN.act[k];
   const pos = anBox(k).c;
   AN.fixed++;
@@ -934,6 +938,27 @@ function anEnd() {
   else if (AN.phase === 2) hsAfter(2.6, () => { voice('hs_under', null, 2.0); hsSay('“이번엔… 진짜 못 찾을걸.”', 2.4); hsAfter(2.4, () => hsRound(4)); });
   else hsAfter(2.8, () => { S.lampDim = 0; hsStory(); });
 }
+function anTouch(k) {
+  const s = AN.act[k], c = anBox(k).c;
+  if (k === 'frame') {   // only when it swings through the middle
+    if (Math.abs(AN.frameSwing || 0) < 0.3) return anFix(k);
+    snd.play('creak', c); hsSay('…흔들려서 잡히지 않는다. 가운데를 지나는 순간에.', 2); log('verb_miss', { k }); return;
+  }
+  if (k === 'cushion' && !s.fled) {   // it runs away once
+    s.fled = true; s.fleeT = 0;
+    const spots = [[1.2, 0.9, 1.6], [-1.6, 1.8, -0.4], [1.5, 1.6, -1.6], [-0.3, 2.0, 1.3]].filter(p => !inView(p, 0.9).visible);
+    s.to = spots.length ? pick(spots) : [1.2, 0.9, 1.6];
+    snd.play('giggle', c); line('an_spawn1', c, { quiet: false }); hsTip('<b>방석</b>이 도망갔다! 다시 찾아 눌러요'); log('verb_step', { k }); return;
+  }
+  if (k === 'lamp') { hsTip('빨간 <b>전등</b>을 확대해서 가만히 바라봐요'); log('verb_hint', { k }); return; }
+  if (k === 'tv' && !s.stage) {   // the set switches to the corner camera: someone stands behind your chair
+    s.stage = 1; s.stageT = 0; S.tv.ch = 7; tvScreen.osd = 2; snd.play('static', O.tvCenter); S.glitch = 0.7;
+    S.ghost = { p: [0.05, 0, 1.0], kind: 'stand', alpha: 0, target: 1, mode: 'cctv', camOnly: true };
+    hsSay('…화면 속, 내 의자 뒤에 누가 서 있다.', 2.6); $('#turnBtn').classList.add('pulse'); log('verb_step', { k }); return;
+  }
+  if (k === 'tv' && s.stage) { hsSay('…뒤를 봐.', 1.4); return; }
+  anFix(k);
+}
 function anTap(px, py, dir) {
   if (AN.lock > 0) return true;
   if (!HS.firstInput) { HS.firstInput = true; log('first_input', { kind: 'tap' }); }
@@ -955,7 +980,7 @@ function anTap(px, py, dir) {
     if (score < bd) { bd = score; best = k; }
   }
   if (!best || bd >= 1e8) { log('false_tap', { where: 'nothing' }); return true; }
-  if (AN.act[best]) { anFix(best); return true; }
+  if (AN.act[best]) { anTouch(best); return true; }
   // reported something that is fine: small, visible cost
   log('false_report', { k: best });
   AN.lock = 1.0; snd.play('click');
@@ -972,7 +997,7 @@ function anUpdate(dt) {
     const s = AN.act[k];
     s.t += dt; s.k = Math.min(1, s.k + dt * 1.6);
     const c = anBox(k).c;
-    if (!s.seen && inView(c, 0.9).visible) { s.seen = true; s.seenAt = s.t; log('anom_seen', { k, after: +s.t.toFixed(1) }); }
+    if (!s.seen && inView(c, 0.9).visible) { s.seen = true; s.seenAt = s.t; log('anom_seen', { k, after: +s.t.toFixed(1) }); if (s.teachVerb) hsTip(`<b>${ANOM[k].name}</b> — ${ANOM[k].verb}`); }
     // looked at it and did not notice: name it once (only while she is still teaching)
     if (s.seen && !s.nudged && AN.phase === 1 && s.t - s.seenAt > 8 && inView(c, 0.9).visible) { s.nudged = true; hsTip(`<b>${ANOM[k].name}</b>… 원래 저랬던가? 눌러서 돌려놔요`); log('hint_used', { hint: 'name_' + k }); }
     if (ANOM[k].loopSfx && s.k > 0.9 && (s.t - dt) % ANOM[k].loopSfx > s.t % ANOM[k].loopSfx) snd.play(ANOM[k].sfx, c);
@@ -980,6 +1005,30 @@ function anUpdate(dt) {
     if (!s.seen && s.t > 9 && (s.t - dt) % 9 > s.t % 9) { snd.play(ANOM[k].sfx, c); hsSay(ANOM[k].cue, 2.4); log('hint_used', { hint: k }); if (c[2] > EYE[2] + 0.2) $('#turnBtn').classList.add('pulse'); }
   }
   anHint();
+  // lamp: stare it down (zoomed in, centred) until the red goes out
+  if (AN.act.lamp) {
+    const s = AN.act.lamp, lc = [0, 2.5, -0.6], v = inView(lc, 0.9);
+    s.stare = v.centered && S.zoom > 1.5 ? (s.stare || 0) + dt : Math.max(0, (s.stare || 0) - dt * 0.5);
+    AN.ring = s.stare / 1.5;
+    if (s.stare >= 1.5) { AN.ring = 0; anFix('lamp'); }
+  }
+  // TV: it shows you who stands behind you; turn round to face her and she is gone
+  if (AN.act.tv?.stage) {
+    const s = AN.act.tv; s.stageT += dt;
+    if (flatFwd()[2] > 0.6) { S.ghost = { p: [0.05, 0, 1.0], kind: 'stand', alpha: 1, target: 0, mode: 'close' }; S.flash = 0.25; S.flashCol = [0.5, 0.05, 0.05]; line('hs_found3', [0.05, 1.1, 1.0], { quiet: false }); anFix('tv'); }
+    else if (s.stageT > 7) { s.stage = 0; S.tv.ch = 13; if (S.ghost?.camOnly) S.ghost = null; hsSay('…화면이 다시 지지직.', 1.6); }
+  }
+  // doll: it comes closer every time you look away
+  if (AN.act.doll && AN.act.doll.k > 0.9) {
+    const s = AN.act.doll; s.pos = s.pos || ANOM.doll.to.slice(); s.stepT = (s.stepT || 0) + dt;
+    const to = v3.sub([EYE[0], 0, EYE[2]], s.pos); to[1] = 0; const dist = v3.len(to);
+    if (!inView([s.pos[0], 0.4, s.pos[2]], 1.05).visible && s.stepT > 1.8 && dist > 0.95) {
+      s.stepT = 0; const st = v3.scale(v3.norm(to), Math.min(0.3, dist - 0.9)); s.pos = [s.pos[0] + st[0], 0, s.pos[2] + st[2]];
+      snd.play('steps', [s.pos[0], 0.2, s.pos[2]]);
+    }
+  }
+  // cushion: once startled it flies off to a new hiding place
+  if (AN.act.cushion?.fled) AN.act.cushion.fleeT = Math.min(1, AN.act.cushion.fleeT + dt * 1.2);
   // the crawler moves only while you are not looking at her
   const cr = AN.act.crawl;
   if (cr && S.ghost?.mode === 'crawl') {
@@ -1065,13 +1114,17 @@ function anApply(dt, time) {
     const list = k === 'frame' ? [...O.nodes.item_frame, O.photoObj] : O.nodes[a.node], b = a.box || anBox(k), piv = b.c;
     let X;
     if (k === 'table') X = m4.trs([0, e * (a.lift + Math.sin(time * 2.1) * 0.03), 0], e * 0.35, [1, 1, 1], 0, e * PI);
-    else if (k === 'cushion') X = m4.trs([0, e * (a.lift + Math.sin(time * 1.7) * 0.05), 0], e * time * 0.6, [1, 1, 1], e * 0.5, 0);
+    else if (k === 'cushion') {
+      const fe = s.fled ? smooth(0, 1, s.fleeT) : 0, off = s.fled ? [(s.to[0] - piv[0]) * fe, (s.to[1] - piv[1] - a.lift) * fe, (s.to[2] - piv[2]) * fe] : [0, 0, 0];
+      X = m4.trs([off[0], e * (a.lift + Math.sin(time * 1.7) * 0.05) + off[1], off[2]], e * time * 0.6, [1, 1, 1], e * 0.5, 0);
+    }
     else if (k === 'frame') {   // knocked off its nail: hangs crooked, lower, and keeps swinging
       const nail = [0, (a.box.max[1] - a.box.c[1]) + 0.02, 0];
-      X = m4.mul(m4.mul(m4.trs([0, -0.18 * e, 0]), m4.trs(nail, 0, [1, 1, 1], 0, e * (0.75 + 0.3 * Math.sin(time * 2.6)))), m4.trs(v3.scale(nail, -1)));
+      const sw = Math.sin(time * 1.9); if (AN.act.frame) AN.frameSwing = sw;   // a pendulum: it passes straight only for a moment
+      X = m4.mul(m4.mul(m4.trs([0, -0.18 * e, 0]), m4.trs(nail, 0, [1, 1, 1], 0, e * 0.85 * sw)), m4.trs(v3.scale(nail, -1)));
     }
     else if (k === 'doll') {   // it is simply somewhere else, bigger than you remember, looking at you
-      const b0 = list[0].base, sc = s.k > 0.5 ? 2.3 : 1, at = s.k > 0.5 ? [a.to[0], a.to[1] - list[0].min[1] * sc, a.to[2]] : [b0[12], b0[13], b0[14]];
+      const b0 = list[0].base, sc = s.k > 0.5 ? 2.3 : 1, tp = s.pos || a.to, at = s.k > 0.5 ? [tp[0], tp[1] - list[0].min[1] * sc, tp[2]] : [b0[12], b0[13], b0[14]];
       const yaw = s.k > 0.5 ? Math.atan2(EYE[0] - at[0], EYE[2] - at[2]) + PI : 0;   // the doll's face is its -z
       for (const o of list) o.model = m4.mul(m4.trs(at, yaw, [sc, sc, sc]), m4.mul(m4.trs([o.base[12] - b0[12], o.base[13] - b0[13], o.base[14] - b0[14]]), strip(o.base)));
       continue;
@@ -1538,6 +1591,7 @@ function tvContent() {
   const ch = S.tv.ch;
   if (!S.tv.on) return { mode: 'off' };
   tvScreen.showFace = !!AN.act.tv;
+  if (AN.act.tv?.stage) return { mode: 'cctv' };
   if (AN.act.tv) return { mode: 'text', lines: ['엄마', '보지 마'] };
   if (ch === 7) return { mode: 'cctv' };
   if (ch === 3) return { mode: 'kids', bad: S.act >= 2 };
@@ -2053,6 +2107,7 @@ function update(dt) {
   }
 
   // ---- UI (every write is skipped when nothing changed: each DOM touch can cost a style pass on phones)
+  if (AN.act.lamp) ringV = Math.max(ringV, AN.ring || 0);
   cls(ui.ring, 'show', ringV > 0.01); cls(ui.ring, 'fetch', true);
   put(ui.ringArc.style, 'strokeDashoffset', String(Math.round(113 * (1 - clamp(ringV, 0, 1)))));
   put(ui.hint, 'textContent', hint); cls(ui.hint, 'show', !!hint); cls(ui.hint, 'use', hintUse);
@@ -2485,6 +2540,6 @@ async function main() {
   requestAnimationFrame(loop);
   // test hook: advance the game by hand (the automation tab may be in a hidden window where rAF does not run)
   window.__step = (n = 1, dt = 1 / 60) => { for (let k = 0; k < n; k++) { update(dt); frame(dt); } return R.stats; };
-  window.__game = { SHIFT, applyGfx, PERF, hsStory, AN, ANOM, anSpawn, anFix, anTap, anBox, anStart, tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
+  window.__game = { anTouch, SHIFT, applyGfx, PERF, hsStory, AN, ANOM, anSpawn, anFix, anTap, anBox, anStart, tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
 }
 main();
