@@ -379,3 +379,71 @@ export function childNoteTex(dd) {
   g.fillText('— 수아', 330, 350);
   return c;
 }
+
+// a crude magic circle finger-painted in blood on the floor around the chair (transparent background)
+export function bloodCircleTex(seed = 13) {
+  const S = 1024, c = canvas(S, S), g = c.getContext('2d'), r = rnd(seed), C = S / 2;
+  const blood = (a = 1) => `rgba(${85 + r() * 45},${2 + r() * 6},${2 + r() * 5},${Math.min(1, a * 1.45)})`;
+  // a finger stroke: dabs along the path, uneven width, dragging thinner, now and then a drip or a blot
+  const stroke = (pts, w0 = 14) => {
+    for (let pass = 0; pass < 2; pass++) {
+      let w = w0 * (0.8 + r() * 0.5);
+      for (let i = 0; i < pts.length - 1; i++) {
+        const [x0, y0] = pts[i], [x1, y1] = pts[i + 1], n = Math.max(2, Math.hypot(x1 - x0, y1 - y0) / 3);
+        for (let k = 0; k < n; k++) {
+          const t = k / n, x = x0 + (x1 - x0) * t + (r() - 0.5) * 3, y = y0 + (y1 - y0) * t + (r() - 0.5) * 3;
+          w = Math.max(3, Math.min(w0 * 1.6, w + (r() - 0.52) * 1.6));
+          g.fillStyle = blood(0.25 + r() * 0.35); g.beginPath(); g.arc(x, y, w * (0.4 + r() * 0.3), 0, Math.PI * 2); g.fill();
+        }
+        if (r() < 0.05) {   // drip / smear sideways
+          const a = r() * Math.PI * 2, L = 10 + r() * 40;
+          g.strokeStyle = blood(0.5); g.lineWidth = 2 + r() * 4; g.lineCap = 'round';
+          g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 + Math.cos(a) * L, y1 + Math.sin(a) * L); g.stroke();
+        }
+        if (r() < 0.03) { g.fillStyle = blood(0.7); g.beginPath(); g.ellipse(x1, y1, 8 + r() * 14, 6 + r() * 10, r() * 3, 0, Math.PI * 2); g.fill(); }
+      }
+    }
+  };
+  const ring = (R, wob, w) => {
+    const pts = [], n = 90, a0 = r() * 6.28, span = Math.PI * 2 * (0.93 + r() * 0.12);   // never quite closed
+    for (let i = 0; i <= n; i++) { const a = a0 + span * i / n; const rr = R + Math.sin(a * 3 + r() * 0.4) * wob + (r() - 0.5) * wob; pts.push([C + Math.cos(a) * rr, C + Math.sin(a) * rr]); }
+    stroke(pts, w);
+  };
+  ring(470, 12, 16); ring(455, 9, 9); ring(330, 10, 13);
+  // a crooked five-pointed star drawn in one go
+  const star = [], a0 = -Math.PI / 2 + (r() - 0.5) * 0.2;
+  for (let i = 0; i <= 5; i++) { const a = a0 + i * Math.PI * 4 / 5; const rr = 440 + (r() - 0.5) * 30; star.push([C + Math.cos(a) * rr, C + Math.sin(a) * rr]); }
+  for (let i = 0; i < 5; i++) {   // each edge in a few wobbly segments
+    const [x0, y0] = star[i], [x1, y1] = star[i + 1], seg = [];
+    for (let k = 0; k <= 6; k++) seg.push([x0 + (x1 - x0) * k / 6 + (r() - 0.5) * 16, y0 + (y1 - y0) * k / 6 + (r() - 0.5) * 16]);
+    stroke(seg, 11);
+  }
+  // crude runes in the band between the rings
+  for (let k = 0; k < 14; k++) {
+    const a = k / 14 * Math.PI * 2 + r() * 0.2, R = 392, x = C + Math.cos(a) * R, y = C + Math.sin(a) * R;
+    g.save(); g.translate(x, y); g.rotate(a + Math.PI / 2);
+    const m = 2 + Math.floor(r() * 3);
+    for (let j = 0; j < m; j++) { const p = []; for (let q = 0; q < 3; q++) p.push([(r() - 0.5) * 44, (r() - 0.5) * 44]); stroke(p, 5); }
+    g.restore();
+  }
+  // her name and 엄마, smeared into the circle
+  g.save(); g.font = `bold 120px ${CRAYON}`; g.textAlign = 'center';
+  for (const [w, a] of [['엄마', 0.4], ['수아', 3.6]]) {
+    g.save(); g.translate(C + Math.cos(a) * 220, C + Math.sin(a) * 220); g.rotate(a + Math.PI / 2 + (r() - 0.5) * 0.3);
+    for (let k = 0; k < 3; k++) { g.fillStyle = blood(0.45); g.fillText(w, (r() - 0.5) * 6, (r() - 0.5) * 6); }
+    g.restore();
+  }
+  g.restore();
+  // small handprint smears and spatter
+  for (let k = 0; k < 5; k++) {
+    const a = r() * 6.28, R = 150 + r() * 300, x = C + Math.cos(a) * R, y = C + Math.sin(a) * R;
+    g.save(); g.translate(x, y); g.rotate(r() * 6.28); g.fillStyle = blood(0.5);
+    g.beginPath(); g.ellipse(0, 0, 22, 28, 0, 0, Math.PI * 2); g.fill();
+    for (let f = 0; f < 5; f++) { g.beginPath(); g.ellipse(-20 + f * 10, -40 - (f % 4 === 0 ? -8 : 0) - r() * 6, 5, 14, (f - 2) * 0.12, 0, Math.PI * 2); g.fill(); }
+    g.fillRect(-18, 10, 36, 30 + r() * 40);   // dragged
+    g.restore();
+  }
+  for (let k = 0; k < 260; k++) { const a = r() * 6.28, R = r() * 520; g.fillStyle = blood(0.3 + r() * 0.5); g.beginPath(); g.arc(C + Math.cos(a) * R, C + Math.sin(a) * R, 1 + r() * 5, 0, Math.PI * 2); g.fill(); }
+  roughen(g, S, S, seed);
+  return c;
+}

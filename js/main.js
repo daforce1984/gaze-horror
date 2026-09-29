@@ -278,6 +278,8 @@ function buildScene() {
     { o: add(R.object(quad, handsTex, { pipe: 'blend', model: m4.trs([0, 2.595, 0.05], 0, [1.1, 1.1, 1], PI / 2), clamp: true, tint: [1, 1, 1, 0] })), at: 0.62 },
     { o: add(R.object(quad, handsTex, { pipe: 'blend', model: m4.trs([-0.25, 1.1, 2.486], PI, [0.7, 0.7, 1]), clamp: true, tint: [1, 1, 1, 0] })), at: 0.8 },
     { o: add(R.object(quad, handsTex, { pipe: 'blend', model: m4.trs([2.186, 1.0, -1.3], -PI / 2, [0.6, 0.6, 1], 0, 1.2), clamp: true, tint: [1, 1, 1, 0] })), at: 0.45 },
+    // a crude magic circle in blood on the floor round the chair: there once the first shift has passed (turn around to see it)
+    { o: add(R.object(quad, R.texture(TX.bloodCircleTex()), { pipe: 'blend', model: m4.trs([0, 0.012, 0.42], 0.3, [2.3, 2.3, 1], -PI / 2), clamp: true, tint: [1.1, 0.8, 0.8, 0], order: 1, flags: [0.3, 0, 0.9, 0] })), at: 0.25 },
   ];
   // peeling skin of the room: flakes sit flat on the walls and ceiling; when the other world's front
   // reaches one it rusts, curls off the surface, floats up and is gone (each flake once, never at random)
