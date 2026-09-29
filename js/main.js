@@ -429,11 +429,21 @@ function line(id, pos, { quiet = true, gain = 2.0 } = {}) {
   return d;
 }
 function hsTip(html) { const el = ui.hsTip || (ui.hsTip = $('#hsTip')); put(el, 'innerHTML', html || ''); cls(el, 'show', !!html); }
+// eyes shut, a heavy half-open flutter, shut again, then open (blurred at first)
+function wakeUp() {
+  const L = $('#lids'); L.className = 'show'; L.style.setProperty('--lid-t', '1.4s');
+  S.wakeBlur = 1;
+  setTimeout(() => { L.classList.add('half'); }, 700);
+  setTimeout(() => { L.style.setProperty('--lid-t', '0.35s'); L.classList.remove('half'); }, 2100);
+  setTimeout(() => { L.style.setProperty('--lid-t', '1.6s'); L.classList.add('open'); }, 2900);
+  setTimeout(() => { L.className = ''; }, 4700);
+}
 function hsStart() {
   HS.on = true; ui.hud.classList.add('hs');
-  S.yaw = -1.0; S.pitch = -0.12;   // the curtain sits near the centre on phones too
+  S.yaw = 0; S.pitch = -0.08;   // waking up: the TV is the first thing in front of you
+  wakeUp();
   log('chapter_start', { ch: 1 });
-  hsAfter(0.4, () => { voice('hs_start', HIDE.curtain.c, 2.2); hsSay('“엄마! 일어났다! 우리 숨바꼭질 하자. 엄마가 술래야!”', 4.2); });
+  hsAfter(3.4, () => { voice('hs_start', HIDE.curtain.c, 2.2); hsSay('“엄마! 일어났다! 우리 숨바꼭질 하자. 엄마가 술래야!”', 4.2); });
   hsRound(1);
 }
 function hsRound(n, retry = false) {
@@ -2421,7 +2431,9 @@ function frame(dt) {
   PST.set([exposure, S.fear, S.blackout, 0.016 + S.fear * 0.04 + (S.zoom - 1) * 0.008 + S.decay * 0.01 + (HS.cctv ? 0.07 : 0)], 4);
   PST.set([...S.flashCol, S.flash], 8);
   PST.set([cueX, cueY, cueS, beat], 12);
-  PST.set([0.0025 + S.fear * 0.01 + S.glitch * 0.02, 0.07, 1.0 + S.fear * 0.35 - (S.zoom - 1) * 0.05 - warmK * 0.15, S.fear > 0.6 ? (S.fear - 0.6) * 2.5 + S.glitch : S.glitch], 16);
+  S.wakeBlur = Math.max(0, (S.wakeBlur || 0) - dt / 6);   // just woken: swimming colour, heavy vignette
+  const wb = smooth(0, 1, S.wakeBlur);
+  PST.set([0.0025 + S.fear * 0.01 + S.glitch * 0.02 + wb * 0.035, 0.07 + wb * 0.5, 1.0 + S.fear * 0.35 - (S.zoom - 1) * 0.05 - warmK * 0.15 + wb * 0.9, S.fear > 0.6 ? (S.fear - 0.6) * 2.5 + S.glitch : S.glitch], 16);
   let gsx = 0.5, gsy = 0.5, gOn = 0;
   if (g && g.alpha > 0.2 && !g.camOnly) {
     const VP = G, x = gpos[0], y = gpos[1], z = gpos[2];

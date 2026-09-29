@@ -1145,12 +1145,14 @@ def bake_ao():
     modern = [o for o in meshes if o.name.startswith('mod_')]
     OLD = ('tv', 'tv_cabinet', 'tv_screen', 'lowtable', 'bookshelf', 'desk', 'drawer', 'drawer_lock', 'desk_clutter',
            'answering_machine', 'am_led', 'deco_desklamp', 'deco_pencils', 'deco_suitcase')
-    vintage = [o for o in meshes if o.name in OLD]
-    rest = [o for o in meshes if o not in trash and o not in own_ao and o not in modern]
+    # things that are not always in the room (1999 pieces, the twenty late props): they must not darken the shell
+    vintage = [o for o in meshes if o.name in OLD or o.name.startswith('p_')]
+    rest = [o for o in meshes if o not in trash and o not in own_ao and o not in modern and o not in vintage]
     for o in own_ao:
             o.data.color_attributes.remove(o.data.color_attributes['AO'])
     # the 1999 room, its trash, and the modern studio are never there at the same time: bake each on its own
-    for group, hide in ((rest, trash + modern), (trash, modern), (modern, trash + vintage)):   # own_ao props stay visible as occluders
+    late = [o for o in vintage if o not in own_ao]
+    for group, hide in ((rest, trash + modern + vintage), (late, trash + modern), (trash, modern), (modern, trash + vintage)):   # own_ao props stay visible as occluders
         if not group:
             continue
         for o in hide:

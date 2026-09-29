@@ -38,13 +38,13 @@ export class Cloth {
   // gather: 0 hanging, 1 bunched towards `gatherTo` (z). bodies: [{x, z, y0, y1, r}]. poke: [{z, y, s}]
   step(dt, t, { gather = 0, gatherTo = this.z0, bodies = [], pokes = [] } = {}) {
     dt = Math.min(dt, 1 / 30);
-    const P = this.p, O = this.o, n = this.cols * this.rows, g = -9.8 * dt * dt, damp = 0.985;
+    const P = this.p, O = this.o, n = this.cols * this.rows, g = -9.8 * dt * dt, damp = 0.94;   // heavy fabric settles quickly
     for (let i = 0; i < n; i++) {
       const k = i * 3;
       const vx = (P[k] - O[k]) * damp, vy = (P[k + 1] - O[k + 1]) * damp, vz = (P[k + 2] - O[k + 2]) * damp;
       O[k] = P[k]; O[k + 1] = P[k + 1]; O[k + 2] = P[k + 2];
       const zz = P[k + 2], yy = P[k + 1];
-      const draught = (Math.sin(t * 0.7 + zz * 2.1) * 0.6 + Math.sin(t * 1.9 + yy * 3.3 + zz) * 0.4) * 0.12 * dt * dt;
+      const draught = 0;   // a closed room: no wind (only her body and hands move it)
       P[k] += vx + draught; P[k + 1] += vy + g; P[k + 2] += vz;
     }
     for (const pk of pokes) for (let i = 0; i < n; i++) {

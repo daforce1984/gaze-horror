@@ -274,3 +274,15 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
 
 #torchBtn.on { border-color: #ffd48a; color: #ffe2a8; box-shadow: 0 0 12px rgba(255,210,140,.45); }
 #torchBtn.nudge { animation: pulse .9s infinite; }
+
+/* eyelids: the game opens with the eyes shut, a flutter, then the room */
+#lids { position: fixed; inset: 0; pointer-events: none; z-index: 30; display: none; }
+#lids.show { display: block; }
+#lids i { position: absolute; left: -10%; width: 120%; height: 52%; background: #000; transition: transform var(--lid-t, 1.2s) cubic-bezier(.6,0,.3,1);
+  box-shadow: 0 0 60px 40px #000; }
+#lids .top { top: 0; border-radius: 0 0 50% 50% / 0 0 30% 30%; transform: translateY(0); }
+#lids .bot { bottom: 0; border-radius: 50% 50% 0 0 / 30% 30% 0 0; transform: translateY(0); }
+#lids.open .top { transform: translateY(-105%); }
+#lids.open .bot { transform: translateY(105%); }
+#lids.half .top { transform: translateY(-55%); }
+#lids.half .bot { transform: translateY(55%); }
