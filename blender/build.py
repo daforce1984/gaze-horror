@@ -1147,7 +1147,8 @@ def bake_ao():
     OLD = ('tv', 'tv_cabinet', 'tv_screen', 'lowtable', 'bookshelf', 'desk', 'drawer', 'drawer_lock', 'desk_clutter',
            'answering_machine', 'am_led', 'deco_desklamp', 'deco_pencils', 'deco_suitcase')
     # things that are not always in the room (1999 pieces, the twenty late props): they must not darken the shell
-    vintage = [o for o in meshes if o.name in OLD or o.name.startswith('p_')]
+    KIDS = ('deco_teddy', 'deco_backpack', 'deco_shoes', 'deco_musicbox', 'item_doll', 'deco_duck', 'deco_basket', 'deco_cake')
+    vintage = [o for o in meshes if o.name in OLD or o.name in KIDS or o.name.startswith('p_')]
     rest = [o for o in meshes if o not in trash and o not in own_ao and o not in modern and o not in vintage]
     for o in own_ao:
             o.data.color_attributes.remove(o.data.color_attributes['AO'])

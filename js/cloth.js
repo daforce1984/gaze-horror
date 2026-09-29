@@ -3,7 +3,7 @@
 // window wall behind it. Vertex data is rebuilt each step in the engine's 12-float layout.
 export class Cloth {
   constructor({ x, z0, z1, yTop, yBot, cols = 20, rows = 34, pleat = 0.03, folds = 7, wall = -2.19 }) {
-    Object.assign(this, { x, z0, z1, yTop, yBot, cols, rows, wall });
+    Object.assign(this, { x, z0, z1, yTop, yBot, cols, rows, wall, pleat2: pleat, folds2: folds });
     const n = cols * rows;
     this.p = new Float32Array(n * 3); this.o = new Float32Array(n * 3);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
@@ -35,54 +35,30 @@ export class Cloth {
     }
     this.build();
   }
-  // gather: 0 hanging, 1 bunched towards `gatherTo` (z). bodies: [{x, z, y0, y1, r}]. poke: [{z, y, s}]
+  // No dynamics (a free-running sim jitters like a draught): the panel hangs still in its pleats, bunches
+  // towards gatherTo when opened, and wraps over the bodies behind it, eased in so nothing pops.
+  // gather: 0 hanging, 1 bunched. bodies: [{x, z, y0, y1, r}] capsules along y. pokes: [{z, y, s}]
   step(dt, t, { gather = 0, gatherTo = this.z0, bodies = [], pokes = [] } = {}) {
-    dt = Math.min(dt, 1 / 30);
-    const P = this.p, O = this.o, n = this.cols * this.rows, g = -9.8 * dt * dt, damp = 0.94;   // heavy fabric settles quickly
-    for (let i = 0; i < n; i++) {
-      const k = i * 3;
-      const vx = (P[k] - O[k]) * damp, vy = (P[k + 1] - O[k + 1]) * damp, vz = (P[k + 2] - O[k + 2]) * damp;
-      O[k] = P[k]; O[k + 1] = P[k + 1]; O[k + 2] = P[k + 2];
-      const zz = P[k + 2], yy = P[k + 1];
-      const draught = 0;   // a closed room: no wind (only her body and hands move it)
-      P[k] += vx + draught; P[k + 1] += vy + g; P[k + 2] += vz;
-    }
-    for (const pk of pokes) for (let i = 0; i < n; i++) {
-      const k = i * 3, d = Math.hypot(P[k + 2] - pk.z, P[k + 1] - pk.y);
-      if (d < 0.35) P[k] += pk.s * (1 - d / 0.35) * dt;
-    }
-    const C = this.C, m = C.length, cols = this.cols;
-    for (let it = 0; it < 10; it++) {
-      for (let j = 0; j < m; j += 3) {
-        const a = C[j] * 3, b = C[j + 1] * 3, rest = C[j + 2];
-        const dx = P[b] - P[a], dy = P[b + 1] - P[a + 1], dz = P[b + 2] - P[a + 2], d = Math.hypot(dx, dy, dz) || 1e-6;
-        const f = (d - rest) / d * 0.5;
-        P[a] += dx * f; P[a + 1] += dy * f; P[a + 2] += dz * f; P[b] -= dx * f; P[b + 1] -= dy * f; P[b + 2] -= dz * f;
+    const P = this.p, cols = this.cols, rows = this.rows;
+    this.bulge = this.bulge || new Float32Array(cols * rows);
+    for (const pk of pokes) this.pokeT = Math.max(this.pokeT || 0, pk.s * 0.4), this.pokeZ = pk.z, this.pokeY = pk.y;
+    this.pokeT = Math.max(0, (this.pokeT || 0) - dt * 1.5);
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      const i = r * cols + c, k = i * 3, u = c / (cols - 1), v = r / (rows - 1);
+      const p0 = this.pin0[c], zRest = p0[2] + (gatherTo - p0[2]) * gather * 0.85;
+      const y = this.yTop - v * (this.yTop - this.yBot);
+      const pleat = Math.sin(u * this.folds2 * Math.PI * 2) * this.pleat2 * (1 + gather * 1.5);
+      let x = this.x + pleat, want = 0;
+      for (const b of bodies) {   // how far this point must stand out to clear her shape (plus a draped skirt below)
+        const dz = zRest - b.z, cy = Math.min(Math.max(y, b.y0), b.y1), dy = y - cy;
+        const rr = b.r + 0.06 * v;                       // the fabric falls wider towards the hem
+        const d2 = dz * dz + dy * dy * 0.6;
+        if (d2 < rr * rr * 2.2) want = Math.max(want, (b.x - this.x) + Math.sqrt(Math.max(0, rr * rr - Math.min(d2, rr * rr))) + 0.02 * Math.exp(-d2 / (rr * rr)));
+        want = Math.max(want, (b.x - this.x + rr) * Math.exp(-d2 / (rr * rr * 0.9)) * 0.9);
       }
-      // pins: the top row rides the rod; gathering slides the rings towards one end
-      for (let c = 0; c < cols; c++) {
-        const k = c * 3, p0 = this.pin0[c];
-        P[k] = p0[0]; P[k + 1] = p0[1]; P[k + 2] = p0[2] + (gatherTo - p0[2]) * gather * 0.85;
-      }
-      // bodies (capsules along y) push the cloth out into the room; the wall stops it behind
-      for (let i = cols; i < n; i++) {
-        const k = i * 3;
-        for (const b of bodies) {
-          if (P[k + 1] < b.y0 || P[k + 1] > b.y1 + b.r) continue;
-          const cy = Math.min(P[k + 1], b.y1), ex = P[k] - b.x, ez = P[k + 2] - b.z, ey = P[k + 1] - cy;
-          const d = Math.hypot(ex, ey, ez);
-          if (d < b.r) { const s = (b.r - d) / Math.max(d, 1e-4); P[k] += ex * s + (d < 1e-3 ? b.r : 0); P[k + 1] += ey * s; P[k + 2] += ez * s; }
-        }
-        if (P[k] < this.wall) P[k] = this.wall;
-        if (P[k + 1] < 0.01) P[k + 1] = 0.01;
-      }
-    }
-    // tethers: nothing hangs further from its ring than it did at rest (stops the long drop from stretching)
-    const dy = (this.yTop - this.yBot) / (this.rows - 1);
-    for (let r = 1; r < this.rows; r++) for (let c = 0; c < cols; c++) {
-      const k = (r * cols + c) * 3, t = c * 3, L = r * dy * 1.01;
-      const ex = P[k] - P[t], ey = P[k + 1] - P[t + 1], ez = P[k + 2] - P[t + 2], d = Math.hypot(ex, ey, ez);
-      if (d > L) { const f = L / d; P[k] = P[t] + ex * f; P[k + 1] = P[t + 1] + ey * f; P[k + 2] = P[t + 2] + ez * f; }
+      if (this.pokeT > 0) { const d = Math.hypot(zRest - this.pokeZ, y - this.pokeY); want = Math.max(want, this.pokeT * 0.12 * Math.max(0, 1 - d / 0.35)); }
+      this.bulge[i] += (want - this.bulge[i]) * Math.min(1, dt * 4);   // eased
+      P[k] = Math.max(x + this.bulge[i], this.wall); P[k + 1] = y; P[k + 2] = zRest;
     }
     this.build();
   }

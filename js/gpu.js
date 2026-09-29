@@ -17,6 +17,7 @@ struct Globals {
   shift: vec4f,    // the other world spreading: xyz origin, w radius of the front
   shift2: vec4f,   // x decay behind the front, y decay inside, z burn (ember edge / ash), w ambient ash
   torch: vec4f,    // the player's flashlight: xyz beam direction, w intensity (0 = off)
+  misc: vec4f,     // x: 1 = use the baked AO in vertex colours (low preset only; otherwise lighting is fully real-time)
 };
 struct Obj {
   model: mat4x4f,
@@ -416,7 +417,7 @@ const LIT = SHARED + /* wgsl */`
   if (O.flags.y > 0.5) {
     col = alb;
   } else {
-    var ao = sqrt(i.col.r);
+    var ao = select(1.0, sqrt(i.col.r), G.misc.x > 0.5);
     var nrm = n0;
     var spec = O.flags.z;
     if (O.pbr.x > 0.5) {

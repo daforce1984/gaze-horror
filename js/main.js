@@ -222,7 +222,7 @@ function buildScene() {
         nrm: ghost ? null : m.n || gpuTex(maps.normal, false), mr: ghost ? null : m.mr || gpuTex(maps.mr, false), mrAO: m.mr ? true : maps.mrAO, rough: m.mr ? 1 : pr.material.rough, metal: m.mr ? 1 : pr.material.metal,
         pipe: pr.material.cutout && pipe === 'opaque' ? 'cutout' : ghost && pr.geo.jw && node.skin ? 'ghostSkin' : pipe, skinned: !!(ghost && pr.geo.jw && node.skin), model: node.matrix.slice(), tint, emissive: [...(m.emissive || [0, 0, 0]), ghost ? (m.aoLift ?? (maps.base ? 1 : 0)) : pr.material.cutout ? 0.5 : 0],
         flags: [m.wrap ?? 0.1, m.unlit ? 1 : 0, spec, ghost ? 2 : 0], uvx: [m.uv || 1, m.uv || 1, ghost && pr.material.name === 'M_hair' ? 1 : 0, ghost && (m.t || maps.base) ? 1 : 0],
-        castShadow: !NO_SHADOW.has(node.name) && Math.max(...pr.max.map((v, k) => v - pr.min[k])) > 0.18, tex2: m.t2, extra: [m.decay ? 1 : /artwork|polaroid/i.test(pr.material.name) ? 2 : 0, 0, 0, 0],   // tiny things cast no shadow (6 draws each)
+        castShadow: !NO_SHADOW.has(node.name) && (Math.max(...pr.max.map((v, k) => v - pr.min[k])) > 0.18 || gfxPreset() !== GFX.low),   // real-time shadows from everything except on low tex2: m.t2, extra: [m.decay ? 1 : /artwork|polaroid/i.test(pr.material.name) ? 2 : 0, 0, 0, 0],   // tiny things cast no shadow (6 draws each)
       }));
       o.base = node.matrix; o.min = pr.min; o.max = pr.max;
       if (m.key) O[m.key] = o;
@@ -813,8 +813,8 @@ function clothUpdate(dt, time) {
   const g = S.ghost, bodies = [];
   if (g && g.alpha > 0.3 && !g.camOnly && g.p[0] < -1.5) {   // she stands behind the curtain: her body pushes it out
     const crouch = g.kind === 'crouch';
-    bodies.push({ x: g.p[0], z: g.p[2], y0: 0.0, y1: crouch ? 0.55 : 1.15, r: crouch ? 0.3 : 0.3 });
-    bodies.push({ x: g.p[0], z: g.p[2], y0: crouch ? 0.4 : 1.1, y1: crouch ? 0.6 : 1.33, r: 0.2 });   // her head
+    bodies.push({ x: g.p[0], z: g.p[2], y0: 0.2, y1: crouch ? 0.5 : 1.12, r: crouch ? 0.26 : 0.22 });   // her body
+    bodies.push({ x: g.p[0], z: g.p[2], y0: crouch ? 0.45 : 1.16, y1: crouch ? 0.62 : 1.3, r: 0.14 });   // her head
   }
   const gather = smooth(0, 1, S.curtainOpen);
   for (const c of CLOTH) {
@@ -2418,6 +2418,7 @@ function frame(dt) {
   if (!TORCH.auto && S.decay > 0.45 && S.started) { TORCH.auto = true; if (!TORCH.on) { setTorch(true); hsSay('어두워졌다. 손전등을 켰다. (🔦 버튼 / F)', 3); } }
   TORCH.k = damp(TORCH.k, TORCH.on ? 1 : 0, 10, dt);
   G.set([f[0], f[1], f[2], TORCH.k * (2.2 + S.decay * 1.2)], 72);
+  G.set([gfxPreset() === GFX.low ? 1 : 0, 0, 0, 0], 76);
   G.set([SHIFT.on ? SHIFT.from : S.decay, SHIFT.on ? SHIFT.to : S.decay, SHIFT.on ? SHIFT.burn : 0, S.decay > 0.3 ? 0.18 + S.decay * 0.2 : 0], 68);
 
   // CCTV globals (only when it is on screen)
@@ -2599,6 +2600,10 @@ function applyGfx(choice) {
   const g = gfxPreset();
   PERF.scale = 1; PERF.min = g.min; PERF.shadowSkip = false;
   if (R.shadowSize !== g.shadow) R.setShadowSize(g.shadow);
+  for (const o of objects) if (o.min && o.max && o.castShadow !== undefined && !o.noShadowEver) {   // small things cast shadows unless on low
+    const big = Math.max(...o.max.map((v, k) => v - o.min[k])) > 0.18; if (o._cs0 === undefined) o._cs0 = o.castShadow || big;
+    o.castShadow = o._cs0 && (big || g !== GFX.low);
+  }
   R.setAniso(g.aniso, objects);
   resize();
 }
