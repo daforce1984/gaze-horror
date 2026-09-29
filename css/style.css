@@ -250,3 +250,4 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
 #anHud .pips i.on { background: #e6a23c; border-color: #e6a23c; box-shadow: 0 0 8px rgba(230,160,60,.7); }
 #anHud.danger .pips i.on { background: #ff3a2a; border-color: #ff3a2a; box-shadow: 0 0 12px rgba(255,50,30,.9); animation: pulse .6s infinite; }
 #anHud b { font-weight: 600; min-width: 42px; text-align: right; }
+#anHud .fails { color: #ff5a4a; letter-spacing: .15em; margin-left: 4px; }

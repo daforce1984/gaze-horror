@@ -88,22 +88,6 @@ time.sleep(1.5); p = spot_screen('curtain'); tap(*p); time.sleep(0.8); shot('r1_
 time.sleep(1.5); shot('r1_reward_flying')
 while not ev('__game.AN.on'): time.sleep(0.2)
 time.sleep(1.6); play_anom('an1')
-wait_phase('seek', 2); time.sleep(0.5); shot('r2_seek_start')
-spot = ev("__game.HS.spot"); decoys = ev("__game.HS.decoys")
-if MODE == 'idle':
-    for k in range(9): time.sleep(5); shot(f'r2_idle_{(k+1)*5}s')
-    wait_phase('seek', 2); time.sleep(0.5)
-    spot = ev("__game.HS.spot"); decoys = ev("__game.HS.decoys"); shot('r2_retry')
-if MODE == 'wrong3':
-    for k in range(3):
-        d = decoys[k % len(decoys)]
-        for _ in range(16):
-            q = spot_screen(d)
-            if q: tap(*q); break
-            drag(-140); time.sleep(0.35)
-        time.sleep(1.2)
-    shot('r2_after_3_wrong')
-search_and_tap(spot, wrong=None if MODE != 'normal' else decoys[0]); time.sleep(0.8); shot('r2_found')
 wait_phase('seek', 3); time.sleep(0.8); shot('r3_seek_start')
 search_and_tap('curtain'); time.sleep(4.2); shot('r3_after_cheat')
 ev("document.querySelector('#turnBtn').click(), 1"); time.sleep(0.9); shot('r3_turned')

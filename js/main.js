@@ -641,7 +641,7 @@ const AN = { on: false, phase: 0, goal: 0, fixed: 0, act: {}, next: 0, danger: 0
 const ANOM = {
   table: { node: 'lowtable', name: '탁자', sfx: 'bang', cue: '…무언가 둥실 떠오르는 소리.', lift: 0.45 },
   tv: { node: 'tv', name: 'TV', sfx: 'static', cue: '…TV가 저절로 켜졌다.' },
-  doll: { node: 'item_doll', name: '인형', sfx: 'bang', cue: '…등 뒤에서, 작은 발소리.', to: [-0.35, 0.02, 1.95] },   // climbs down and sits behind you, facing you
+  doll: { node: 'item_doll', name: '인형', sfx: 'bang', cue: '…등 뒤에서, 작은 발소리.', to: [-0.7, 0, 2.2] },   // climbs down, grows, and stands behind you (clear of the chair back) facing you
   frame: { node: 'item_frame', name: '가족사진', sfx: 'creak', cue: '…액자가 삐걱 돌아가는 소리.' },
   drawer: { node: 'drawer', name: '서랍', sfx: 'drawer', cue: '…서랍이 드르륵 열렸다.' },
   cushion: { node: 'cushion', name: '방석', sfx: 'whisper', cue: '…누가 속삭인다.', lift: 1.0 },
@@ -662,7 +662,7 @@ function anBox(k) {
   if (k === 'crawl') { const p = AN.act.crawl?.p || [0, 0, -1.5]; return { min: [p[0] - 0.55, 0, p[2] - 0.55], max: [p[0] + 0.55, 0.75, p[2] + 0.55], c: [p[0], 0.35, p[2]] }; }
   if (!a.box) a.box = nodeBox(a.node, k === 'doll' ? 0.15 : 0.1);
   const b = a.box, s = AN.act[k];
-  if (a.to && s && s.k > 0.5) { const t = a.to; return { min: [t[0] - 0.3, 0, t[2] - 0.3], max: [t[0] + 0.3, 0.65, t[2] + 0.3], c: [t[0], 0.3, t[2]] }; }
+  if (a.to && s && s.k > 0.5) { const t = a.to; return { min: [t[0] - 0.35, 0, t[2] - 0.35], max: [t[0] + 0.35, 0.7, t[2] + 0.35], c: [t[0], 0.35, t[2]] }; }
   if (!a.lift || !s) return b;
   const up = a.lift * s.k;
   return { min: b.min, max: [b.max[0], b.max[1] + up, b.max[2]], c: [b.c[0], b.c[1] + up, b.c[2]] };
@@ -672,12 +672,13 @@ function anHud() {
   $('#anHud').classList.toggle('show', AN.on);
   $('#anHud').classList.toggle('danger', AN.danger > 0);
   document.querySelectorAll('#anHud .pips i').forEach((el, i) => el.classList.toggle('on', i < n));
-  $('#anCount').textContent = `${Math.min(AN.fixed, AN.goal)} / ${AN.goal}`;
+  $('#anCount').innerHTML = `${Math.min(AN.fixed, AN.goal)} / ${AN.goal}` + (AN.fails ? ` <span class="fails">${'✕'.repeat(AN.fails)}</span>` : '');
 }
 function anStart(phase) {
   hsNewBeat();
   AN.on = true; AN.phase = phase; AN.fixed = 0; AN.act = {}; AN.danger = 0; AN.lock = 0;
-  AN.goal = [0, 8, 11, 12][phase];
+  AN.goal = [0, 6, 8, 9][phase];
+  AN.baseDim = phase === 3 ? 0.72 : 0; AN.streak = 0; AN.crawlShown = AN.crawlShown || false;
   HS.phase = 'anom'; HS.spot = null; S.ghost = null;
   ui.hud.classList.add('turnon');
   S.decayTarget = [0, 0.15, 0.35, 0.5][phase];
@@ -692,9 +693,9 @@ function anStart(phase) {
     voice('an_more', null, 2.0); hsSay('“이번엔… 나도 움직일 거야.”', 3);
     AN.next = 3;
   } else {   // the last night: the bulb dies, only the TV and the moon are left
-    AN.script = ['curtain', 'crawl'];
-    S.bulbDead = true; snd.play('pop', [0, 2.2, -0.6]); S.flash = 0.3; S.flashCol = [1, 0.9, 0.7];
-    voice('an_last', null, 2.0); hsSay('“불 꺼졌다… 이제 엄마도 나처럼 어둠 속에서 찾아.”', 3.6);
+    AN.script = ['curtain'];
+    S.lampDim = AN.baseDim; S.bulbBurst = 1.5; snd.play('pop', [0, 2.2, -0.6]); S.flash = 0.3; S.flashCol = [1, 0.9, 0.7];
+    voice('an_last', null, 2.0); hsSay('“불이 죽어 간다… 이제 엄마도 나처럼 어둠 속에서 찾아.”', 3.6);
     AN.next = 3.5;
   }
   anHud();
@@ -710,9 +711,18 @@ function anSpawn(k, force = false) {
   if (k === 'door') S.doorOpenT = 0.2;
   if (k === 'curtain') S.ghost = { p: HIDE.curtain.ghost.slice(), kind: 'stand', alpha: 1, target: 1, mode: 'anom', clip: 0.3 };
   if (k === 'crawl') {
-    const starts = [[-0.85, 0, -2.0], [1.7, 0, -1.6], [-1.7, 0, 1.6], [1.5, 0, 1.9]].filter(p => !inView([p[0], 0.4, p[2]], 1.2).visible);
-    if (!starts.length) { delete AN.act[k]; return false; }
-    s.p = pick(starts).slice(); s.stepT = 0;
+    const all = [[-0.85, 0, -2.0], [1.7, 0, -1.6], [-1.7, 0, 1.6], [1.5, 0, 1.9]];
+    const starts = all.filter(p => !inView([p[0], 0.4, p[2]], 1.2).visible);
+    if (!AN.crawlShown) {   // the first one crawls out where you can see her, to teach the rule
+      AN.crawlShown = true; s.teach = true;
+      s.p = all.map(p => [p, inView([p[0], 0.4, p[2]]).ang]).sort((x, y) => x[1] - y[1])[0][0].slice();
+      hsAfter(1.4, () => { hsTip('보고 있으면 <b>멈춰요</b>. 눈을 떼면… 다가와요'); });
+      hsAfter(5.5, () => { if (AN.act.crawl) hsTip('<b>기어 오는 아이</b>를 눌러 쫓아내요'); });
+    } else {
+      if (!starts.length) { delete AN.act[k]; return false; }
+      s.p = pick(starts).slice();
+    }
+    s.stepT = 0;
     S.ghost = { p: s.p, kind: 'crouch', alpha: 0, target: 1, mode: 'crawl' };
   }
   const pos = anBox(k).c;
@@ -726,27 +736,29 @@ function anFix(k) {
   delete AN.act[k];
   const pos = anBox(k).c;
   AN.fixed++;
-  log('anom_fix', { k, t: +s.t.toFixed(1), fixed: AN.fixed });
+  log('anom_fix', { k, dur: +s.t.toFixed(1), fixed: AN.fixed });
   S.flash = 0.12; S.flashCol = [1, 0.95, 0.85];
   snd.play(k === 'tv' ? 'pop' : k === 'drawer' ? 'drawer' : k === 'door' ? 'bang' : k === 'curtain' ? 'curtain' : 'chime', pos);
   if (k === 'tv') { S.tv.on = false; }
   if (k === 'door') S.doorOpenT = 0;
   if (k === 'curtain') { S.curtainTarget = 1; hsAfter(1.4, () => { S.curtainTarget = 0; }); if (S.ghost) S.ghost.target = 0; snd.play('giggle', pos); }
-  if (k === 'crawl') { if (S.ghost) { S.ghost.target = 0; S.ghost.twitch = 1; } S.glitch = 0.8; snd.play('whisper', pos); }
+  if (k === 'crawl') { if (S.ghost) { S.ghost.target = 0; S.ghost.twitch = 1; } S.glitch = 0.8; snd.play('whisper', pos); if (s.teach) hsTip(''); }
   // pending restore animation: s.k runs back to 0 in anApply
   AN.back = AN.back || {}; AN.back[k] = s;
-  if (Object.keys(AN.act).length < 3 && AN.danger > 0) { AN.danger = 0; S.lampDim = 0; hsTip(''); log('anom_rescue', {}); }
+  if (Object.keys(AN.act).length < 3 && AN.danger > 0) { AN.danger = 0; S.lampDim = AN.baseDim; hsTip(''); log('anom_rescue', {}); }
   // her reactions: short, never blocking
   const lines = [['an_fix1', '에이~ 들켰다.'], ['an_fix2', '엄마 눈 좋다~'], ['hs_found1', '헤헤, 들켰다!']];
   if (AN.fixed === 1 || Math.random() < 0.35) { const l = pick(lines); voice(l[0], pos, 1.8); hsSay(`“${l[1]}”`, 2); }
   if (s.nudged || (AN.fixed === 3 && AN.phase === 1)) hsTip(AN.phase === 1 && AN.fixed < 3 ? '<b>이상한 곳</b>을 눌러 원래대로 돌려요' : '');
+  AN.streak++;
   if (!Object.keys(AN.act).length) AN.next = Math.min(AN.next, AN.script.length ? 1.2 : rnd(2, 3.5));
+  if (AN.streak >= 2 && !AN.script.length) { AN.next = Math.max(AN.next, rnd(2.5, 3.5)); AN.streak = 0; }   // two in a row: a breath
   if (AN.fixed >= AN.goal && !Object.keys(AN.act).length) hsAfter(1.2, () => anEnd());
   anHud();
 }
 function anFail(why) {
   hsNewBeat();
-  AN.fails++; AN.danger = 0; S.lampDim = 0; hsTip('');
+  AN.fails++; AN.danger = 0; S.lampDim = AN.baseDim; hsTip('');
   log('anom_fail', { why, fails: AN.fails, active: Object.keys(AN.act) });
   const p = v3.add([EYE[0], 0, EYE[2]], v3.scale(flatFwd(), 0.65));
   S.ghost = { p, kind: 'stand', alpha: 0.3, target: 1, mode: 'close' };
@@ -765,9 +777,9 @@ function anEnd() {
   AN.on = false; AN.act = {}; hsTip(''); anHud();
   log('anom_end', { phase: AN.phase, fails: AN.fails, t: +S.time.toFixed(1) });
   voice('an_done', null, 2.0); hsSay('“와~ 다 찾았다! 엄마 최고!”', 2.4);
-  if (AN.phase === 1) hsAfter(2.6, () => { voice('hs_again', null, 2.0); hsSay('“이번엔 진짜 숨을게. 못 찾을걸?”', 2.2); hsAfter(1.6, () => hsRound(2)); });
+  if (AN.phase === 1) hsAfter(2.6, () => { voice('hs_again', null, 2.0); hsSay('“이번엔 진짜 숨을게. 못 찾을걸?”', 2.2); hsAfter(1.6, () => hsRound(3)); });
   else if (AN.phase === 2) hsAfter(2.6, () => { voice('hs_under', null, 2.0); hsSay('“이번엔… 진짜 못 찾을걸.”', 2.4); hsAfter(2.4, () => hsRound(4)); });
-  else hsAfter(2.8, () => { S.bulbDead = false; hsStory(); });
+  else hsAfter(2.8, () => { S.lampDim = 0; hsStory(); });
 }
 function anTap(px, py, dir) {
   if (AN.lock > 0) return true;
@@ -800,6 +812,7 @@ function anTap(px, py, dir) {
 function anUpdate(dt) {
   if (!AN.on || S.paused) return;
   AN.lock = Math.max(0, AN.lock - dt);
+  if (AN.phase === 3 && Math.random() < dt * 0.25) S.bulbBurst = Math.max(S.bulbBurst, rnd(0.15, 0.5));   // the dying bulb
   const keys = Object.keys(AN.act), n = keys.length;
   for (const k of keys) {
     const s = AN.act[k];
@@ -817,7 +830,7 @@ function anUpdate(dt) {
     const head = [cr.p[0], 0.4, cr.p[2]], seen = inView(head, 0.9).visible;
     cr.stepT += dt;
     const to = v3.sub([EYE[0], 0, EYE[2]], cr.p); to[1] = 0; const dist = v3.len(to);
-    if (!seen && cr.stepT > 0.9) {
+    if (!seen && cr.stepT > 1.2) {
       cr.stepT = 0;
       if (dist < 0.8) { anFail('crawl'); return; }
       const step = v3.scale(v3.norm(to), Math.min(0.2, dist - 0.7));
@@ -830,7 +843,7 @@ function anUpdate(dt) {
   // three at once: a few seconds to fix one
   if (n >= 3) {
     if (AN.danger <= 0) { AN.danger = AN.phase === 1 ? 12 : 8; log('anom_danger', { active: keys }); snd.play('whisper'); }
-    AN.danger -= dt; S.lampDim = 0.45; S.fear = Math.max(S.fear, 0.4);
+    AN.danger -= dt; S.lampDim = Math.max(AN.baseDim, 0.45); S.fear = Math.max(S.fear, 0.4);
     hsTip(`이상한 곳이 <b>3개</b>! 하나라도 고쳐요 · ${Math.ceil(AN.danger)}`);
     if (AN.danger <= 0) { anFail('three'); return; }
   }
@@ -840,8 +853,8 @@ function anUpdate(dt) {
   if (AN.next <= 0) {
     if (AN.script.length) {
       const k = AN.script[0];
-      if (anSpawn(k, AN.phase === 1 && k !== 'doll')) {
-        AN.script.shift();
+      if (anSpawn(k, (AN.phase === 1 && k !== 'doll') || k === 'crawl')) {
+        AN.script.shift(); AN.recent = [...(AN.recent || []).filter(x => x !== k), k];
         if (k === 'doll') { hsAfter(0.4, () => { hsSay('…등 뒤, 책장 쪽에서 툭.', 2.6); $('#turnBtn').classList.add('pulse'); }); }
       }
       AN.next = !AN.act[k] ? 1.5 : AN.script.length ? 1e9 : 6;   // a taught one waits for its fix
@@ -853,8 +866,9 @@ function anUpdate(dt) {
     const order = pool.sort(() => Math.random() - 0.5).sort((x, y) => AN.recent.indexOf(x) - AN.recent.indexOf(y));
     let ok = false;
     for (const k of order) if (anSpawn(k)) { ok = true; AN.recent = [...AN.recent.filter(x => x !== k), k]; break; }
-    const base = [0, rnd(6.5, 9), rnd(4.5, 6.5), rnd(3.5, 5.5)][AN.phase];
-    AN.next = ok ? base * (n >= 2 ? 1.5 : 1) : 1.5;
+    const base = [0, rnd(6.5, 9), rnd(5.5, 8), rnd(5.5, 8)][AN.phase];
+    AN.next = ok ? base * (n >= 1 ? 1.4 : 1) : 1.5;
+    if (ok) AN.streak = 0;
   }
 }
 // what each wrong thing looks like (called every frame after the room's own animation)
@@ -870,12 +884,12 @@ function anApply(dt, time) {
     else if (k === 'cushion') X = m4.trs([0, e * (a.lift + Math.sin(time * 1.7) * 0.05), 0], e * time * 0.6, [1, 1, 1], e * 0.5, 0);
     else if (k === 'frame') X = m4.trs([0, 0, 0], 0, [1, 1, 1], 0, e * PI);   // upside down
     else if (k === 'doll') {   // it is simply somewhere else, bigger than you remember, looking at you
-      const b0 = list[0].base, at = s.k > 0.5 ? a.to : [b0[12], b0[13], b0[14]], sc = s.k > 0.5 ? 1.6 : 1;
-      const yaw = s.k > 0.5 ? Math.atan2(EYE[0] - at[0], EYE[2] - at[2]) : 0;
+      const b0 = list[0].base, sc = s.k > 0.5 ? 2.3 : 1, at = s.k > 0.5 ? [a.to[0], a.to[1] - list[0].min[1] * sc, a.to[2]] : [b0[12], b0[13], b0[14]];
+      const yaw = s.k > 0.5 ? Math.atan2(EYE[0] - at[0], EYE[2] - at[2]) + PI : 0;   // the doll's face is its -z
       for (const o of list) o.model = m4.mul(m4.trs(at, yaw, [sc, sc, sc]), m4.mul(m4.trs([o.base[12] - b0[12], o.base[13] - b0[13], o.base[14] - b0[14]]), strip(o.base)));
       continue;
     }
-    else if (k === 'drawer') X = m4.trs([-0.32 * e, 0, 0]);
+    else if (k === 'drawer') X = m4.trs([-0.45 * e, 0.02 * e, 0], 0.12 * e);
     if (!X) continue;
     const M = m4.mul(m4.mul(m4.trs(piv), X), m4.trs(v3.scale(piv, -1)));
     for (const o of list) o.model = m4.mul(M, o.base);
