@@ -70,7 +70,7 @@
    "id": "c_why",
    "voice": "GIRL",
    "stability": 0.5,
-   "text": "[crying] 엄마… [laughs through tears] 왜 안 왔어?"
+   "text": "[crying] 엄마… [crazy] 히..히히… 왜 안 왔어?"
   },
   {
    "id": "c_rope",
@@ -82,7 +82,7 @@
    "id": "c_turn",
    "voice": "GIRL",
    "stability": 0.5,
-   "text": "[coldly] 이번엔… [giggles] 엄마가 기다려."
+   "text": "[coldly] 이번엔… [crazy] 히히히힛… 엄마가 기다려."
   },
   {
    "id": "c_look",
@@ -100,7 +100,7 @@
    "id": "c_found",
    "voice": "GIRL",
    "stability": 0.5,
-   "text": "[giggles] 히히히힛, 찾았다."
+   "text": "[crazy] 히히..히히히히힛! 찾았다."
   },
   {
    "id": "c_clock",
@@ -178,13 +178,13 @@
    "id": "hs_ready",
    "voice": "GIRL",
    "stability": 0.5,
-   "text": "[giggles] 히히히힛! 다 숨었다! 찾아봐~"
+   "text": "[crazy] 히..히히히히힛! 다 숨었다! 찾아봐~"
   },
   {
    "id": "hs_found1",
    "voice": "GIRL",
    "stability": 0.5,
-   "text": "[giggles] 히히히힛, 들켰다!"
+   "text": "[crazy] 히..히히히힛! 들켰다!"
   },
   {
    "id": "hs_found2",
@@ -208,13 +208,13 @@
    "id": "hs_wrong",
    "voice": "GIRL",
    "stability": 0.5,
-   "text": "[giggles] 히히히힛, 거기 아니야~"
+   "text": "[crazy] 히..히히히! 거기 아니야~"
   },
   {
    "id": "hs_fail",
    "voice": "GIRL",
    "stability": 0.5,
-   "text": "[laughing, then sniffles] 히히히힛! 엄마 바보~ 여기 있었지롱."
+   "text": "[crazy] 히..히히히히히히힛!! 엄마 바보~ 여기 있었지롱."
   },
   {
    "id": "hs_behind",
@@ -226,13 +226,13 @@
    "id": "hs_cheat",
    "voice": "GIRL",
    "stability": 0.5,
-   "text": "[laughs] 히히히힛! 속았지? 커튼엔 아무도 없었어!"
+   "text": "[crazy] 히..히히히히힛!! 속았지? 커튼엔 아무도 없었어!"
   },
   {
    "id": "hs_closer",
    "voice": "GIRL",
    "stability": 0.5,
-   "text": "[whispers] 가까이… 왔다… 히히."
+   "text": "[whispers] 가까이… 왔다… [crazy] 히..히히히."
   },
   {
    "id": "hs_under",
@@ -256,7 +256,7 @@
    "id": "an_intro",
    "voice": "GIRL",
    "stability": 0.5,
-   "text": "[excited] 이번엔 내가 방을 이상하게 바꿔 놓을게! [giggles] 히히힛, 엄마가 원래대로 돌려놔~"
+   "text": "[excited] 이번엔 내가 방을 이상하게 바꿔 놓을게! [crazy] 히..히히히힛! 엄마가 원래대로 돌려놔~"
   },
   {
    "id": "an_more",
@@ -280,13 +280,13 @@
    "id": "an_done",
    "voice": "GIRL",
    "stability": 0.5,
-   "text": "[laughing, voice breaking] 와~ 다 찾았다! 엄마 최고!"
+   "text": "[crazy] 히..히히히히히히힛!! 와~ 다 찾았다! [sobbing] 엄마 최고!"
   },
   {
    "id": "an_fail",
    "voice": "GIRL",
    "stability": 0.5,
-   "text": "[laughing, then crying] 히히히힛! 엄마 바보~ 하나도 못 고쳤지롱."
+   "text": "[crazy] 히..히히히히히히힛!! 엄마 바보~ [sobbing] 하나도 못 고쳤지롱."
   },
   {
    "id": "an_last",

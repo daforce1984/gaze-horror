@@ -28,7 +28,7 @@ Used under the [Pixabay Content License](https://pixabay.com/service/license-sum
 `music_room`, `music_chase`, `song` (the children's song on TV channel 3) — generated with **MiniMax Music 3** (ComfyUI). Captions, seeds and workflows in `audio-source/music/`. Loop crossfades placed inside the files.
 
 ## Voices
-Generated with **ElevenLabs Eleven v3**. The girl: Voice Library kid character voice "Piku"; the mother: "Park Hyun-mi"; the news anchor: "JasonK" (Korean Voice Library voices). Script in `assets/voice/lines.json`.
+Generated with **ElevenLabs Eleven v3**. The girl: Voice Library Korean voice "Luna - Soft, Clear, Bright" (pitched up slightly in the engine); the mother: "Park Hyun-mi"; the news anchor: "JasonK" (Korean Voice Library voices). Script in `assets/voice/lines.json`.
 
 ## Images
 Textures, key art, documents and the jump-scare face: AI image generation. 3D models: Blender scripts in `blender/`.
