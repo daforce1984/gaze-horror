@@ -474,3 +474,64 @@ def add_kid_things():
             pt = (pt[0], ph_bounds(bpy.data.objects['tv_cabinet'])[1].z, pt[2])
         ph_place(ob, 1.0, pt, rotz=rotz)
         ob.name = name; ob.data.name = name
+
+
+def add_modern():
+    """the clean modern studio the game starts in: white, minimal furniture and electronics, each one in the
+    place of the 1999 piece that burns in when the other world reaches it (engine: MODERN pairs in main.js)"""
+    W = mat('M_mod_white', (0.86, 0.86, 0.84), 0.35)
+    Wm = mat('M_mod_matte', (0.8, 0.8, 0.78), 0.8)
+    OAK = mat('M_mod_oak', (0.62, 0.47, 0.32), 0.55)
+    BLK = mat('M_mod_black', (0.015, 0.015, 0.017), 0.15)
+    SIL = mat('M_mod_silver', (0.62, 0.63, 0.65), 0.3, 0.8)
+    GRN = mat('M_mod_leaf', (0.16, 0.3, 0.14), 0.7)
+
+    def group(name, parts):
+        ob = join(name, parts)
+        item_origin(ob)
+        return ob
+
+    # TV console + wall-sized flat TV
+    cz = -2.3
+    ctop = ph_bounds(bpy.data.objects['tv_cabinet'])[1].z   # same height as the old chest: the remote and music box sit on it
+    tvs = [box('mc_body', (0, (0.1 + ctop) / 2, cz), (1.4, ctop - 0.1, 0.38), W, 0.01),
+           box('mc_gap', (0, (0.1 + ctop) / 2, cz + 0.191), (0.004, ctop - 0.14, 0.004), BLK)]
+    for x in (-0.62, 0.62):
+        for z in (cz - 0.14, cz + 0.14):
+            tvs.append(cyl('mc_leg', (x, 0.05, z), 0.012, 0.1, OAK, seg=10))
+    group('mod_tvstand', tvs)
+    tv = [box('mt_panel', (0, ctop + 0.02 + 0.33, cz - 0.02), (1.1, 0.64, 0.025), BLK, 0.004),
+          box('mt_neck', (0, ctop + 0.035, cz - 0.02), (0.18, 0.03, 0.12), SIL, 0.004),
+          box('mt_logo', (0, ctop + 0.075, cz - 0.004), (0.05, 0.006, 0.002), SIL)]
+    group('mod_tv', tv)
+    # round coffee table (white top, oak legs)
+    tb = [cyl('mt_top', (-0.95, 0.34, -1.0), 0.36, 0.025, W, seg=40)]
+    for a in (0.3, 2.4, 4.5):
+        tb.append(cyl('mt_leg', (-0.95 + math.cos(a) * 0.22, 0.165, -1.0 + math.sin(a) * 0.22), 0.014, 0.33, OAK, seg=10))
+    tb.append(cyl('mt_mug', (-0.85, 0.395, -0.95), 0.035, 0.085, Wm, seg=18))
+    group('mod_table', tb)
+    # white open shelf, as tall as the old bookshelf (the doll sits on top)
+    bx, bz = -1.55, 2.33
+    top = ph_bounds(bpy.data.objects['bookshelf'])[1].z
+    sh = [box('ms_side1', (bx - 0.33, top / 2, bz), (0.02, top, 0.3), W), box('ms_side2', (bx + 0.33, top / 2, bz), (0.02, top, 0.3), W)]
+    for y in (0.02, top * 0.34, top * 0.67, top - 0.01):
+        sh.append(box('ms_board', (bx, y, bz), (0.66, 0.02, 0.3), W))
+    for k, (x, w, h, c) in enumerate(((-0.2, 0.18, 0.2, Wm), (0.05, 0.12, 0.16, OAK), (0.18, 0.16, 0.12, Wm))):
+        sh.append(box('ms_box%d' % k, (bx + x, top * 0.34 + 0.01 + h / 2, bz), (w, h, 0.22), c, 0.004))
+    sh.append(cyl('ms_pot', (bx - 0.15, top * 0.67 + 0.07, bz), 0.06, 0.12, Wm, seg=20))
+    sh.append(sphere('ms_plant', (bx - 0.15, top * 0.67 + 0.2, bz), 0.1, GRN, scale=(1, 1, 1.2)))
+    group('mod_shelf', sh)
+    # white desk with slim legs, laptop, smart speaker
+    dx, dz, dt = 1.86, -0.3, 0.74
+    dk = [box('md_top', (dx, dt, dz), (0.6, 0.025, 1.15), W, 0.004)]
+    for lx in (-0.26, 0.26):
+        for lz in (-0.52, 0.52):
+            dk.append(box('md_leg', (dx + lx, (dt - 0.012) / 2, dz + lz), (0.025, dt - 0.012, 0.025), SIL))
+    group('mod_desk', dk)
+    lp = [box('ml_base', (dx - 0.02, dt + 0.02, dz - 0.05), (0.24, 0.012, 0.33), SIL, 0.004)]
+    scr = box('ml_lid', (dx + 0.1, dt + 0.13, dz - 0.05), (0.012, 0.22, 0.33), SIL, 0.004)
+    scr.rotation_euler = (0, 0, -0.18)
+    lp.append(scr)
+    group('mod_laptop', lp)
+    group('mod_speaker', [cyl('mk_body', (dx - 0.05, dt + 0.07, dz + 0.42), 0.05, 0.13, Wm, seg=24),
+                          cyl('mk_top', (dx - 0.05, dt + 0.138, dz + 0.42), 0.048, 0.006, SIL, seg=24)])

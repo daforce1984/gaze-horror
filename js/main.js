@@ -192,7 +192,7 @@ function buildScene() {
     M_wall: { t: T.wall, t2: T.wallClean, decay: 1, n: T.wallN, mr: T.wallM, uv: 2 }, M_floor: { t: T.floor, t2: T.floorClean, decay: 1, spec: 0.05, n: T.floorN, mr: T.floorM },
     M_ceiling: { t: T.ceiling, t2: T.ceilClean, decay: 1, n: T.ceilN, mr: T.ceilM },
     M_wood: { t: T.woodLight, n: T.woodLightN, mr: T.woodLightM }, M_wooddark: { t: T.wood, tint: [0.8, 0.75, 0.72], n: T.woodN, mr: T.woodM },
-    M_door: { t: T.door, spec: 0.12, n: T.doorN, mr: T.doorM }, M_curtain: { t: T.curtain, t2: T.curtainModern, decay: 1, wrap: 0.4, n: T.curtainN, mr: T.curtainM },
+    M_door: { t: T.door, t2: R.solidTexture([232, 230, 225, 255]), decay: 1, spec: 0.12, n: T.doorN, mr: T.doorM },   // a plain white modern door first M_curtain: { t: T.curtain, t2: T.curtainModern, decay: 1, wrap: 0.4, n: T.curtainN, mr: T.curtainM },
     M_window: { t: T.window, unlit: true, tint: [0.3, 0.32, 0.4] }, M_tvscreen: { t: O.tvTex, unlit: true, key: 'screen' },
     M_clockface: { t: O.clockTex, key: 'clockface' }, M_bulb: { unlit: true, key: 'bulb' }, M_corridor: { unlit: true, key: 'corridor', tint: [0, 0, 0] },
     M_bag: { t: T.plastic, tint: [0.9, 0.9, 0.95], spec: 1.4 }, M_bagwhite: { spec: 0.9 }, M_paper: { t: T.paper, wrap: 0.3 }, M_cardboard: { t: T.paper, tint: [0.75, 0.6, 0.42] },
@@ -732,10 +732,40 @@ function shiftUpdate(dt) {
   if (SHIFT.r > 7.5) { SHIFT.on = false; S.decay = SHIFT.to; log('shift_end', {}); }
 }
 function levelAt(p) { return !SHIFT.on ? S.decay : v3.len(v3.sub(p, SHIFT.o)) < SHIFT.r ? SHIFT.to : SHIFT.from; }
-const FORMING = new Set();
-function formIn(list) { for (const o of list) { o.visible = true; o.extra[2] = 0.001; FORMING.add(o); } }
+const FORMING = new Set(), FADING = new Set();
+function formIn(list) { for (const o of list) { FADING.delete(o); o.visible = true; o.extra[2] = 0.001; FORMING.add(o); } }
+function formOut(list) { for (const o of list) { FORMING.delete(o); if (!o.visible) continue; o.extra[2] = 0.999; FADING.add(o); } }
 function formUpdate(dt) {
   for (const o of FORMING) { o.extra[2] += dt / 2.6; if (o.extra[2] >= 1) { o.extra[2] = 0; FORMING.delete(o); } }
+  for (const o of FADING) { o.extra[2] -= dt / 1.4; if (o.extra[2] <= 0.002) { o.extra[2] = 0; o.visible = false; FADING.delete(o); } }
+}
+// the modern white studio the game starts in; each piece gives way to its 1999 counterpart when the other world reaches it
+const MODERN = [];
+function setupModern() {
+  const N = (n) => O.nodes[n] || [];
+  const pair = (mod, old) => {
+    const m = mod.flatMap(N), o = old.flatMap(N);
+    if (!m.length) return;
+    const b = m[0].base, pos = [b[12], b[13], b[14]];
+    MODERN.push({ mod: m, old: o, pos, oldNames: old, modern: true });
+    for (const x of o) x.visible = false;
+  };
+  pair(['mod_tvstand', 'mod_tv'], ['tv_cabinet', 'tv', 'tv_screen']);
+  pair(['mod_table'], ['lowtable']);
+  pair(['mod_shelf'], ['bookshelf']);
+  pair(['mod_desk', 'mod_laptop', 'mod_speaker'], ['desk', 'drawer', 'drawer_lock', 'desk_clutter', 'answering_machine', 'am_led', 'deco_desklamp', 'deco_pencils']);
+  pair([], ['deco_suitcase']);
+  for (const x of N('deco_suitcase')) x.visible = false;
+  MODERN.push({ mod: [], old: N('deco_suitcase'), pos: [1.95, 0.3, 1.35], oldNames: ['deco_suitcase'], modern: true });
+}
+const isModern = (node) => MODERN.some(p => p.modern && p.oldNames.includes(node));
+function modernUpdate() {
+  for (const p of MODERN) {
+    const turned = levelAt(p.pos) >= 0.12;
+    if (turned && p.modern) { p.modern = false; formOut(p.mod); formIn(p.old); }
+    else if (!turned && !p.modern) { p.modern = true; for (const x of p.old) x.visible = false; for (const x of p.mod) { x.visible = true; x.extra[2] = 0; } }
+  }
+  if (isModern('tv_screen')) { O.screen.visible = false; O.cctvScreen.visible = false; O.tvHalo.tint[3] = 0; }
 }
 
 // ================================================================ 이상현상 (the room turns wrong)
@@ -791,8 +821,8 @@ function anStart(phase) {
   if (phase === 1) {
     AN.script = ['tv', 'doll'];   // taught in order after the table: in front, then behind you
     voice('an_intro', null, 2.0); hsSay('“이번엔 내가 방을 이상하게 바꿔 놓을게! 엄마가 원래대로 돌려놔~”', 3.6);
-    hsAfter(1.2, () => { anSpawn('table', true); hsTip('<b>이상한 곳</b>을 눌러 원래대로 돌려요'); });
-    AN.next = 1e9;
+    AN.script = ['table', ...AN.script]; AN.next = 1.2;
+    hsAfter(1.2, () => hsTip('<b>이상한 곳</b>을 눌러 원래대로 돌려요'));
   } else if (phase === 2) {
     AN.script = ['crawl'];
     hsAfter(bigShift ? 7.5 : 0, () => { voice('an_more', null, 2.0); hsSay('“이번엔… 나도 움직일 거야.”', 3); });
@@ -808,6 +838,7 @@ function anStart(phase) {
 function anSpawn(k, force = false) {
   const a = ANOM[k];
   if (AN.act[k]) return false;
+  if (a.node && isModern(a.node)) return false;   // still the modern piece: wait until the 1999 one has formed
   if (a.ghost && (AN.act.curtain || AN.act.crawl)) return false;   // one of her at a time
   if (!force && k !== 'crawl' && inView(anBox(k).c, 1.15).visible) return false;    // never change what you are watching (she picks an unseen corner herself)
   const s = { k: 0, t: 0, seen: false };
@@ -2076,6 +2107,7 @@ function frame(dt) {
   }
   O.screen.visible = tc.mode !== 'cctv';
   O.cctvScreen.visible = tc.mode === 'cctv';
+  modernUpdate();
   O.screen.emissive = [0.9 * tvI, 0.95 * tvI, 1.15 * tvI, 1];
   O.cctvScreen.emissive = [0.9, 1.05, 0.95, 1].map((v, k) => k < 3 ? v * (0.85 + Math.random() * 0.15) : v);
   O.tvHalo.tint[3] = 0.08 * tvI;
@@ -2390,6 +2422,7 @@ async function main() {
   await loadAll();
   TEL.event('loaded', { ms: Math.round(performance.now() - tl) });
   buildScene();
+  setupModern();
   setupInput();
   setupGyro();
   resize(); addEventListener('resize', resize);

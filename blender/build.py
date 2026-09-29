@@ -587,6 +587,7 @@ def build_room():
     upgrade_hy()       # Hunyuan3D doll / remote
     add_props()        # more lived-in detail
     add_kid_things()   # teddy, backpack, shoes, music box
+    add_modern()       # the white modern studio the game starts in
     ph_cleanup()
 
 
@@ -1140,10 +1141,15 @@ def bake_ao():
     trash = [o for o in meshes if o.name.startswith('trash_')]
     # scanned Poly Haven props bring their own occlusion map: don't darken them twice (they still occlude others)
     own_ao = [o for o in meshes if o not in trash and 'ph' in o and not str(o['ph']).startswith('hy_')]
-    rest = [o for o in meshes if o not in trash and o not in own_ao]
+    modern = [o for o in meshes if o.name.startswith('mod_')]
+    OLD = ('tv', 'tv_cabinet', 'tv_screen', 'lowtable', 'bookshelf', 'desk', 'drawer', 'drawer_lock', 'desk_clutter',
+           'answering_machine', 'am_led', 'deco_desklamp', 'deco_pencils', 'deco_suitcase')
+    vintage = [o for o in meshes if o.name in OLD]
+    rest = [o for o in meshes if o not in trash and o not in own_ao and o not in modern]
     for o in own_ao:
             o.data.color_attributes.remove(o.data.color_attributes['AO'])
-    for group, hide in ((rest, trash), (trash, [])):   # own_ao props stay visible as occluders
+    # the 1999 room, its trash, and the modern studio are never there at the same time: bake each on its own
+    for group, hide in ((rest, trash + modern), (trash, modern), (modern, trash + vintage)):   # own_ao props stay visible as occluders
         if not group:
             continue
         for o in hide:
