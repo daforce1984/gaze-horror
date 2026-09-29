@@ -224,7 +224,6 @@ for o in [o for o in sc.objects if o.type == 'MESH']:
     ca = o.data.color_attributes.new('AO', 'BYTE_COLOR', 'CORNER'); o.data.color_attributes.active_color = ca
     bpy.ops.object.select_all(action='DESELECT'); o.select_set(True); bpy.context.view_layer.objects.active = o
     sc.render.bake.target = 'VERTEX_COLORS'; bpy.ops.object.bake(type='AO')
-for o in bpy.data.objects:
 bpy.ops.object.select_all(action='SELECT')
 out = os.path.join(ROOT, 'assets', 'ghost.glb')
 bpy.ops.export_scene.gltf(filepath=out, export_format='GLB', export_apply=False, export_image_format='WEBP', export_vertex_color='ACTIVE',
