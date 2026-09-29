@@ -588,6 +588,7 @@ def build_room():
     add_props()        # more lived-in detail
     add_kid_things()   # teddy, backpack, shoes, music box
     add_modern()       # the white modern studio the game starts in
+    add_props2()       # twenty more 1999 things
     ph_cleanup()
 
 

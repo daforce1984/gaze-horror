@@ -60,3 +60,8 @@ derived in `tools/pbrmaps.py`.
 ### Modern studio textures (Poly Haven, CC0)
 plaster_grey_04 (flattened into the clean white wall/ceiling), laminate_floor_02 (floor), rough_linen (curtain),
 wool_boucle (rug) — the clean layer the room starts from, before it rots into the 1999 room.
+
+### More 1999 things (Poly Haven, CC0)
+boombox, wooden_crate_01, vintage_telephone_wall_clock, vintage_video_camera, side_table_01, street_rat, standing_chalkboard_01,
+mantel_clock_01, wooden_stool_01, vintage_oil_lamp, alarm_clock_01, wicker_basket_02, wooden_bowl_01, tea_set_01,
+hanging_picture_frame_02, book_encyclopedia_set_01, wooden_candlestick, vintage_flashlight, sungka_board, vintage_pocket_watch.

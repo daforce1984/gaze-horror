@@ -57,6 +57,33 @@ export class Sound {
     this.duck(0.45, dur + 0.5);
     return dur;
   }
+  // a sound that keeps going at a place until stopped: 'song' (the kids' song), 'ring' (old phone), 'alarm', 'tick'
+  loopAt(kind, pos, gain = 1) {
+    if (!this.ctx) return { stop() { } };
+    const ctx = this.ctx, t = ctx.currentTime, p = this.panner(pos), g = ctx.createGain();
+    g.gain.value = gain; g.connect(p); p.connect(this.master);
+    const nodes = [];
+    if (kind === 'song' && this.buf.song) {
+      const s = ctx.createBufferSource(); s.buffer = this.buf.song; s.loop = true; s.playbackRate.value = 0.94;
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1400; bp.Q.value = 0.6;   // a small tinny speaker
+      s.connect(bp).connect(g); s.start(t, Math.random() * 20); nodes.push(s);
+    } else {
+      for (let k = 0; k < 60; k++) {
+        if (kind === 'ring') {   // two-tone bell, 1.6 s on, 2.4 s off
+          const t0 = t + k * 4; if (k > 14) break;
+          for (const f of [440, 480]) { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = f; const e = ctx.createGain(); const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1800;
+            e.gain.setValueAtTime(0, t0); for (let r = 0; r < 16; r++) { e.gain.setValueAtTime(r % 2 ? 0 : 0.05, t0 + r * 0.1); } e.gain.setValueAtTime(0, t0 + 1.6);
+            o.connect(lp).connect(e).connect(g); o.start(t0); o.stop(t0 + 1.7); nodes.push(o); }
+        } else if (kind === 'alarm') {   // beep-beep-beep-beep
+          const t0 = t + k * 1.0;
+          for (let r = 0; r < 4; r++) { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = 2100; const e = ctx.createGain(); this.env(e, t0 + r * 0.12, 0.002, 0.04, 0.06); o.connect(e).connect(g); o.start(t0 + r * 0.12); o.stop(t0 + r * 0.12 + 0.08); nodes.push(o); }
+        } else if (kind === 'tick') {
+          for (let r = 0; r < 2; r++) this.noiseHit(t + k * 1.0 + r * 0.5, { freq: 3800 + r * 600, q: 9, v: 0.35, d: 0.03, dest: g });
+        }
+      }
+    }
+    return { stop: () => { g.gain.setTargetAtTime(0, ctx.currentTime, 0.05); setTimeout(() => { for (const n of nodes) { try { n.stop(); } catch { } } g.disconnect(); }, 300); } };
+  }
   // one shared impulse: 2.6 s of noise that darkens as it decays (a big empty stairwell)
   darkVerb() {
     if (this.verb) return this.verb;

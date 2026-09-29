@@ -225,7 +225,8 @@ function buildScene() {
       if (m.key) O[m.key] = o;
       return o;
     });
-    O.nodes[node.name] = list;
+    if (node.name === 'curtain_L' || node.name === 'curtain_R') for (const o of list) o.extra[1] = -1;   // cloth (vertex shader)
+  O.nodes[node.name] = list;
     return list;
   };
   for (const name in GLB.room) addNode(GLB.room[name]);
@@ -773,10 +774,19 @@ function setupModern() {
   for (const x of N('deco_suitcase')) x.visible = false;
   MODERN.push({ mod: [], old: N('deco_suitcase'), pos: [1.95, 0.3, 1.35], oldNames: ['deco_suitcase'], modern: true });
 }
+// the twenty 1999 things: not in the modern studio; each forms in when the fire reaches it (level)
+const LATE = [['p_crate', 0.25], ['p_boombox', 0.25], ['p_phone', 0.25], ['p_sidetable', 0.25], ['p_mclock', 0.25], ['p_candle', 0.6],
+  ['p_camera', 0.25], ['p_chalk', 0.25], ['p_stool', 0.25], ['p_oillamp', 0.6], ['p_alarm', 0.25], ['p_basket2', 0.5], ['p_bowl', 0.6],
+  ['p_teaset', 0.25], ['p_frame2', 0.25], ['p_books', 0.5], ['p_flashlight', 0.9], ['p_sungka', 0.6], ['p_watch', 0.25]];
+function setupLate() {
+  for (const [n, at] of LATE) { const l = O.nodes[n] || []; if (!l.length) continue; for (const o of l) o.visible = false; const b = l[0].base;
+    MODERN.push({ mod: [], old: l, pos: [b[12], b[13], b[14]], oldNames: [n], modern: true, at }); }
+  for (const o of O.nodes.p_rat || []) o.visible = false;   // only there while it is an anomaly
+}
 const isModern = (node) => MODERN.some(p => p.modern && p.oldNames.includes(node));
 function modernUpdate() {
   for (const p of MODERN) {
-    const turned = levelAt(p.pos) >= 0.12;
+    const turned = levelAt(p.pos) >= (p.at || 0.12);
     if (turned && p.modern) { p.modern = false; formOut(p.mod); formIn(p.old); }
     else if (!turned && !p.modern) { p.modern = true; for (const x of p.old) x.visible = false; for (const x of p.mod) { x.visible = true; x.extra[2] = 0; } }
   }
@@ -795,6 +805,18 @@ const ANOM = {
   cushion: { node: 'cushion', name: '방석', sfx: 'whisper', cue: '…누가 속삭인다.', lift: 1.0, verb: '도망치는 방석을 한 번 더 잡아요' },
   lamp: { node: 'lamp', name: '전등', sfx: 'whisper', cue: '…방 안이 붉게 물들었다. 천장의 전등.', verb: '빨간 빛을 확대해서 가만히 바라봐요' },   // the ceiling light turns deep red
   curtain: { name: '커튼', sfx: 'giggle', cue: '…커튼 쪽에서 킥킥.', ghost: true },
+  boombox: { node: 'p_boombox', name: '라디오', sfx: 'static', cue: '…어디선가 동요가 흘러나온다.', kind: 'shake', loop: 'song' },
+  phone: { node: 'p_phone', name: '전화기', sfx: 'click', cue: '…전화벨이 울린다.', kind: 'shake', loop: 'ring', answer: 'amb1' },
+  alarm: { node: 'p_alarm', name: '자명종', sfx: 'click', cue: '…삑삑삑삑, 자명종 소리.', kind: 'shake', loop: 'alarm' },
+  mclock: { node: 'p_mclock', name: '탁상시계', sfx: 'tick', cue: '…시계가 미친 듯이 째깍거린다.', kind: 'shake', loop: 'tick' },
+  camera: { node: 'p_camera', name: '캠코더', sfx: 'click', cue: '…삐빅. 무언가 나를 찍고 있다.', kind: 'face', glow: [2.5, 0.1, 0.05] },
+  teddy: { node: 'deco_teddy', name: '곰인형', sfx: 'creak', cue: '…곰인형이 이쪽을 보고 있다.', kind: 'face' },
+  stool: { node: 'p_stool', name: '의자', sfx: 'creak', cue: '…등 뒤에서 나무 의자 끄는 소리.', kind: 'move', to: [0.45, 0, 1.0] },
+  shoes: { node: 'deco_shoes', name: '빨간 구두', sfx: 'steps', cue: '…또각, 또각. 작은 발소리.', kind: 'move', to: [0.3, 0, 0.8] },
+  chalk: { node: 'p_chalk', name: '칠판', sfx: 'bang', cue: '…쿵, 무언가 넘어지는 소리.', kind: 'flip' },
+  frame2: { node: 'p_frame2', name: '그림', sfx: 'creak', cue: '…벽에서 삐걱.', kind: 'flip' },
+  oillamp: { node: 'p_oillamp', name: '석유등', sfx: 'whisper', cue: '…어디선가 붉은 불빛.', kind: 'glow', glow: [3.0, 0.25, 0.05] },
+  rat: { node: 'p_rat', name: '쥐', sfx: 'steps', cue: '…사각사각, 바닥을 긁는 소리.', kind: 'rat', hidden: true },
   crawl: { name: '기어오는 아이', sfx: 'steps', cue: '…바닥을 긁으며 기어오는 소리.', ghost: true },
 };
 function nodeBox(name, pad = 0.08) {
@@ -810,6 +832,8 @@ function anBox(k) {
   if (k === 'crawl') { const p = AN.act.crawl?.p || [0, 0, -1.5]; return { min: [p[0] - 0.55, 0, p[2] - 0.55], max: [p[0] + 0.55, 0.75, p[2] + 0.55], c: [p[0], 0.35, p[2]] }; }
   if (!a.box) a.box = nodeBox(a.node, k === 'doll' ? 0.15 : 0.1);
   const b = a.box, s = AN.act[k];
+  if (a.kind === 'move' && s && s.k > 0.5) { const t = a.to; return { min: [t[0] - 0.3, 0, t[2] - 0.3], max: [t[0] + 0.3, 0.6, t[2] + 0.3], c: [t[0], 0.3, t[2]] }; }
+  if (a.kind === 'rat' && s?.pos) { const t = s.pos; return { min: [t[0] - 0.2, 0, t[2] - 0.2], max: [t[0] + 0.2, 0.2, t[2] + 0.2], c: [t[0], 0.08, t[2]] }; }
   if (k === 'cushion' && s?.fled) { const e = smooth(0, 1, s.fleeT), q = [b.c[0] + (s.to[0] - b.c[0]) * e, b.c[1] + a.lift + (s.to[1] - b.c[1] - a.lift) * e, b.c[2] + (s.to[2] - b.c[2]) * e]; return { min: [q[0] - 0.35, q[1] - 0.2, q[2] - 0.35], max: [q[0] + 0.35, q[1] + 0.2, q[2] + 0.35], c: q }; }
   if (a.to && s && s.k > 0.5) { const t = s.pos || a.to; return { min: [t[0] - 0.35, 0, t[2] - 0.35], max: [t[0] + 0.35, 0.7, t[2] + 0.35], c: [t[0], 0.35, t[2]] }; }
   if (a.drop && s) { const d = a.drop * smooth(0, 1, s.k); return { min: [b.min[0] - 0.3, b.min[1] - d, b.min[2] - 0.3], max: [b.max[0] + 0.3, b.max[1] - d, b.max[2] + 0.3], c: [b.c[0], b.c[1] - d, b.c[2]] }; }
@@ -827,7 +851,9 @@ function anHud() {
 function anStart(phase) {
   hsNewBeat();
   AN.on = true; AN.phase = phase; AN.fixed = 0; AN.act = {}; AN.danger = 0; AN.lock = 0;
-  AN.goal = [0, 5, 7, 8][phase]; AN.used = new Set();
+  AN.used = new Set(); AN.everUsed = AN.everUsed || new Set();
+  const left = Object.keys(ANOM).filter(k => !AN.everUsed.has(k) && (k !== 'crawl' || phase >= 2)).length;
+  AN.goal = Math.min([0, 5, 7, 8][phase], left);
   AN.baseDim = phase === 3 ? 0.72 : 0; AN.streak = 0; AN.crawlShown = AN.crawlShown || false;
   HS.phase = 'anom'; HS.spot = null; S.ghost = null;
   ui.hud.classList.add('turnon');
@@ -855,11 +881,16 @@ function anSpawn(k, force = false) {
   const a = ANOM[k];
   if (AN.act[k]) return false;
   if (a.node && isModern(a.node)) return false;   // still the modern piece: wait until the 1999 one has formed
+  if (AN.everUsed?.has(k)) return false;           // no puzzle ever twice in a game
+  if (a.node && !a.hidden && !(O.nodes[a.node]?.[0]?.visible)) return false;   // not in the room yet (forms in with the fire)
   if (a.ghost && (AN.act.curtain || AN.act.crawl)) return false;   // one of her at a time
   if (!force && k !== 'crawl' && inView(anBox(k).c, 1.15).visible) return false;    // never change what you are watching (she picks an unseen corner herself)
   const s = { k: 0, t: 0, seen: false };
   AN.act[k] = s;
-  (AN.used = AN.used || new Set()).add(k);
+  (AN.used = AN.used || new Set()).add(k); (AN.everUsed = AN.everUsed || new Set()).add(k);
+  if (a.loop) s.snd = snd.loopAt(a.loop, anBox(k).c, a.loop === 'song' ? 0.8 : 1);
+  if (a.kind === 'face') { const b = anBox(k).c; s.fy = Math.atan2(EYE[0] - b[0], EYE[2] - b[2]) - Math.atan2(0 - b[0], -2.5 - b[2]); }
+  if (a.kind === 'rat') { s.pos = [0.3, 0, -1.3]; for (const o of O.nodes.p_rat) o.visible = true; }
   if (k === 'tv') { S.tv.on = true; S.tv.ch = 13; snd.play('static', O.tvCenter); S.glitch = 0.5; }
   if (k === 'door') S.doorOpenT = 0.2;
   if (k === 'curtain') S.ghost = { p: HIDE.curtain.ghost.slice(), kind: 'stand', alpha: 1, target: 1, mode: 'anom', clip: 0.3 };
@@ -890,6 +921,8 @@ function anFix(k) {
   const s = AN.act[k]; if (!s) return;
   if (s.teachVerb || s.fled || s.stage) hsTip('');
   if (k === 'tv' && S.ghost?.camOnly) S.ghost = null;
+  s.snd?.stop();
+  if (ANOM[k].answer) hsAfter(0.3, () => line(ANOM[k].answer, anBox(k).c, { quiet: false }));
   delete AN.act[k];
   const pos = anBox(k).c;
   AN.fixed++;
@@ -962,7 +995,7 @@ function anTouch(k) {
 function anTap(px, py, dir) {
   if (AN.lock > 0) return true;
   if (!HS.firstInput) { HS.firstInput = true; log('first_input', { kind: 'tap' }); }
-  const cands = Object.keys(ANOM).filter(k => AN.act[k] || (!ANOM[k].ghost && (k !== 'tv' || !S.tv.on)));
+  const cands = Object.keys(ANOM).filter(k => AN.act[k] || (!ANOM[k].ghost && !ANOM[k].hidden && (k !== 'tv' || !S.tv.on) && (!ANOM[k].node || O.nodes[ANOM[k].node]?.[0]?.visible)));
   const rect = ui.canvas.getBoundingClientRect();
   let best = null, bd = 1e9;
   for (const k of cands) {
@@ -1027,6 +1060,14 @@ function anUpdate(dt) {
       snd.play('steps', [s.pos[0], 0.2, s.pos[2]]);
     }
   }
+  // rat: darts to a new spot on the floor whenever you look away
+  if (AN.act.rat) {
+    const s = AN.act.rat; s.rt = (s.rt || 0) + dt;
+    if (s.rt > 1.4 && !inView([s.pos[0], 0.1, s.pos[2]], 1.0).visible) {
+      s.rt = 0; const n = [clamp(s.pos[0] + rnd(-1, 1), -1.9, 1.9), 0, clamp(s.pos[2] + rnd(-1, 1), -2.2, 2.2)];
+      s.ry = Math.atan2(n[0] - s.pos[0], n[2] - s.pos[2]); s.pos = n; snd.play('steps', [n[0], 0.05, n[2]]);
+    }
+  }
   // cushion: once startled it flies off to a new hiding place
   if (AN.act.cushion?.fled) AN.act.cushion.fleeT = Math.min(1, AN.act.cushion.fleeT + dt * 1.2);
   // the crawler moves only while you are not looking at her
@@ -1066,9 +1107,8 @@ function anUpdate(dt) {
       return;
     }
     AN.recent = AN.recent || [];
-    const all = Object.keys(ANOM).filter(k => !AN.act[k] && (k !== 'crawl' || AN.phase >= 2));
-    const fresh = all.filter(k => !AN.used.has(k));
-    const pool = fresh.length ? fresh : all;   // nothing twice in a night until everything has had its turn
+    const pool = Object.keys(ANOM).filter(k => !AN.act[k] && !AN.everUsed.has(k) && (k !== 'crawl' || AN.phase >= 2));   // never twice in a game
+    if (!pool.length) { if (!Object.keys(AN.act).length) anEnd(); return; }
     // things she has not changed for a while first
     const order = pool.sort(() => Math.random() - 0.5).sort((x, y) => AN.recent.indexOf(x) - AN.recent.indexOf(y));
     let ok = false;
@@ -1129,7 +1169,14 @@ function anApply(dt, time) {
       for (const o of list) o.model = m4.mul(m4.trs(at, yaw, [sc, sc, sc]), m4.mul(m4.trs([o.base[12] - b0[12], o.base[13] - b0[13], o.base[14] - b0[14]]), strip(o.base)));
       continue;
     }
-    else if (k === 'drawer') X = m4.trs([-0.45 * e, 0.02 * e, 0], 0.12 * e);
+    else if (a.kind === 'shake') X = m4.trs([(Math.random() - 0.5) * 0.012 * e, Math.abs(Math.sin(time * 31)) * 0.01 * e, (Math.random() - 0.5) * 0.012 * e], (Math.random() - 0.5) * 0.06 * e);
+    else if (a.kind === 'face') X = m4.trs([0, 0, 0], e * (s.fy || 0));
+    else if (a.kind === 'flip') X = m4.trs([0, 0, 0], 0, [1, 1, 1], 0, e * PI);
+    else if (a.kind === 'move') { const b0 = list[0].base, tp = a.to, yaw = Math.atan2(EYE[0] - tp[0], EYE[2] - tp[2]);
+      X = m4.trs([(tp[0] - b0[12]) * e, 0, (tp[2] - b0[14]) * e], e * yaw); }
+    else if (a.kind === 'rat') { const b0 = list[0].base, rp = s.pos || [b0[12], 0, b0[14]]; X = m4.trs([rp[0] - b0[12], 0, rp[2] - b0[14]], s.ry || 0);
+      if (!AN.act[k] && s.k <= 0.02) for (const o of list) o.visible = false; }
+    if (a.glow) for (const o of list) o.emissive = [a.glow[0] * e, a.glow[1] * e, a.glow[2] * e, 0];
     if (!X) continue;
     const M = m4.mul(m4.mul(m4.trs(piv), X), m4.trs(v3.scale(piv, -1)));
     for (const o of list) o.model = m4.mul(M, o.base);
@@ -2498,6 +2545,7 @@ async function main() {
   TEL.event('loaded', { ms: Math.round(performance.now() - tl) });
   buildScene();
   setupModern();
+  setupLate();
   setupInput();
   setupGyro();
   resize(); addEventListener('resize', resize);

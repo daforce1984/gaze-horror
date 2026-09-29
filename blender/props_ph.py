@@ -535,3 +535,36 @@ def add_modern():
     group('mod_laptop', lp)
     group('mod_speaker', [cyl('mk_body', (dx - 0.05, dt + 0.07, dz + 0.42), 0.05, 0.13, Wm, seg=24),
                           cyl('mk_top', (dx - 0.05, dt + 0.138, dz + 0.42), 0.048, 0.006, SIL, seg=24)])
+
+
+def add_props2():
+    """twenty more things (Poly Haven CC0). They belong to the 1999 room: the engine forms them in as the fire
+    reaches them, and several become anomalies of their own. Placed clear of the furniture and the trash piles."""
+    def put(pid, name, s, pt, rotz=0.0, faces=2000, anchor='bottom', rotx=0.0, **kw):
+        ob = ph_import(pid, res=512, faces=faces, **kw)
+        ph_place(ob, s, pt, rotz=rotz, rotx=rotx, anchor=anchor)
+        ob.name = name; ob.data.name = name
+        item_origin(ob)
+        return ob
+    top = lambda n: ph_bounds(bpy.data.objects[n])[1].z
+    crate = put('wooden_crate_01', 'p_crate', 0.8, (0.85, 0, -2.3), faces=1500)
+    put('boombox', 'p_boombox', 0.62, (0.85, top('p_crate'), -2.3), faces=2500)
+    put('vintage_telephone_wall_clock', 'p_phone', 0.9, (2.2 - 0.1, 1.05, 0.95), rotz=-PI / 2, faces=2500)
+    put('side_table_01', 'p_sidetable', 1.0, (-1.85, 0, 1.55), rotz=PI / 2, faces=1500)
+    st = top('p_sidetable')
+    put('mantel_clock_01', 'p_mclock', 0.9, (-1.85, st, 1.42), rotz=PI / 2, faces=2000, drop_mats=('glass',))
+    put('wooden_candlestick', 'p_candle', 1.0, (-1.85, st, 1.74), faces=800)
+    put('vintage_video_camera', 'p_camera', 1.0, (-1.3, top('bookshelf'), 2.3), rotz=PI + 0.4, faces=2000)
+    put('street_rat', 'p_rat', 1.3, (0.3, 0, -1.3), rotz=0.7, faces=1200)
+    put('standing_chalkboard_01', 'p_chalk', 0.72, (-0.95, 0, 1.82), rotz=PI - 0.3, faces=1500)
+    put('wooden_stool_01', 'p_stool', 1.0, (1.25, 0, -0.6), faces=1500)
+    put('vintage_oil_lamp', 'p_oillamp', 0.6, (1.45, 0, 2.25), faces=1500, drop_mats=('glass',))
+    put('alarm_clock_01', 'p_alarm', 1.0, (-1.6, 0, 0.62), rotz=PI / 2 + 0.3, faces=1500)
+    put('wicker_basket_02', 'p_basket2', 1.0, (-0.75, 0, 0.98), rotz=0.6, faces=1500)
+    put('wooden_bowl_01', 'p_bowl', 1.0, (-1.5, 0, -0.35), faces=1000)
+    put('tea_set_01', 'p_teaset', 0.6, (-0.3, 0, -1.55), rotz=0.3, faces=2500)
+    put('hanging_picture_frame_02', 'p_frame2', 0.8, (-2.2 + 0.03, 1.55, 1.15), rotz=PI / 2, faces=1000, anchor='centre')
+    put('book_encyclopedia_set_01', 'p_books', 1.0, (-0.9, 0, 2.38), rotz=PI, faces=2500)
+    put('vintage_flashlight', 'p_flashlight', 1.0, (0.55, 0, -0.1), rotz=1.1, faces=1200)
+    put('sungka_board', 'p_sungka', 1.0, (-0.7, 0, 0.35), faces=1500)
+    put('vintage_pocket_watch', 'p_watch', 1.0, (-1.15, top('lowtable'), -0.8), rotx=-PI / 2, faces=1000)

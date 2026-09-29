@@ -113,6 +113,18 @@ fn hash21(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 
     return o;
   }
   var w = O.model * vec4f(lp, 1.0);
+  if (O.extra.y < -0.5) {   // cloth: hangs from the rod, sways and ripples, and bulges where the girl stands behind it
+    let t = G.camPos.w;
+    let drop = clamp(2.18 - w.y, 0.0, 2.3);
+    let sway = sin(t * 1.1 + w.z * 2.3 + w.y * 1.3) * 0.010 + sin(t * 2.7 + w.z * 6.1 - w.y * 2.0) * 0.004 + sin(t * 0.37 + w.z * 0.9) * 0.012;
+    w.x += sway * drop;
+    w.z += sin(t * 0.8 + w.y * 1.9) * 0.006 * drop;
+    let gp = G.ghostPos.xyz;
+    let near = step(abs(gp.x - w.x), 0.7) * step(0.01, G.ghostPos.w);
+    let dd = vec2f(w.z - gp.z, (w.y - clamp(w.y, 0.05, gp.y + 0.15)) * 1.4);
+    let bulge = exp(-dot(dd, dd) * 7.0) * near * (0.11 + 0.025 * sin(t * 1.8));   // her shape, breathing
+    w.x += bulge * sign(-gp.x) * select(1.0, 0.0, abs(gp.x) < 0.01);
+  }
   if (O.flags.w > 1.5 && O.extra.z > 0.0) {   // her head and shoulders lunge at you as she goes
     let vz = O.extra.z;
     w = vec4f(w.xyz + normalize(G.camPos.xyz - w.xyz) * sin(min(vz * 1.4, 1.0) * 3.14159) * 0.55 * smoothstep(0.35, 1.3, p.y), 1.0);
