@@ -155,7 +155,8 @@ def bake(key, res=1024):
     bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.004)
     bpy.ops.object.mode_set(mode='OBJECT')
-    views = [v for v in VIEWS if os.path.exists(os.path.join(MV, f'{key}_{v}_paint.png'))]
+    SKIP = {}   # (the doll's painted top view showed an upturned face: its top view is made from its back hair instead)
+    views = [v for v in VIEWS if os.path.exists(os.path.join(MV, f'{key}_{v}_paint.png')) and v not in SKIP.get(key, ())]
     for v in views:
         project_uv(ob, cams[v], size, 'proj_' + v)
     atlas = me.uv_layers['UVMap']
@@ -166,19 +167,44 @@ def bake(key, res=1024):
     for n in list(N):
         N.remove(n)
     out = N.new('ShaderNodeOutputMaterial'); emi = N.new('ShaderNodeEmission'); L.new(emi.outputs[0], out.inputs['Surface'])
-    geo = N.new('ShaderNodeNewGeometry')
+    # per-vertex weights: facing^6, times visibility from that camera (ray test: occluded -> 0), top view
+    # trusted less; normalised so they sum to one. Stored as colour attributes read by the bake shader.
+    bpy.context.view_layer.update()
+    me.calc_loop_triangles() if hasattr(me, 'calc_loop_triangles') else None
+    from mathutils.bvhtree import BVHTree
+    bvh = BVHTree.FromObject(ob, bpy.context.evaluated_depsgraph_get())
+    nv = len(me.vertices)
+    W = {v: [0.0] * nv for v in views}
+    TRUST = {'front': 1.5, 'back': 1.0, 'left': 1.0, 'right': 1.0, 'top': 0.35}
+    for vi, vert in enumerate(me.vertices):
+        co, nrm = vert.co, vert.normal
+        for v in views:
+            d = Vector(VIEWS[v][0])
+            f = max(nrm.dot(d), 0.0)
+            if f <= 0.0:
+                continue
+            hit = bvh.ray_cast(co + d * 0.002 * size, d, size * 4)
+            if hit[0] is not None:
+                continue   # something is in front of this point in that view (e.g. hair over the face)
+            W[v][vi] = TRUST[v] * f ** 6
+    for vi in range(nv):
+        tot = sum(W[v][vi] for v in views)
+        if tot <= 1e-9:   # seen by no camera: take the most facing view anyway
+            best = max(views, key=lambda v: me.vertices[vi].normal.dot(Vector(VIEWS[v][0])))
+            W[best][vi] = 1.0; tot = 1.0
+        for v in views:
+            W[v][vi] /= tot
+    for v in views:
+        at = me.color_attributes.new('w_' + v, 'FLOAT_COLOR', 'POINT')
+        at.data.foreach_set('color', [c for w in W[v] for c in (w, w, w, 1.0)])
     csum = wsum = None
     for v in views:
         d = Vector(VIEWS[v][0])
         uvn = N.new('ShaderNodeUVMap'); uvn.uv_map = 'proj_' + v
         tex = N.new('ShaderNodeTexImage'); tex.image = bpy.data.images.load(os.path.join(MV, f'{key}_{v}_paint.png')); tex.extension = 'EXTEND'
         L.new(uvn.outputs[0], tex.inputs[0])
-        dot = N.new('ShaderNodeVectorMath'); dot.operation = 'DOT_PRODUCT'; dot.inputs[1].default_value = d
-        L.new(geo.outputs['Normal'], dot.inputs[0])
-        mx0 = N.new('ShaderNodeMath'); mx0.operation = 'MAXIMUM'; mx0.inputs[1].default_value = 0.0; L.new(dot.outputs['Value'], mx0.inputs[0])
-        pw = N.new('ShaderNodeMath'); pw.operation = 'POWER'; pw.inputs[1].default_value = 4.0; L.new(mx0.outputs[0], pw.inputs[0])
-        if v == 'front':   # the original concept is the best source: trust it a bit more
-            k = N.new('ShaderNodeMath'); k.operation = 'MULTIPLY'; k.inputs[1].default_value = 1.6; L.new(pw.outputs[0], k.inputs[0]); pw = k
+        at = N.new('ShaderNodeAttribute'); at.attribute_name = 'w_' + v
+        pw = N.new('ShaderNodeMath'); pw.operation = 'MAXIMUM'; pw.inputs[1].default_value = 0.0; L.new(at.outputs['Fac'], pw.inputs[0])
         col = N.new('ShaderNodeMix'); col.data_type = 'RGBA'; col.blend_type = 'MULTIPLY'; col.inputs['Factor'].default_value = 1.0
         L.new(tex.outputs['Color'], col.inputs[6])
         cm = N.new('ShaderNodeCombineColor'); L.new(pw.outputs[0], cm.inputs[0]); L.new(pw.outputs[0], cm.inputs[1]); L.new(pw.outputs[0], cm.inputs[2])
@@ -204,6 +230,7 @@ def bake(key, res=1024):
     # final: one material with the baked atlas, one UV set
     for v in views:
         me.uv_layers.remove(me.uv_layers['proj_' + v])
+        me.color_attributes.remove(me.color_attributes['w_' + v])
     me.uv_layers.active = me.uv_layers['UVMap']
     fin = bpy.data.materials.new('M_' + key + '_baked'); fin.use_nodes = True
     bs = fin.node_tree.nodes['Principled BSDF']; ti = fin.node_tree.nodes.new('ShaderNodeTexImage'); ti.image = img
