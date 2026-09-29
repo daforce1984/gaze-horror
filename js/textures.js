@@ -172,10 +172,12 @@ export class TVScreen {
   draw(dt, intensity) {
     this.t += dt;
     const g = this.g, W = 320, H = 240, d = this.nd.data;
-    for (let i = 0; i < d.length; i += 4) { const v = Math.random() * 255 * intensity; d[i] = v; d[i + 1] = v; d[i + 2] = v * 1.05; d[i + 3] = 255; }
-    this.ng.putImageData(this.nd, 0, 0);
     g.imageSmoothingEnabled = false;
     if (this.mode === 'off') { g.fillStyle = '#050607'; g.fillRect(0, 0, W, H); return this.c; }
+    // snow: one 32-bit write per pixel (the old per-channel loop was the most expensive thing on phones)
+    const u = this.u32 || (this.u32 = new Uint32Array(d.buffer));
+    for (let i = 0; i < u.length; i++) { const v = (Math.random() * 255 * intensity) | 0; u[i] = 0xff000000 | (v << 16) | (v << 8) | v; }
+    this.ng.putImageData(this.nd, 0, 0);
     if (this.mode === 'kids') {
       const img = this.bad ? this.kidsBad : this.kids;
       g.imageSmoothingEnabled = true;

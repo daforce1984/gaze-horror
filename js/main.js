@@ -163,6 +163,10 @@ function tex(k, opt) {
 
 // ---------------------------------------------------------------- scene
 function add(o) { objects.push(o); return o; }
+// write-if-changed DOM helpers (cached per element, so a steady HUD costs nothing per frame)
+const _dom = new WeakMap();
+function put(target, key, val) { let m = _dom.get(target); if (!m) _dom.set(target, m = {}); if (m[key] !== val) { m[key] = val; target[key] = val; } }
+function cls(el, name, on) { let m = _dom.get(el); if (!m) _dom.set(el, m = {}); const k = 'c:' + name; if (m[k] !== on) { m[k] = on; el.classList.toggle(name, on); } }
 function buildScene() {
   const T = {
     wall: tex('wall'), wallClean: tex('wallClean'), floor: tex('floor'), floorClean: tex('floorClean'), ceiling: tex('ceiling'),
@@ -386,7 +390,7 @@ function hsAfter(sec, fn) { const tok = hsToken; after(sec, () => { if (tok === 
 // one subtitle channel during the chapter: the newest line replaces the old one
 function hsSay(text, dur) { sayNow(text, dur); }
 function hsNewBeat() { hsToken++; snd.stopVoices(); subQueue = []; }
-function hsTip(html) { const el = $('#hsTip'); el.innerHTML = html || ''; el.classList.toggle('show', !!html); }
+function hsTip(html) { const el = ui.hsTip || (ui.hsTip = $('#hsTip')); put(el, 'innerHTML', html || ''); cls(el, 'show', !!html); }
 function hsStart() {
   HS.on = true; ui.hud.classList.add('hs');
   S.yaw = -1.0; S.pitch = -0.12;   // the curtain sits near the centre on phones too
@@ -945,7 +949,7 @@ function anHint() {
   const el = $('#anMark');
   let best = null;
   for (const [k, s] of Object.entries(AN.act)) if (s.t > (k === 'crawl' ? 6 : HINT_AFTER) && (!best || s.t > best[1].t)) best = [k, s];
-  if (!best || !AN.on || AN.danger > 0 && false) { el.className = ''; return; }
+  if (!best || !AN.on) { put(el, 'className', ''); return; }
   const [k, s] = best;
   if (!s.hinted) { s.hinted = true; log('hint_used', { hint: 'mark_' + k, after: +s.t.toFixed(1) }); }
   const c = anBox(k).c, { f, r, u } = camBasis(), d = v3.sub(c, EYE);
@@ -953,13 +957,13 @@ function anHint() {
   const nx = v3.dot(d, r) / Math.max(z, 1e-3) / (th * a), ny = v3.dot(d, u) / Math.max(z, 1e-3) / th;
   el.querySelector('span').textContent = ANOM[k].name;
   if (z > 0.15 && Math.abs(nx) < 0.85 && Math.abs(ny) < 0.85) {
-    el.className = 'ring';
+    put(el, 'className', 'ring');
     el.style.left = `${(nx * 0.5 + 0.5) * rect.width}px`; el.style.top = `${(0.5 - ny * 0.5) * rect.height}px`; el.style.setProperty('--rot', '0deg');
   } else {
     let dx = v3.dot(d, r), dy = v3.dot(d, u);
     if (z < 0) { dx = dx >= 0 ? 1 : -1; dy = 0; }   // behind you: point the way to turn
     const ang = Math.atan2(-dy, dx), R0 = Math.min(rect.width, rect.height) * 0.36;
-    el.className = 'arrow';
+    put(el, 'className', 'arrow');
     el.style.left = `${rect.width / 2 + Math.cos(ang) * rect.width * 0.4}px`; el.style.top = `${rect.height / 2 + Math.sin(ang) * R0}px`;
     el.style.setProperty('--rot', `${ang}rad`);
   }
@@ -1954,20 +1958,16 @@ function update(dt) {
     if (S.clockSec > 60) { S.clockSec = 0; S.clock.m = Math.min(59, S.clock.m + 1); TX.clockFaceTex(clockCanvas, S.clock.h, S.clock.m); R.updateTexture(O.clockTex, clockCanvas); }
   }
 
-  // ---- UI
-  ui.ring.classList.toggle('show', ringV > 0.01);
-  ui.ring.classList.add('fetch');
-  ui.ringArc.style.strokeDashoffset = String(113 * (1 - clamp(ringV, 0, 1)));
-  ui.hint.textContent = hint; ui.hint.classList.toggle('show', !!hint); ui.hint.classList.toggle('use', hintUse);
+  // ---- UI (every write is skipped when nothing changed: each DOM touch can cost a style pass on phones)
+  cls(ui.ring, 'show', ringV > 0.01); cls(ui.ring, 'fetch', true);
+  put(ui.ringArc.style, 'strokeDashoffset', String(Math.round(113 * (1 - clamp(ringV, 0, 1)))));
+  put(ui.hint, 'textContent', hint); cls(ui.hint, 'show', !!hint); cls(ui.hint, 'use', hintUse);
   const showAct = live && ((S.act >= 3 && S.standing >= 1 && !S.final) || (S.useItem && useTarget(f)));
-  ui.action.classList.toggle('show', !!showAct);
-  if (showAct && S.useItem) ui.action.textContent = `${ITEMS[S.useItem].name} 사용`;
-  else if (showAct) ui.action.textContent = '걷기 (길게)';
-  ui.fear.style.transform = `scaleX(${S.fear})`;
-  ui.warm.style.transform = `scaleX(${S.warmth / 100})`;
-  ui.hud.classList.toggle('fear', S.fear > 0.65);
-  ui.hud.classList.toggle('cold', S.warmth < 30);
-  ui.cross.classList.toggle('hot', !!hint);
+  cls(ui.action, 'show', !!showAct);
+  if (showAct) put(ui.action, 'textContent', S.useItem ? `${ITEMS[S.useItem].name} 사용` : '걷기 (길게)');
+  put(ui.fear.style, 'transform', `scaleX(${S.fear.toFixed(2)})`);
+  put(ui.warm.style, 'transform', `scaleX(${(S.warmth / 100).toFixed(2)})`);
+  cls(ui.hud, 'fear', S.fear > 0.65); cls(ui.hud, 'cold', S.warmth < 30); cls(ui.cross, 'hot', !!hint);
   S.seeing = seeing;
 }
 function caught() {
@@ -2019,7 +2019,16 @@ function frame(dt) {
   tvScreen.mode = tc.mode === 'cctv' ? 'off' : tc.mode === 'kids' ? 'kids' : tc.mode === 'text' ? 'broadcast' : tc.mode;
   tvScreen.bad = !!tc.bad; tvScreen.lines = tc.lines || [];
   const tvI = !S.tv.on ? 0 : tc.mode === 'static' ? 0.85 + Math.random() * 0.3 : tc.mode === 'cctv' ? 0.7 : 0.75 + Math.random() * 0.08;
-  if (tc.mode !== 'cctv') R.updateTexture(O.tvTex, tvScreen.draw(dt, 1));
+  // the CRT picture is a 2D canvas: redraw + upload it only when it can change and be seen (at 30 Hz)
+  {
+    const tj = performance.now(), key = tc.mode + (tc.bad ? 1 : 0) + (tc.lines || []).join('|');
+    PERF.tvTick = (PERF.tvTick || 0) + 1;
+    const moving = tc.mode !== 'off' && tc.mode !== 'cctv', seen = inView(O.tvCenter, 1.25).visible;
+    if (tc.mode !== 'cctv' && (key !== PERF.tvKey || (moving && seen && PERF.tvTick % 2 === 0))) {
+      R.updateTexture(O.tvTex, tvScreen.draw(moving ? dt * 2 : dt, 1)); PERF.tvKey = key;
+    }
+    PERF.part('tv', performance.now() - tj);
+  }
   O.screen.visible = tc.mode !== 'cctv';
   O.cctvScreen.visible = tc.mode === 'cctv';
   O.screen.emissive = [0.9 * tvI, 0.95 * tvI, 1.15 * tvI, 1];
@@ -2193,13 +2202,22 @@ function frame(dt) {
     // the swinging bulb moves slowly: on phones (or when frames run long) its shadow map is redrawn every other frame
     PERF.frame = (PERF.frame || 0) + 1;
     const skipShadow = (gfxPreset().skip || PERF.shadowSkip) && PERF.frame % 2 === 1 && !S.bulbBurst;
+    const tr = performance.now();
     R.render(G, PST, objects, skipShadow ? null : shadowLight, camG);
+    PERF.part('render', performance.now() - tr);
 
-  snd.listener(EYE, f, u);
-  snd.update(dt, {
-    bulb: B, tvStatic: S.tv.on && tc.mode === 'static' ? 1 : S.tv.on && tc.mode !== 'kids' ? 0.25 : 0, tvHum: S.tv.on ? 0.6 : 0,
-    ghost: g && !g.camOnly ? g.alpha : 0, ghostPos: gpos, fear: S.fear, insanity: S.insanity, rain: S.rain,
-  });
+  // audio parameters at ~20 Hz: every setTargetAtTime is an automation event, 60 of them a second per param is wasteful
+  PERF.audT = (PERF.audT || 0) + dt;
+  if (PERF.audT >= 0.05) {
+    const ta = performance.now();
+    snd.listener(EYE, f, u);
+    snd.update(PERF.audT, {
+      bulb: B, tvStatic: S.tv.on && tc.mode === 'static' ? 1 : S.tv.on && tc.mode !== 'kids' ? 0.25 : 0, tvHum: S.tv.on ? 0.6 : 0,
+      ghost: g && !g.camOnly ? g.alpha : 0, ghostPos: gpos, fear: S.fear, insanity: S.insanity, rain: S.rain,
+    });
+    PERF.audT = 0;
+    PERF.part('audio', performance.now() - ta);
+  }
 }
 function m4Apply(M, p) {
   return [M[0] * p[0] + M[4] * p[1] + M[8] * p[2] + M[12], M[1] * p[0] + M[5] * p[1] + M[9] * p[2] + M[13], M[2] * p[0] + M[6] * p[1] + M[10] * p[2] + M[14]];
@@ -2237,7 +2255,11 @@ function perfTick(dt) {
   const target = gfxPreset().cap || 60;
   if (PERF.acc < 1) return;
   const avg = PERF.acc / PERF.n; PERF.fps = Math.round(1 / avg); PERF.acc = 0; PERF.n = 0;
-  if (TEL && S.started) TEL.sample(perfState());
+  if (TEL && S.started) {
+    const js = {}; for (const [k, [sum, n]] of Object.entries(PERF.parts)) js[k] = +(sum / Math.max(1, n)).toFixed(2);
+    TEL.sample({ ...perfState(), js });
+  }
+  PERF.parts = {};
   if (!S.started || S.paused) return;
   // below ~48 fps for 2 s: fewer pixels; comfortably at 60 for 5 s: a little more
   if (avg > 1 / (target * 0.8)) { PERF.slow++; PERF.fast = 0; } else if (avg < 1 / (target * 0.95)) { PERF.fast++; PERF.slow = 0; } else { PERF.slow = PERF.fast = 0; }
@@ -2301,7 +2323,7 @@ function applyGfx(choice) {
   resize();
 }
 // dynamic resolution: the loop lowers PERF.scale when frames run long and raises it back when there is headroom
-const PERF = { scale: 1, min: 0.6, acc: 0, n: 0, slow: 0, fast: 0, fps: 60, shadowSkip: false, coarse: matchMedia('(pointer: coarse)').matches };
+const PERF = { parts: {}, part(k, ms) { const p = this.parts[k] || (this.parts[k] = [0, 0]); p[0] += ms; p[1]++; }, scale: 1, min: 0.6, acc: 0, n: 0, slow: 0, fast: 0, fps: 60, shadowSkip: false, coarse: matchMedia('(pointer: coarse)').matches };
 function resize() {
   const dpr = Math.min(devicePixelRatio || 1, 2);
   let w = Math.round(innerWidth * dpr), h = Math.round(innerHeight * dpr);
@@ -2329,7 +2351,7 @@ async function main() {
   ui.load.textContent = '헤드폰을 권장합니다';
   ui.start.disabled = false;
   ui.start.addEventListener('click', () => {
-    snd.init(); snd.decodeAll();
+    snd.lite = matchMedia('(pointer: coarse)').matches; snd.init(); snd.decodeAll();
     let pref = null; try { pref = localStorage.getItem(GYRO_KEY); } catch { }
     if (document.documentElement.classList.contains('has-gyro') && pref === '1') setGyro(true);
     else if (document.documentElement.classList.contains('has-gyro') && pref === null) after(24, () => say('📱 위의 [자이로] 버튼을 누르면 폰을 움직여 둘러볼 수 있다.', 5));
@@ -2354,7 +2376,7 @@ async function main() {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     perfTick(dt);
     const t0 = performance.now();
-    try { update(dt); frame(dt); } catch (e) { if (!loop.err) { console.error(e); TEL?.event('exception', { msg: String(e.stack || e).slice(0, 500) }); } loop.err = e; window.__err = e.stack || String(e); }
+    try { update(dt); PERF.part('update', performance.now() - t0); frame(dt); } catch (e) { if (!loop.err) { console.error(e); TEL?.event('exception', { msg: String(e.stack || e).slice(0, 500) }); } loop.err = e; window.__err = e.stack || String(e); }
     const js = performance.now() - t0;
     if (TEL && S.started) {
       TEL.frame(dt, js);

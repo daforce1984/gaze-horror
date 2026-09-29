@@ -264,7 +264,8 @@ export class Sound {
   }
   loop(buf) { const s = this.ctx.createBufferSource(); s.buffer = buf; s.loop = true; s.start(0, Math.random() * 2); return s; }
   panner(p) {
-    const n = this.ctx.createPanner(); n.panningModel = 'HRTF'; n.distanceModel = 'inverse'; n.refDistance = 1; n.rolloffFactor = 0.8;
+    // HRTF convolves every source on the audio thread: fine on a PC, too heavy on phones
+    const n = this.ctx.createPanner(); n.panningModel = this.lite ? 'equalpower' : 'HRTF'; n.distanceModel = 'inverse'; n.refDistance = 1; n.rolloffFactor = 0.8;
     this.setPos(n, p); return n;
   }
   setPos(n, p) {
