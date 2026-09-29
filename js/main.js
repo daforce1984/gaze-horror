@@ -619,7 +619,7 @@ function hsGive() {
   voice('c_take', g ? [g.p[0], 1.1, g.p[2]] : null, 2.2); hsSay('“이거… 나야? 엄마랑… 나.”', 3.4);
   hsAfter(3.8, () => { voice('c_bye', g ? [g.p[0], 1.1, g.p[2]] : null, 2.2); hsSay('“엄마… 이제 가도 돼. 문 열어 줄게.”', 3.6); });
   hsAfter(5.5, () => { snd.play('creak', v3.add(EYE, [0.3, -0.5, 0])); hsSay('손목의 밧줄이 풀린다. …문을 잠근 손은, 내 손이었다.', 4); setVisible(O.nodes.rope_R, false); setVisible(O.nodes.rope_L || [], false); });
-  hsAfter(8.2, () => { if (S.ghost) S.ghost.target = 0; snd.play('unlock', [0.7, 1, 2.45]); S.yaw = PI; S.pitch = -0.05; });
+  hsAfter(8.2, () => { if (S.ghost) { S.ghost.soft = true; S.ghost.target = 0; } snd.play('unlock', [0.7, 1, 2.45]); S.yaw = PI; S.pitch = -0.05; });
   hsAfter(9.4, () => { snd.play('creak', [0.7, 1, 2.45]); S.doorOpenT = 1; S.doorLight = 0.001; snd.stopMusic(3); });
   hsAfter(12.5, () => ui.fade.classList.add('white'));
   hsAfter(15.5, () => { HS.on = false; showEnding('good'); });
@@ -862,7 +862,7 @@ function anFail(why) {
   log('anom_fail', { why, fails: AN.fails, active: Object.keys(AN.act) });
   const p = v3.add([EYE[0], 0, EYE[2]], v3.scale(flatFwd(), 0.65));
   S.ghost = { p, kind: 'stand', alpha: 0.3, target: 1, mode: 'close' };
-  snd.play('scare'); S.shake = 0.7; S.flash = 0.35; S.flashCol = [0.45, 0.04, 0.04];
+  S.shake = 0.7; S.flash = 0.35; S.flashCol = [0.45, 0.04, 0.04];
   voice('an_fail', [p[0], 1.1, p[2]], 2.4); hsSay('“엄마 바보~ 하나도 못 고쳤지롱.”', 2.5);
   touch(14, 'anom_fail');
   for (const k of Object.keys(AN.act)) { AN.back = AN.back || {}; AN.back[k] = AN.act[k]; if (k === 'tv') S.tv.on = false; if (k === 'door') S.doorOpenT = 0; }
@@ -1625,7 +1625,6 @@ function openPause() {
 function jumpscare() {
   if (S.time - S.lastScare < 3) return;
   S.lastScare = S.time;
-  snd.play('scare');
   ui.scare.classList.remove('go', 'sub'); void ui.scare.offsetWidth; ui.scare.classList.add('go');
   S.shake = 1; S.flash = 0.6; S.flashCol = [0.5, 0.05, 0.05]; S.glitch = 1;
   S.fear = 0.45; S.insanity = Math.min(S.insanity, 0.35); S.stare = 0;
@@ -1870,7 +1869,15 @@ function update(dt) {
     const v = inView(head, 0.95);
     seeing = v.visible && g.alpha > 0.3 && !g.camOnly && g.mode !== 'hide' && !HS.on;   // the game with her is not an attack: no insanity while playing
     if (seeing && !S.paused) addFear(dt * 0.04 * (0.6 + 0.45 * S.zoom));
-    if (g.target === 0 && g.alpha < 0.02) S.ghost = null;
+    // she does not fade away: she tears, lunges and crumbles (0.9 s) — except when she is let go in peace
+    if (g.target === 0 && !g.soft && (g.vanish != null || g.alpha > 0.3)) {
+      if (g.vanish == null) {
+        g.vanish = 0; S.invert = Math.max(S.invert, 0.7); S.glitch = 1; S.shake = Math.max(S.shake, 0.25);
+        snd.play('whisper', head); snd.play('static', head);
+      }
+      g.vanish += dt / 1.3; g.alpha = 1;
+      if (g.vanish >= 1) S.ghost = null;
+    } else if (g.target === 0 && g.alpha < 0.02) S.ghost = null;
     // act 1: glimpses vanish when you look at them
     if (g.mode === 'glimpse' && seeing) { g.seenT = (g.seenT || 0) + dt; if (g.seenT > 0.35) { g.target = 0; g.alpha = Math.min(g.alpha, 0.4); snd.play('giggle', head); } }
     // final approach: she moves while unseen
@@ -2137,7 +2144,7 @@ function frame(dt) {
     const list = g.kind === 'crouch' ? O.ghostCrouch : O.ghostStand;
     setVisible(list, g.alpha > 0.005);
     const clipY = g.clip || (g.mode === 'hide' && HS.spot === 'curtain' ? 0.3 : 0);
-    for (const o of list) { o.camOnly = !!g.camOnly; o.castShadow = false; o.extra[1] = clipY; }   // no cube-shadow for her (6 extra draws of a dense mesh); the blob on the floor stays
+    for (const o of list) { o.camOnly = !!g.camOnly; o.castShadow = false; o.extra[1] = clipY; o.extra[2] = Math.min(g.vanish || 0, 1); }   // no cube-shadow for her (6 extra draws of a dense mesh); the blob on the floor stays
     let p = g.p;
     if (g.twitch > 0 || S.glitch > 0.3) {
       g.twitch = Math.max(0, (g.twitch || 0) - dt * 3);

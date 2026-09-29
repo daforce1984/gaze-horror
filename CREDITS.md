@@ -20,8 +20,6 @@ Used under the [Pixabay Content License](https://pixabay.com/service/license-sum
 | giggle2 | LittleEvilLaugh | freesound_community | https://pixabay.com/sound-effects/film-special-effects-littleevillaugh-102851/ |
 | whisper | Creepy Female Ghost Whispers | FadingEmbersAudio | https://pixabay.com/sound-effects/horror-creepy-female-ghost-whispers-430175/ |
 | whisper2 | Ghost Whisper | DRAGON-STUDIO | https://pixabay.com/sound-effects/horror-ghost-whisper-351569/ |
-| scare | Scream (with echo) | freesound_community | https://pixabay.com/sound-effects/horror-scream-with-echo-46585/ |
-| scare2 | Scary Scream | DRAGON-STUDIO | https://pixabay.com/sound-effects/film-special-effects-scary-scream-401725/ |
 | curtain | Curtain opening | freesound_community | https://pixabay.com/sound-effects/household-curtain-opening-46261/ |
 
 ## Music

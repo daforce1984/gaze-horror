@@ -51,14 +51,6 @@
   "file": "assets/audio/whisper2.mp3",
   "seconds": 4.65
  },
- "scare": {
-  "file": "assets/audio/scare.mp3",
-  "seconds": 2.5
- },
- "scare2": {
-  "file": "assets/audio/scare2.mp3",
-  "seconds": 2.42
- },
  "curtain": {
   "file": "assets/audio/curtain.mp3",
   "seconds": 3.15

@@ -11,7 +11,7 @@ SFX = {
     'drawer': (0.15, 2.6, 0.85, True), 'unlock': (0.3, 0.75, 0.9, True), 'pop': (0.12, 1.32, 0.95, True),
     'static': (0.05, 1.6, 0.8, True), 'steps': (0.55, 2.6, 0.9, True), 'chime': (0.1, 9.0, 0.8, True),
     'giggle': (0.1, 3.8, 0.9, True), 'giggle2': (0.03, 4.7, 0.9, True), 'whisper': (0.1, 5.5, 0.9, True),
-    'whisper2': (0.55, 5.2, 0.9, True), 'scare': (0.1, 2.6, 0.95, False), 'scare2': (0.18, 2.6, 0.95, False),
+    'whisper2': (0.55, 5.2, 0.9, True),
     'curtain': (0.05, 3.2, 0.8, True),
     'siren': (36.0, 55.5, 0.85, True, 3.0), 'crackle': (10.0, 17.0, 0.8, True, 0.6),   # the world shifting (optional 5th: fade-in s)
 }

@@ -165,28 +165,6 @@
   "license": "https://pixabay.com/service/license-summary/"
  },
  {
-  "name": "scare",
-  "title": "Scream (with echo)",
-  "author": "freesound_community",
-  "page": "https://pixabay.com/sound-effects/horror-scream-with-echo-46585/",
-  "download": "https://cdn.pixabay.com/audio/2022/03/10/audio_c3a6b431e4.mp3",
-  "bytes": 117120,
-  "sha256": "2e56cdf85115baa52e68ca84a1456fd9b7d17e0e48f9c1d1ae603f1ef606375b",
-  "downloadedAt": "2026-09-28T22:01:49.080380",
-  "license": "https://pixabay.com/service/license-summary/"
- },
- {
-  "name": "scare2",
-  "title": "Scary Scream",
-  "author": "DRAGON-STUDIO",
-  "page": "https://pixabay.com/sound-effects/film-special-effects-scary-scream-401725/",
-  "download": "https://cdn.pixabay.com/audio/2025/09/08/audio_4cea225911.mp3",
-  "bytes": 105984,
-  "sha256": "fdd41c91fff4807e99a83f7da05d4322c860c295e8afabb91e2571dd69bece90",
-  "downloadedAt": "2026-09-28T22:01:52.071920",
-  "license": "https://pixabay.com/service/license-summary/"
- },
- {
   "name": "curtain",
   "title": "Curtain opening",
   "author": "freesound_community",
@@ -217,6 +195,28 @@
   "bytes": 1297920,
   "sha256": "fc3b2323a4e72e82b7b1c9d4f06a583e514c42c0215d2b67eccac00e85fd52cd",
   "downloadedAt": "2026-09-29T12:41:45.667236",
+  "license": "https://pixabay.com/service/license-summary/"
+ },
+ {
+  "name": "scare",
+  "title": "Horror Impact Hit",
+  "author": "Universfield",
+  "page": "https://pixabay.com/sound-effects/horror-horror-impact-hit-567238/",
+  "download": "https://cdn.pixabay.com/audio/2026/07/14/audio_b7b3f19573.mp3",
+  "bytes": 131239,
+  "sha256": "e59ae4dafafe26763518dbd1820c23dfb3389308c20aa2dfc46e814229c3f7c7",
+  "downloadedAt": "2026-09-29T19:59:00.336584",
+  "license": "https://pixabay.com/service/license-summary/"
+ },
+ {
+  "name": "scare2",
+  "title": "Horror Hit",
+  "author": "Universfield",
+  "page": "https://pixabay.com/sound-effects/horror-horror-hit-443980/",
+  "download": "https://cdn.pixabay.com/audio/2025/11/28/audio_1d878bbfe5.mp3",
+  "bytes": 92787,
+  "sha256": "c50e611cb51ae92ae8e7838eaf01d14d22ddd1b4f046fedf7e559936f5d7b9ee",
+  "downloadedAt": "2026-09-29T19:59:03.291569",
   "license": "https://pixabay.com/service/license-summary/"
  }
 ]

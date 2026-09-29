@@ -58,6 +58,14 @@ fn hash21(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 
     let g = G.params.z;
     let row = floor(p.y * 18.0);
     lp.x += (hash21(vec2f(row, floor(t * 20.0))) - 0.5) * 0.06 * g * step(0.8, hash21(vec2f(row * 3.1, floor(t * 13.0))));
+    // vanishing (extra.z 0..1): she tears into slices that jerk sideways, faster and wider as she goes
+    let vz = O.extra.z;
+    if (vz > 0.0) {
+      let vr = floor(p.y * 26.0);
+      let jer = hash21(vec2f(vr, floor(t * 24.0))) - 0.5;
+      lp.x += jer * 0.45 * vz * step(0.45 - vz * 0.4, hash21(vec2f(vr * 1.7, floor(t * 17.0))));
+      lp.z += (hash21(vec2f(vr + 5.0, floor(t * 19.0))) - 0.5) * 0.15 * vz;
+    }
   }
   if (O.extra.w > 0.5) {   // peeling flake: p = its place on the surface, n = surface normal, uv = corner, c = (rand, size, rand)
     let t = G.camPos.w;
@@ -110,7 +118,11 @@ fn hash21(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 
     o.uv = uv; o.col = vec4f(c.x, life, alive * (1.0 - smoothstep(0.65, 1.0, life)), 1.0);
     return o;
   }
-  let w = O.model * vec4f(lp, 1.0);
+  var w = O.model * vec4f(lp, 1.0);
+  if (O.flags.w > 1.5 && O.extra.z > 0.0) {   // her head and shoulders lunge at you as she goes
+    let vz = O.extra.z;
+    w = vec4f(w.xyz + normalize(G.camPos.xyz - w.xyz) * sin(min(vz * 1.4, 1.0) * 3.14159) * 0.55 * smoothstep(0.35, 1.3, p.y), 1.0);
+  }
   o.pos = G.viewProj * w;
   o.wp = w.xyz;
   let wn = (O.model * vec4f(n, 0.0)).xyz;
@@ -403,6 +415,20 @@ const GHOST = SHARED + /* wgsl */`
   let Vg = normalize(G.camPos.xyz - i.wp);
   let rim = pow(1.0 - clamp(abs(dot(nm, Vg)), 0.0, 1.0), 2.5) * select(1.0, 0.25, O.uvx.w > 0.5);
   col += vec3f(0.35, 0.45, 0.55) * rim * 0.55 * (0.4 + 0.6 * ao);
+  // vanishing: she goes black and crumbles into ash from the feet up, a dark red line where she comes apart
+  let vz = O.extra.z;
+  if (vz > 0.0) {
+    let hgt = (i.wp.y - O.model[3].y) / max(length(O.model[1].xyz), 0.01);
+    let an = noise3(i.wp * 14.0 + vec3f(0.0, -time * 2.5, 0.0)) * 0.6 + noise3(i.wp * 4.0) * 0.4;
+    let lv = hgt * 0.55 + an * 0.6;
+    let thr = smoothstep(0.25, 1.0, vz) * 1.55 - 0.08;   // black first, then the ash eats her from the feet up
+    if (lv < thr) { discard; }
+    let edgeV = 1.0 - smoothstep(0.0, 0.03, lv - thr);
+    col = mix(col, vec3f(0.004, 0.003, 0.003), smoothstep(0.0, 0.3, vz));
+    col += vec3f(0.05, 0.002, 0.002) * edgeV;   // barely a colour at the tear: she just comes apart into black
+    col = fog(col, i.wp);
+    return vec4f(col, 1.0);
+  }
   if (O.uvx.z > 0.5) {
     // hair: one flat wet-black with a faint cold sheen, independent of each lock's normal,
     // so overlapping locks never flicker against each other

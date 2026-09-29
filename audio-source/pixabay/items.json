@@ -75,16 +75,6 @@
   "match": "^Ghost Whisper$"
  },
  {
-  "name": "scare",
-  "query": "horror scream",
-  "match": "^Scream \\(with echo\\)$"
- },
- {
-  "name": "scare2",
-  "query": "horror scream",
-  "match": "^Scary Scream$"
- },
- {
   "name": "curtain",
   "query": "curtain",
   "match": "^Curtain opening$"
@@ -98,5 +88,15 @@
   "name": "crackle",
   "query": "paper burning crackle",
   "match": "^Paper Burn$"
+ },
+ {
+  "name": "scare",
+  "query": "horror impact",
+  "match": "^Horror Impact Hit$"
+ },
+ {
+  "name": "scare2",
+  "query": "horror impact",
+  "match": "^Horror Hit$"
  }
 ]
