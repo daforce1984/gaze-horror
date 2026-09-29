@@ -1,6 +1,6 @@
 // Procedural horror soundscape (WebAudio). No audio files needed.
 const SAMPLES = ['knock', 'bang', 'creak', 'drawer', 'unlock', 'pop', 'static', 'steps', 'chime', 'giggle', 'giggle2',
-  'whisper', 'whisper2', 'scare', 'scare2', 'curtain', 'buzz', 'tvloop', 'music_room', 'music_chase', 'song'];
+  'whisper', 'whisper2', 'scare', 'scare2', 'curtain', 'buzz', 'tvloop', 'music_room', 'music_chase', 'song', 'siren', 'crackle'];
 
 const VOICES = ['c_intro', 'c_first', 'c_bring1', 'c_bring2', 'c_bring3', 'c_heavy', 'c_cold', 'c_cctv', 'c_doll', 'c_song',
   'c_wait', 'c_why', 'c_rope', 'c_turn', 'c_look', 'c_stay', 'c_found', 'c_clock', 'c_door', 'c_take', 'c_bye', 'c_end',
@@ -293,6 +293,7 @@ export class Sound {
     // recorded Pixabay samples first; synthetic versions remain as fallbacks and layers
     const REC = {
       knock: ['knock', 1.2], bang: ['bang', 1.1], creak: ['creak', 1.0], drawer: ['drawer', 1.2], unlock: ['unlock', 1.3],
+      siren: ['siren', 0.75], crackle: ['crackle', 1.1],
       pop: ['pop', 1.2], static: ['static', 0.45], steps: ['steps', 1.1], chime: ['chime', 1.0], curtain: ['curtain', 1.0],
       giggle: [Math.random() < 0.5 ? 'giggle' : 'giggle2', 0.9], whisper: [Math.random() < 0.5 ? 'whisper' : 'whisper2', 0.9],
     };

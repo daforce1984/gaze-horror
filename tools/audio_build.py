@@ -13,6 +13,7 @@ SFX = {
     'giggle': (0.1, 3.8, 0.9, True), 'giggle2': (0.03, 4.7, 0.9, True), 'whisper': (0.1, 5.5, 0.9, True),
     'whisper2': (0.55, 5.2, 0.9, True), 'scare': (0.1, 2.6, 0.95, False), 'scare2': (0.18, 2.6, 0.95, False),
     'curtain': (0.05, 3.2, 0.8, True),
+    'siren': (36.0, 55.5, 0.85, True, 3.0), 'crackle': (10.0, 17.0, 0.8, True, 0.6),   # the world shifting (optional 5th: fade-in s)
 }
 LOOPS = {'buzz': (20.0, 30.0, 1.5, 0.8), 'tvloop': (1.0, 12.0, 1.5, 0.8)}  # start, end, crossfade, peak
 MUSIC = {'music_room': ('ambient_take01/minimax_music_00012.flac', 4.0, 0.6), 'music_chase': ('chase_take01/minimax_music_00013.flac', 3.0, 0.62),
@@ -41,11 +42,11 @@ def write(name, x, sr):
 
 
 meta = {}
-for name, (a, b, peak, mono) in SFX.items():
+for name, (a, b, peak, mono, *fin) in SFX.items():
     x, sr = sf.read(os.path.join(PX, name + '.mp3'), always_2d=True)
     x = x[int(a * sr): int(b * sr) if b else None].copy()
     if mono: x = x.mean(1, keepdims=True)
-    x = fade(x, sr); x *= peak / max(1e-6, np.abs(x).max())
+    x = fade(x, sr, fin[0] if fin else 0.008, 0.6 if fin else 0.15); x *= peak / max(1e-6, np.abs(x).max())
     meta[name] = write(name, x, sr)
 for name, (a, b, xf, peak) in LOOPS.items():
     x, sr = sf.read(os.path.join(PX, name + '.mp3'), always_2d=True)

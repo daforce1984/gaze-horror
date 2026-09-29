@@ -259,7 +259,19 @@ function buildScene() {
     { o: add(R.object(quad, handsTex, { pipe: 'blend', model: m4.trs([-0.25, 1.1, 2.486], PI, [0.7, 0.7, 1]), clamp: true, tint: [1, 1, 1, 0] })), at: 0.8 },
     { o: add(R.object(quad, handsTex, { pipe: 'blend', model: m4.trs([2.186, 1.0, -1.3], -PI / 2, [0.6, 0.6, 1], 0, 1.2), clamp: true, tint: [1, 1, 1, 0] })), at: 0.45 },
   ];
-  // trash builds up as the night goes on (each pile pops in while you are not looking at it)
+  // ash: flakes that peel off the walls and floor and drift up while the other world spreads
+  {
+    const N = 1100, v = new Float32Array(N * 4 * 12), idx = new Uint32Array(N * 6);
+    for (let k = 0; k < N; k++) {
+      const r = Math.random(), y = Math.random() * 2.5;
+      const p = r < 0.3 ? [rnd(-2.1, 2.1), 0.02, rnd(-2.4, 2.4)] : r < 0.5 ? [pick([-2.17, 2.17]), y, rnd(-2.4, 2.4)] : r < 0.7 ? [rnd(-2.1, 2.1), y, pick([-2.47, 2.47])] : r < 0.85 ? [rnd(-2.1, 2.1), 2.55, rnd(-2.4, 2.4)] : [rnd(-1.8, 1.8), rnd(0.2, 2.2), rnd(-2.1, 2.1)];
+      const nn = [Math.random(), Math.random(), Math.random()], hot = Math.random() < 0.35 ? rnd(0.5, 1) : 0, sz = Math.random(), ph = Math.random();
+      [[0, 0], [1, 0], [1, 1], [0, 1]].forEach(([u, w], c) => v.set([...p, ...nn, u, w, hot, sz, ph, 1], (k * 4 + c) * 12));
+      idx.set([0, 1, 2, 0, 2, 3].map(x => x + k * 4), k * 6);
+    }
+    O.ash = add(R.object(R.mesh({ v, i: idx }), null, { pipe: 'blend', extra: [0, 0, 0, 1], order: 5 }));
+  }
+  // trash builds up as the night goes on (each pile forms out of the ash when the other world reaches it)
   O.trash = [['trash_1', 0.3], ['trash_6', 0.4], ['trash_2', 0.5], ['trash_3', 0.62], ['trash_5', 0.72], ['trash_4', 0.82]]
     .map(([n, at]) => ({ list: O.nodes[n], at, shown: false }));
   for (const t of O.trash) setVisible(t.list, false);
@@ -634,6 +646,44 @@ function turnAround() {
   log('turn', {});
 }
 
+// ================================================================ the other world (Silent Hill, 2006): a front rolls through the room,
+// the old surface chars and flakes away as ash, the rotten room is underneath. New things form out of the ash, never pop in.
+const SHIFT = { on: false, o: [0, 1.2, -2.4], r: 99, from: 0, to: 0, burn: 0, speed: 1, t: 0, big: false, cr: 0 };
+function startShift(to) {
+  const from = S.decay, big = to - from > 0.16;   // the first stains creep in quietly; the siren is for the real shifts
+  // it starts in front of you, so you watch it come
+  let o = v3.add(EYE, v3.scale(flatFwd(), 2.4)); o = [clamp(o[0], -2.1, 2.1), 1.3, clamp(o[2], -2.4, 2.4)];
+  if (S.ghost && S.ghost.alpha > 0.3 && !S.ghost.camOnly) o = [S.ghost.p[0], 1.1, S.ghost.p[2]];
+  Object.assign(SHIFT, { on: true, o, r: 0, from, to, big, t: 0, speed: big ? 0.8 : 0.55, burn: 0, cr: 0 });
+  log('shift', { from: +from.toFixed(2), to: +to.toFixed(2), big });
+  if (big) { snd.play('siren'); S.bulbBurst = Math.max(S.bulbBurst, 3.5); snd.duck(0.35, 7); }
+  snd.play('crackle', o);
+}
+function shiftUpdate(dt) {
+  if (!SHIFT.on) {
+    if (S.started && Math.abs(S.decayTarget - S.decay) > 0.004) startShift(S.decayTarget);
+    return;
+  }
+  SHIFT.t += dt;
+  SHIFT.r += SHIFT.speed * dt * (SHIFT.big && SHIFT.t < 2.5 ? 0.2 : 1);   // the siren first, then it comes
+  SHIFT.burn = Math.min(1, SHIFT.t / 1.2) * (SHIFT.big ? 1 : 0.6) * (1 - smooth(6.2, 7.5, SHIFT.r));
+  S.decay = lerp(SHIFT.from, SHIFT.to, clamp(SHIFT.r / 6.5, 0, 1));
+  // the crackle follows the front
+  SHIFT.cr -= dt;
+  if (SHIFT.cr <= 0 && SHIFT.r < 6.5) {
+    SHIFT.cr = rnd(1.4, 2.6);
+    const d = v3.norm(v3.sub(EYE, SHIFT.o)), q = v3.add(SHIFT.o, v3.scale(d, Math.min(SHIFT.r, v3.len(v3.sub(EYE, SHIFT.o)) - 0.3)));
+    snd.play('crackle', q);
+  }
+  if (SHIFT.r > 7.5) { SHIFT.on = false; S.decay = SHIFT.to; log('shift_end', {}); }
+}
+function levelAt(p) { return !SHIFT.on ? S.decay : v3.len(v3.sub(p, SHIFT.o)) < SHIFT.r ? SHIFT.to : SHIFT.from; }
+const FORMING = new Set();
+function formIn(list) { for (const o of list) { o.visible = true; o.extra[2] = 0.001; FORMING.add(o); } }
+function formUpdate(dt) {
+  for (const o of FORMING) { o.extra[2] += dt / 2.6; if (o.extra[2] >= 1) { o.extra[2] = 0; FORMING.delete(o); } }
+}
+
 // ================================================================ 이상현상 (the room turns wrong)
 // One rule, same verb as hide and seek: "이상한 곳을 눌러 원래대로 돌려요". She changes things only where you are
 // not looking; three wrong things at once gives you a few seconds to fix one, then she comes for you.
@@ -642,7 +692,7 @@ const ANOM = {
   table: { node: 'lowtable', name: '탁자', sfx: 'bang', cue: '…무언가 둥실 떠오르는 소리.', lift: 0.45 },
   tv: { node: 'tv', name: 'TV', sfx: 'static', cue: '…TV가 저절로 켜졌다.' },
   doll: { node: 'item_doll', name: '인형', sfx: 'bang', cue: '…등 뒤에서, 작은 발소리.', to: [-0.7, 0, 2.2] },   // climbs down, grows, and stands behind you (clear of the chair back) facing you
-  frame: { node: 'item_frame', name: '가족사진', sfx: 'creak', cue: '…액자가 삐걱 돌아가는 소리.' },
+  frame: { node: 'item_frame', name: '가족사진', sfx: 'creak', cue: '…액자가 삐걱삐걱 흔들리는 소리.', loopSfx: 3.5 },
   drawer: { node: 'drawer', name: '서랍', sfx: 'drawer', cue: '…서랍이 드르륵 열렸다.' },
   cushion: { node: 'cushion', name: '방석', sfx: 'whisper', cue: '…누가 속삭인다.', lift: 1.0 },
   door: { node: 'door', name: '문', sfx: 'knock', cue: '…등 뒤에서, 잠긴 문이 열리는 소리.' },
@@ -682,6 +732,7 @@ function anStart(phase) {
   HS.phase = 'anom'; HS.spot = null; S.ghost = null;
   ui.hud.classList.add('turnon');
   S.decayTarget = [0, 0.15, 0.35, 0.5][phase];
+  const bigShift = S.decayTarget - S.decay > 0.16;
   log('anom_start', { phase });
   if (phase === 1) {
     AN.script = ['tv', 'doll'];   // taught in order after the table: in front, then behind you
@@ -690,13 +741,13 @@ function anStart(phase) {
     AN.next = 1e9;
   } else if (phase === 2) {
     AN.script = ['crawl'];
-    voice('an_more', null, 2.0); hsSay('“이번엔… 나도 움직일 거야.”', 3);
-    AN.next = 3;
+    hsAfter(bigShift ? 7.5 : 0, () => { voice('an_more', null, 2.0); hsSay('“이번엔… 나도 움직일 거야.”', 3); });
+    AN.next = bigShift ? 10 : 3;
   } else {   // the last night: the bulb dies, only the TV and the moon are left
     AN.script = ['curtain'];
     S.lampDim = AN.baseDim; S.bulbBurst = 1.5; snd.play('pop', [0, 2.2, -0.6]); S.flash = 0.3; S.flashCol = [1, 0.9, 0.7];
     voice('an_last', null, 2.0); hsSay('“불이 죽어 간다… 이제 엄마도 나처럼 어둠 속에서 찾아.”', 3.6);
-    AN.next = 3.5;
+    AN.next = bigShift ? 10 : 3.5;
   }
   anHud();
 }
@@ -766,7 +817,7 @@ function anFail(why) {
   voice('an_fail', [p[0], 1.1, p[2]], 2.4); hsSay('“엄마 바보~ 하나도 못 고쳤지롱.”', 2.5);
   touch(14, 'anom_fail');
   for (const k of Object.keys(AN.act)) { AN.back = AN.back || {}; AN.back[k] = AN.act[k]; if (k === 'tv') S.tv.on = false; if (k === 'door') S.doorOpenT = 0; }
-  AN.act = {};
+  AN.act = {}; $('#anMark').className = '';
   hsAfter(1.8, () => { if (S.ghost?.mode === 'close') S.ghost.target = 0; });
   if (AN.fails >= 3) { hsAfter(2.4, () => { AN.on = false; HS.on = false; anHud(); showEnding('grab'); }); return; }
   AN.next = 4;
@@ -774,7 +825,7 @@ function anFail(why) {
 }
 function anEnd() {
   if (!AN.on) return;
-  AN.on = false; AN.act = {}; hsTip(''); anHud();
+  AN.on = false; AN.act = {}; hsTip(''); anHud(); $('#anMark').className = '';
   log('anom_end', { phase: AN.phase, fails: AN.fails, t: +S.time.toFixed(1) });
   voice('an_done', null, 2.0); hsSay('“와~ 다 찾았다! 엄마 최고!”', 2.4);
   if (AN.phase === 1) hsAfter(2.6, () => { voice('hs_again', null, 2.0); hsSay('“이번엔 진짜 숨을게. 못 찾을걸?”', 2.2); hsAfter(1.6, () => hsRound(3)); });
@@ -821,9 +872,11 @@ function anUpdate(dt) {
     if (!s.seen && inView(c, 0.9).visible) { s.seen = true; s.seenAt = s.t; log('anom_seen', { k, after: +s.t.toFixed(1) }); }
     // looked at it and did not notice: name it once (only while she is still teaching)
     if (s.seen && !s.nudged && AN.phase === 1 && s.t - s.seenAt > 8 && inView(c, 0.9).visible) { s.nudged = true; hsTip(`<b>${ANOM[k].name}</b>… 원래 저랬던가? 눌러서 돌려놔요`); log('hint_used', { hint: 'name_' + k }); }
+    if (ANOM[k].loopSfx && s.k > 0.9 && (s.t - dt) % ANOM[k].loopSfx > s.t % ANOM[k].loopSfx) snd.play(ANOM[k].sfx, c);
     // she keeps reminding you of the ones you have not found
     if (!s.seen && s.t > 9 && (s.t - dt) % 9 > s.t % 9) { snd.play(ANOM[k].sfx, c); hsSay(ANOM[k].cue, 2.4); log('hint_used', { hint: k }); if (c[2] > EYE[2] + 0.2) $('#turnBtn').classList.add('pulse'); }
   }
+  anHint();
   // the crawler moves only while you are not looking at her
   const cr = AN.act.crawl;
   if (cr && S.ghost?.mode === 'crawl') {
@@ -871,6 +924,31 @@ function anUpdate(dt) {
     if (ok) AN.streak = 0;
   }
 }
+// not found for too long: first her sounds (above), then an arrow to it, then a ring on it
+const HINT_AFTER = 15;
+function anHint() {
+  const el = $('#anMark');
+  let best = null;
+  for (const [k, s] of Object.entries(AN.act)) if (s.t > (k === 'crawl' ? 6 : HINT_AFTER) && (!best || s.t > best[1].t)) best = [k, s];
+  if (!best || !AN.on || AN.danger > 0 && false) { el.className = ''; return; }
+  const [k, s] = best;
+  if (!s.hinted) { s.hinted = true; log('hint_used', { hint: 'mark_' + k, after: +s.t.toFixed(1) }); }
+  const c = anBox(k).c, { f, r, u } = camBasis(), d = v3.sub(c, EYE);
+  const z = v3.dot(d, f), th = tanHalfY(), rect = ui.canvas.getBoundingClientRect(), a = rect.width / rect.height;
+  const nx = v3.dot(d, r) / Math.max(z, 1e-3) / (th * a), ny = v3.dot(d, u) / Math.max(z, 1e-3) / th;
+  el.querySelector('span').textContent = ANOM[k].name;
+  if (z > 0.15 && Math.abs(nx) < 0.85 && Math.abs(ny) < 0.85) {
+    el.className = 'ring';
+    el.style.left = `${(nx * 0.5 + 0.5) * rect.width}px`; el.style.top = `${(0.5 - ny * 0.5) * rect.height}px`; el.style.setProperty('--rot', '0deg');
+  } else {
+    let dx = v3.dot(d, r), dy = v3.dot(d, u);
+    if (z < 0) { dx = dx >= 0 ? 1 : -1; dy = 0; }   // behind you: point the way to turn
+    const ang = Math.atan2(-dy, dx), R0 = Math.min(rect.width, rect.height) * 0.36;
+    el.className = 'arrow';
+    el.style.left = `${rect.width / 2 + Math.cos(ang) * rect.width * 0.4}px`; el.style.top = `${rect.height / 2 + Math.sin(ang) * R0}px`;
+    el.style.setProperty('--rot', `${ang}rad`);
+  }
+}
 // what each wrong thing looks like (called every frame after the room's own animation)
 function anApply(dt, time) {
   const all = { ...(AN.back || {}), ...AN.act };
@@ -878,11 +956,15 @@ function anApply(dt, time) {
     if (!AN.act[k]) { s.k = Math.max(0, s.k - dt * 2.5); if (s.k <= 0) { delete AN.back[k]; } }
     const a = ANOM[k], e = smooth(0, 1, s.k);
     if (!a.node || k === 'tv' || k === 'door') continue;
-    const list = O.nodes[a.node], b = a.box || anBox(k), piv = b.c;
+    if (k === 'frame' && !O.photoObj.base) O.photoObj.base = O.photoObj.model.slice();
+    const list = k === 'frame' ? [...O.nodes.item_frame, O.photoObj] : O.nodes[a.node], b = a.box || anBox(k), piv = b.c;
     let X;
     if (k === 'table') X = m4.trs([0, e * (a.lift + Math.sin(time * 2.1) * 0.03), 0], e * 0.35, [1, 1, 1], 0, e * PI);
     else if (k === 'cushion') X = m4.trs([0, e * (a.lift + Math.sin(time * 1.7) * 0.05), 0], e * time * 0.6, [1, 1, 1], e * 0.5, 0);
-    else if (k === 'frame') X = m4.trs([0, 0, 0], 0, [1, 1, 1], 0, e * PI);   // upside down
+    else if (k === 'frame') {   // knocked off its nail: hangs crooked, lower, and keeps swinging
+      const nail = [0, (a.box.max[1] - a.box.c[1]) + 0.02, 0];
+      X = m4.mul(m4.mul(m4.trs([0, -0.18 * e, 0]), m4.trs(nail, 0, [1, 1, 1], 0, e * (0.75 + 0.3 * Math.sin(time * 2.6)))), m4.trs(v3.scale(nail, -1)));
+    }
     else if (k === 'doll') {   // it is simply somewhere else, bigger than you remember, looking at you
       const b0 = list[0].base, sc = s.k > 0.5 ? 2.3 : 1, at = s.k > 0.5 ? [a.to[0], a.to[1] - list[0].min[1] * sc, a.to[2]] : [b0[12], b0[13], b0[14]];
       const yaw = s.k > 0.5 ? Math.atan2(EYE[0] - at[0], EYE[2] - at[2]) + PI : 0;   // the doll's face is its -z
@@ -1670,7 +1752,7 @@ function update(dt) {
   S.blackout = damp(S.blackout, S.blackoutTarget, S.blackoutTarget > S.blackout ? 14 : 3, dt);
   S.flash = damp(S.flash, 0, 4, dt); S.shake = damp(S.shake, 0, 3, dt); S.glitch = damp(S.glitch, 0, 2.5, dt);
   S.curtainOpen = damp(S.curtainOpen, S.curtainTarget, 0.9, dt);
-  S.decay = damp(S.decay, S.decayTarget, 0.12, dt);
+  shiftUpdate(dt); formUpdate(dt);
   S.frost = damp(S.frost, Math.max(0, (45 - S.warmth) / 70), 0.8, dt);
   if (S.doorLight > 0) S.doorLight = Math.min(S.doorLight + dt * 0.5, 3);
   S.doorOpen = damp(S.doorOpen, S.doorOpenT, 0.7, dt);
@@ -1811,14 +1893,19 @@ function update(dt) {
 
   // ---- the room rots (pop-ins happen only where you are not looking)
   for (const t of O.trash) {
-    const want = S.decay >= t.at;
-    if (want !== t.shown && (!want || !inView(t.list[0] ? [t.list[0].base[12], 0.3, t.list[0].base[14]] : [0, 0, 0], 1.2).visible)) {
-      t.shown = want; setVisible(t.list, want);
-    }
+    const at = t.list[0] ? [t.list[0].base[12], 0.3, t.list[0].base[14]] : [0, 0, 0];
+    const want = levelAt(at) >= t.at;
+    if (want && !t.shown) { t.shown = true; formIn(t.list); }
+    else if (!want && t.shown) { t.shown = false; setVisible(t.list, false); }
   }
-  for (const r of O.rot) r.o.tint[3] = damp(r.o.tint[3], S.decay >= r.at ? 0.92 : 0, 0.5, dt);
-  O.scratchObj.tint[3] = damp(O.scratchObj.tint[3], S.decay > 0.45 ? 0.9 : 0, 0.5, dt);
-  if (!S.fetched.has('news') && !(S.job && S.job.w.id === 'news') && !O.newsObj.visible && S.decay > 0.6 && !inView([0.02, 0.1, 1.92], 1.2).visible) O.newsObj.visible = true;
+  for (const r of O.rot) {
+    const m = r.o.model, want = levelAt([m[12], m[13], m[14]]) >= r.at;
+    if (want && !r.shown) { r.shown = true; r.o.tint[3] = 0.92; formIn([r.o]); }
+    else if (!want && r.shown) { r.shown = false; r.o.tint[3] = 0; }
+  }
+  { const want = levelAt([0.6, 0.45, 2.49]) > 0.45;
+    if (want && !O.scratchShown) { O.scratchShown = true; O.scratchObj.tint[3] = 0.9; formIn([O.scratchObj]); } else if (!want && O.scratchShown) { O.scratchShown = false; O.scratchObj.tint[3] = 0; } }
+  if (!S.fetched.has('news') && !(S.job && S.job.w.id === 'news') && !O.newsObj.visible && levelAt([0.02, 0.1, 1.92]) > 0.6) formIn([O.newsObj]);
   O.photoObj.emissive = S.flags.photoGlow ? [0.25 + 0.2 * Math.sin(S.time * 4), 0.22, 0.18, 0] : [0, 0, 0, 0];
   if (!S.fetched.has('frame')) {
     const ruined = S.decay > 0.5;
@@ -2027,6 +2114,8 @@ function frame(dt) {
   G.set([Math.max(S.doorLight, S.act >= 3 ? 0.18 : 0), S.shadowStrength ?? 1, S.decay, S.insp ? 5.0 : 0.25], 56);
   const shadowLight = moonOwns ? [-2.6, 1.75, -0.6] : [bulbPos[0], bulbPos[1] - 0.05, bulbPos[2]];
   G.set([...shadowLight, moonOwns ? 1 : 0], 60);
+  G.set([...SHIFT.o, SHIFT.on ? SHIFT.r : 99], 64);
+  G.set([SHIFT.on ? SHIFT.from : S.decay, SHIFT.on ? SHIFT.to : S.decay, SHIFT.on ? SHIFT.burn : 0, S.decay > 0.3 ? 0.18 + S.decay * 0.2 : 0], 68);
 
   // CCTV globals (only when it is on screen)
   let camG = null;

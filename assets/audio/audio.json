@@ -63,6 +63,14 @@
   "file": "assets/audio/curtain.mp3",
   "seconds": 3.15
  },
+ "siren": {
+  "file": "assets/audio/siren.mp3",
+  "seconds": 19.5
+ },
+ "crackle": {
+  "file": "assets/audio/crackle.mp3",
+  "seconds": 7.0
+ },
  "buzz": {
   "file": "assets/audio/buzz.mp3",
   "seconds": 8.5

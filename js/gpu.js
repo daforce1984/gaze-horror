@@ -14,6 +14,8 @@ struct Globals {
   ghostPos: vec4f, // w = ghost cold light
   extra: vec4f,    // x = door light, y = shadow strength, z = room decay 0..1, w = hand light
   shadowPos: vec4f,// xyz light, w = 1 when the moon owns the shadow map
+  shift: vec4f,    // the other world spreading: xyz origin, w radius of the front
+  shift2: vec4f,   // x decay behind the front, y decay inside, z burn (ember edge / ash), w ambient ash
 };
 struct Obj {
   model: mat4x4f,
@@ -21,7 +23,7 @@ struct Obj {
   emissive: vec4f, // w = alpha cutoff
   uvx: vec4f,      // uv scale xy, offset zw
   flags: vec4f,    // x wrap lighting, y unlit, z ao amount, w emissive texture mode
-  extra: vec4f,    // x: 1 = decaying surface (tex2 clean -> tex dirty)
+  extra: vec4f,    // x: 1 = decaying surface (tex2 clean -> tex dirty), y ghost clip height, z 0<v<1 forming out of ash, w 1 = ash flakes
 };
 @group(0) @binding(0) var<uniform> G: Globals;
 @group(1) @binding(0) var<uniform> O: Obj;
@@ -53,6 +55,29 @@ fn hash21(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 
     let g = G.params.z;
     let row = floor(p.y * 18.0);
     lp.x += (hash21(vec2f(row, floor(t * 20.0))) - 0.5) * 0.06 * g * step(0.8, hash21(vec2f(row * 3.1, floor(t * 13.0))));
+  }
+  if (O.extra.w > 0.5) {   // ash flake: p = where it peels off, n = random, uv = corner, c = (hot, size, phase)
+    let t = G.camPos.w;
+    let life = fract(t * (0.07 + n.x * 0.08) + c.z);
+    let sway = vec3f(sin(t * 0.9 + n.y * 6.3), 0.0, cos(t * 0.7 + n.x * 6.3)) * (0.12 + 0.3 * life);
+    let inward = -normalize(vec3f(p.x, 0.0, p.z) + vec3f(0.001)) * life * 0.35 * step(0.05, p.y);
+    let cpos = p + sway * life + inward + vec3f(0.0, life * (0.9 + n.z * 1.4), 0.0);
+    // released where the front has just passed, plus a thin drift that never stops once the room has turned
+    let dist = length(p - G.shift.xyz);
+    let fresh = G.shift2.z * smoothstep(0.0, 0.3, G.shift.w - dist) * (1.0 - smoothstep(1.2, 2.6, G.shift.w - dist));
+    let amb = G.shift2.w * step(n.z, 0.35);
+    let gate = clamp(max(fresh, amb), 0.0, 1.0) * smoothstep(0.0, 0.08, life) * (1.0 - smoothstep(0.75, 1.0, life));
+    let f = normalize(cpos - G.camPos.xyz);
+    let r = normalize(cross(f, vec3f(0.0, 1.0, 0.0)));
+    let u = cross(r, f);
+    let ang = t * (n.x - 0.5) * 5.0 + n.y * 6.3;
+    let q = (uv - vec2f(0.5)) * vec2f(1.0, 0.6 + 0.4 * sin(t * 3.0 + n.x * 9.0));   // flakes flutter edge-on
+    let rq = vec2f(q.x * cos(ang) - q.y * sin(ang), q.x * sin(ang) + q.y * cos(ang));
+    let size = mix(0.012, 0.04, c.y) * select(0.0, 1.0, gate > 0.002);
+    let wp = cpos + (r * rq.x + u * rq.y) * size;
+    o.pos = G.viewProj * vec4f(wp, 1.0);
+    o.wp = wp; o.n = -f; o.uv = uv; o.col = vec4f(c.x, life, gate, 1.0);
+    return o;
   }
   let w = O.model * vec4f(lp, 1.0);
   o.pos = G.viewProj * w;
@@ -101,8 +126,18 @@ fn noise3(p: vec3f) -> f32 {
   return mix(a, b, u.z);
 }
 // how rotten this spot of the room is (0 clean .. 1 rotten); stains creep out of corners, floor and ceiling
+fn frontDist(p: vec3f) -> f32 { return length(p - G.shift.xyz) + (noise3(p * 2.3) - 0.5) * 0.9; }
+fn roomDecay(p: vec3f) -> f32 {
+  let passed = 1.0 - smoothstep(G.shift.w - 0.5, G.shift.w, frontDist(p));
+  return mix(G.shift2.x, G.shift2.y, passed);
+}
+// the burning, peeling edge right behind the front
+fn burnBand(p: vec3f) -> f32 {
+  let k = G.shift.w - frontDist(p);
+  return G.shift2.z * smoothstep(-0.1, 0.12, k) * (1.0 - smoothstep(0.15, 0.7, k));
+}
 fn decayMask(p: vec3f) -> f32 {
-  let d = G.extra.z;
+  let d = roomDecay(p);
   if (d <= 0.001) { return 0.0; }
   let n = noise3(p * 1.7) * 0.55 + noise3(p * 5.3) * 0.3 + noise3(p * 13.0) * 0.15;
   let dx = 2.2 - abs(p.x); let dz = 2.5 - abs(p.z);
@@ -177,13 +212,37 @@ fn fog(col: vec3f, p: vec3f) -> vec3f {
 
 const LIT = SHARED + /* wgsl */`
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
+  if (O.extra.w > 0.5) {   // ash flake
+    let q = (i.uv - vec2f(0.5)) * 2.0;
+    let edge = length(q) + (noise3(vec3f(i.uv * 5.0, i.col.x * 10.0)) - 0.5) * 0.7;
+    let a = (1.0 - smoothstep(0.55, 0.9, edge)) * i.col.z * O.tint.a;
+    if (a < 0.01) { discard; }
+    let heat = i.col.x * (1.0 - smoothstep(0.1, 0.6, i.col.y));
+    let rimE = smoothstep(0.3, 0.8, edge);
+    var col = vec3f(0.045, 0.038, 0.032) * (0.5 + 2.5 * G.ambient.r * 10.0) + vec3f(0.02);
+    col = col * 0.8 + vec3f(1.0, 0.33, 0.06) * heat * (0.6 + 1.8 * rimE) * 2.0;
+    return vec4f(fog(col, i.wp), a);
+  }
   var t = textureSample(tex, samp, i.uv);
   let t2 = textureSample(tex2, samp, i.uv);
+  var ember = 0.0;
   if (O.extra.x > 0.5) {
     let dm = decayMask(i.wp);
     let rim = 1.0 - abs(dm * 2.0 - 1.0);           // water-stain edge where rot meets clean paper
     t = mix(t2, t, dm);
-    t = vec4f(t.rgb * (1.0 - 0.45 * rim * step(0.02, G.extra.z)), t.a);
+    let burn = burnBand(i.wp);
+    // while the front passes, the edge between the two worlds chars and glows like burning paper
+    let flake = step(0.5, noise3(i.wp * 22.0)) * burn;
+    t = vec4f(t.rgb * (1.0 - 0.45 * rim * step(0.02, roomDecay(i.wp))) * (1.0 - 0.75 * burn * rim) * (1.0 - 0.5 * flake), t.a);
+    ember = rim * rim * rim * burn * (0.5 + 0.5 * noise3(i.wp * 9.0 + vec3f(0.0, G.camPos.w * 0.8, 0.0)));
+  }
+  // things that form out of the ash: burn in from the floor up with a glowing edge
+  var formEdge = 0.0;
+  if (O.extra.z > 0.0 && O.extra.z < 1.0) {
+    let v = noise3(i.wp * 11.0) * 0.55 + noise3(i.wp * 3.1) * 0.25 + clamp((i.wp.y - O.model[3].y) * 0.9, 0.0, 1.0) * 0.3;
+    let th = O.extra.z * 1.15;
+    if (v > th) { discard; }
+    formEdge = 1.0 - smoothstep(0.0, 0.08, th - v);
   }
   let a = t.a * O.tint.a;
   if (a < O.emissive.w) { discard; }
@@ -196,6 +255,7 @@ const LIT = SHARED + /* wgsl */`
     col = alb * lighting(i.wp, normalize(i.n), O.flags.x, O.flags.z) * ao;
   }
   if (O.flags.w > 0.5) { col += t.rgb * O.emissive.rgb; } else { col += O.emissive.rgb * t.a; }
+  col = col * (1.0 - 0.8 * formEdge) + vec3f(1.0, 0.3, 0.05) * (ember * 1.3 + formEdge * 1.2);
   col = fog(col, i.wp);
   return vec4f(col, a);
 }

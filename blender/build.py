@@ -701,6 +701,18 @@ def build_trash(M):
     for c in col:
         bpy.data.objects.remove(c, do_unlink=True)
     bpy.ops.rigidbody.world_remove()
+    # anything that rolled into the middle of the room (or fell through the floor) is not part of a pile
+    centres = {name: (E(cx, 0, cz), rad) for name, (cx, cz), rad, _ in piles}
+    for name in groups:
+        c, rad = centres[name]
+        keep = []
+        for o in groups[name]:
+            w = o.matrix_world.translation
+            if (Vector((w.x, w.y, 0)) - Vector((c.x, c.y, 0))).length > rad + 0.45 or w.z < -0.05:
+                bpy.data.objects.remove(o, do_unlink=True)
+            else:
+                keep.append(o)
+        groups[name] = keep
     scene.frame_set(1)
     for name, items in groups.items():
         ob = join(name, items)

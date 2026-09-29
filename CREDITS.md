@@ -38,3 +38,9 @@ The ghost girl (standing and crawling) was reconstructed from AI-generated conce
 
 ## Game design references
 *Observation Duty* (anomaly spotting), *Exit 8* (noticing what changed in a familiar space) — referenced for the loop only; no assets used.
+
+### Added SFX (Pixabay Content License)
+| name | title | author | url |
+|---|---|---|---|
+| siren | Civil Defense Siren | SoundReality | pixabay.com (see audio-source/pixabay/manifest.json) |
+| crackle | Paper Burn | freesound_community | pixabay.com (see audio-source/pixabay/manifest.json) |
