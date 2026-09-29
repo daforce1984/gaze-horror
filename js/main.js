@@ -17,15 +17,15 @@ const EYE = SEAT.slice();                 // mutable: rises when you finally sta
 const RX = 2.2, RZ = 2.5, RH = 2.6;
 const PI = Math.PI;
 const ASSETS = {
-  wall: 'assets/wall.webp', wallClean: 'assets/wall_clean.webp', floor: 'assets/floor.webp', floorClean: 'assets/floor_clean.webp',
-  ceiling: 'assets/ceiling_rot.webp', ceilClean: 'assets/ceiling.webp', rug: 'assets/rug.webp',
+  wall: 'assets/wall.webp', wallClean: 'assets/wall_modern.webp', floor: 'assets/floor.webp', floorClean: 'assets/floor_modern.webp',
+  ceiling: 'assets/ceiling_rot.webp', ceilClean: 'assets/ceil_modern.webp', rug: 'assets/rug.webp',
   // PBR maps derived from the Codex albedo (tools/pbrmaps.py): _n normal, _m occlusion/roughness/metal
-  wallN: 'assets/wall_clean_n.webp', wallM: 'assets/wall_clean_m.webp', floorN: 'assets/floor_clean_n.webp', floorM: 'assets/floor_clean_m.webp',
+  wallN: 'assets/wall_modern_n.webp', wallM: 'assets/wall_modern_m.webp', floorN: 'assets/floor_modern_n.webp', floorM: 'assets/floor_modern_m.webp',
   ceilN: 'assets/ceiling_n.webp', ceilM: 'assets/ceiling_m.webp', curtainN: 'assets/curtain_n.webp', curtainM: 'assets/curtain_m.webp',
   rugN: 'assets/rug_n.webp', rugM: 'assets/rug_m.webp', doorN: 'assets/door_n.webp', doorM: 'assets/door_m.webp',
   rope: 'assets/rope.webp', ropeN: 'assets/rope_n.webp', ropeM: 'assets/rope_m.webp', rust: 'assets/rust.webp', rustN: 'assets/rust_n.webp', rustM: 'assets/rust_m.webp',
   woodLight: 'assets/wood_light.webp', woodN: 'assets/wood_n.webp', woodM: 'assets/wood_m.webp', woodLightN: 'assets/wood_light_n.webp', woodLightM: 'assets/wood_light_m.webp',
-  curtain: 'assets/curtain.webp', wood: 'assets/wood.webp', door: 'assets/door.webp',
+  curtain: 'assets/curtain.webp', curtainModern: 'assets/curtain_modern.webp', rugModern: 'assets/rug_modern.webp', wood: 'assets/wood.webp', door: 'assets/door.webp',
   face: 'assets/ghost_face.webp', window: 'assets/window.webp', fabric: 'assets/fabric.webp', plastic: 'assets/plastic.webp',
   paper: 'assets/paper.webp', drawing: 'assets/child_drawing.webp', newspaper: 'assets/newspaper.webp', family: 'assets/family.webp',
   hands: 'assets/handprints.webp', kids: 'assets/kids_show.webp', kidsBad: 'assets/kids_show_bad.webp', ghostTex: 'assets/ghost_tex.webp', crawlTex: 'assets/ghost_crawl_tex.webp',
@@ -170,7 +170,7 @@ function cls(el, name, on) { let m = _dom.get(el); if (!m) _dom.set(el, m = {});
 function buildScene() {
   const T = {
     wall: tex('wall'), wallClean: tex('wallClean'), floor: tex('floor'), floorClean: tex('floorClean'), ceiling: tex('ceiling'),
-    ceilClean: IMG.ceilClean ? tex('ceilClean') : R.solidTexture([232, 226, 212, 255]), curtain: tex('curtain'), rug: tex('rug'), woodLight: tex('woodLight'), rope: tex('rope'), rust: tex('rust'),
+    ceilClean: IMG.ceilClean ? tex('ceilClean') : R.solidTexture([232, 226, 212, 255]), curtain: tex('curtain'), rug: tex('rug'), woodLight: tex('woodLight'), curtainModern: tex('curtainModern'), rugModern: tex('rugModern'), rope: tex('rope'), rust: tex('rust'),
     ...Object.fromEntries(['wallN', 'wallM', 'floorN', 'floorM', 'ceilN', 'ceilM', 'curtainN', 'curtainM', 'rugN', 'rugM', 'doorN', 'doorM', 'woodN', 'woodM', 'woodLightN', 'woodLightM', 'ropeN', 'ropeM', 'rustN', 'rustM']
       .filter(k => IMG[k]).map(k => [k, R.texture(IMG[k], { mips: true, srgb: false })])), wood: tex('wood'), door: tex('door'), window: tex('window'),
     fabric: tex('fabric'), plastic: tex('plastic'), paper: tex('paper'), ghostTex: tex('ghostTex', { mips: true }), crawlTex: tex('crawlTex', { mips: true }),
@@ -192,13 +192,13 @@ function buildScene() {
     M_wall: { t: T.wall, t2: T.wallClean, decay: 1, n: T.wallN, mr: T.wallM, uv: 2 }, M_floor: { t: T.floor, t2: T.floorClean, decay: 1, spec: 0.05, n: T.floorN, mr: T.floorM },
     M_ceiling: { t: T.ceiling, t2: T.ceilClean, decay: 1, n: T.ceilN, mr: T.ceilM },
     M_wood: { t: T.woodLight, n: T.woodLightN, mr: T.woodLightM }, M_wooddark: { t: T.wood, tint: [0.8, 0.75, 0.72], n: T.woodN, mr: T.woodM },
-    M_door: { t: T.door, spec: 0.12, n: T.doorN, mr: T.doorM }, M_curtain: { t: T.curtain, wrap: 0.4, n: T.curtainN, mr: T.curtainM },
+    M_door: { t: T.door, spec: 0.12, n: T.doorN, mr: T.doorM }, M_curtain: { t: T.curtain, t2: T.curtainModern, decay: 1, wrap: 0.4, n: T.curtainN, mr: T.curtainM },
     M_window: { t: T.window, unlit: true, tint: [0.3, 0.32, 0.4] }, M_tvscreen: { t: O.tvTex, unlit: true, key: 'screen' },
     M_clockface: { t: O.clockTex, key: 'clockface' }, M_bulb: { unlit: true, key: 'bulb' }, M_corridor: { unlit: true, key: 'corridor', tint: [0, 0, 0] },
     M_bag: { t: T.plastic, tint: [0.9, 0.9, 0.95], spec: 1.4 }, M_bagwhite: { spec: 0.9 }, M_paper: { t: T.paper, wrap: 0.3 }, M_cardboard: { t: T.paper, tint: [0.75, 0.6, 0.42] },
     M_dress: { t: T.fabric, wrap: 0.45, tint: [0.95, 0.95, 0.95], aoLift: 0.85 }, M_skin: { wrap: 0.35, spec: 0.3, aoLift: 0.5 }, M_hair: { spec: 1.6, wrap: 0.2, aoLift: 1.0 }, M_eye: { spec: 1.5, emissive: [0.05, 0.06, 0.06] },
     M_glassgreen: { spec: 2.0 }, M_can: { spec: 1.5 }, M_can2: { spec: 1.5 }, M_metal: { t: T.rust, n: T.rustN, mr: T.rustM, uv: 4 }, M_rope: { t: T.rope, n: T.ropeN, mr: T.ropeM, uv: 3 }, M_brass: { spec: 1.4 }, M_mirror: { spec: 2.5 },
-    M_rug: { t: T.rug, wrap: 0.3, spec: 0.02, n: T.rugN, mr: T.rugM }, M_cushion: { t: T.fabric, tint: [0.75, 0.55, 0.32], wrap: 0.4 },
+    M_rug: { t: T.rug, t2: T.rugModern, decay: 1, wrap: 0.3, spec: 0.02, n: T.rugN, mr: T.rugM }, M_cushion: { t: T.fabric, tint: [0.75, 0.55, 0.32], wrap: 0.4 },
     M_ghosttex: { t: T.ghostTex, wrap: 0.4, spec: 0.35, aoLift: 1.0 },
     M_ghostcrawl: { t: T.crawlTex, wrap: 0.4, spec: 0.35, aoLift: 1.0 },
     M_dollcloth: { wrap: 0.4 }, M_dolldress: { t: T.fabric, tint: [0.6, 0.16, 0.18], wrap: 0.4 },
