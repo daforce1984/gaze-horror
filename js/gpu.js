@@ -24,12 +24,15 @@ struct Obj {
   uvx: vec4f,      // uv scale xy, offset zw
   flags: vec4f,    // x wrap lighting, y unlit, z ao amount, w emissive texture mode
   extra: vec4f,    // x: 1 = decaying surface (tex2 clean -> tex dirty), y ghost clip height, z 0<v<1 forming out of ash, w 1 = ash flakes
+  pbr: vec4f,      // x normal map, y metal-rough map (2 = its red is occlusion), z roughness, w metalness
 };
 @group(0) @binding(0) var<uniform> G: Globals;
 @group(1) @binding(0) var<uniform> O: Obj;
 @group(1) @binding(1) var tex: texture_2d<f32>;
 @group(1) @binding(2) var samp: sampler;
 @group(1) @binding(3) var tex2: texture_2d<f32>;
+@group(1) @binding(4) var ntex: texture_2d<f32>;
+@group(1) @binding(5) var mtex: texture_2d<f32>;
 @group(0) @binding(1) var shadowMap: texture_depth_2d_array;
 @group(0) @binding(2) var shadowSamp: sampler_comparison;
 
@@ -225,6 +228,11 @@ const LIT = SHARED + /* wgsl */`
   }
   var t = textureSample(tex, samp, i.uv);
   let t2 = textureSample(tex2, samp, i.uv);
+  let tn = textureSample(ntex, samp, i.uv).xyz * 2.0 - 1.0;
+  let mr = textureSample(mtex, samp, i.uv);
+  // normal map in a cotangent frame from screen derivatives (no tangents needed)
+  let n0 = normalize(i.n);
+  let dp1 = dpdx(i.wp); let dp2 = dpdy(i.wp); let duv1 = dpdx(i.uv); let duv2 = dpdy(i.uv);
   var ember = 0.0;
   if (O.extra.x > 0.5) {
     let dm = decayMask(i.wp);
@@ -251,8 +259,24 @@ const LIT = SHARED + /* wgsl */`
   if (O.flags.y > 0.5) {
     col = alb;
   } else {
-    let ao = sqrt(i.col.r);
-    col = alb * lighting(i.wp, normalize(i.n), O.flags.x, O.flags.z) * ao;
+    var ao = sqrt(i.col.r);
+    var nrm = n0;
+    var spec = O.flags.z;
+    if (O.pbr.x > 0.5) {
+      let p1 = cross(n0, dp1); let p2 = cross(dp2, n0);
+      let T = p2 * duv1.x + p1 * duv2.x; let B = p2 * duv1.y + p1 * duv2.y;
+      let im = inverseSqrt(max(max(dot(T, T), dot(B, B)), 1e-12));
+      let nn = T * im * tn.x - B * im * tn.y + n0 * max(tn.z, 0.05);   // glTF normal maps are +y up, uv v runs down
+      nrm = select(n0, normalize(nn), dot(nn, nn) > 1e-8);
+    }
+    var metal = O.pbr.w;
+    if (O.pbr.y > 0.5) {
+      let rough = clamp(mr.g * O.pbr.z, 0.04, 1.0);
+      metal = mr.b * O.pbr.w;
+      spec = (1.0 - rough) * (1.0 - rough) * 1.6;
+      if (O.pbr.y > 1.5) { ao = ao * mix(1.0, mr.r, 0.85); }
+    }
+    col = alb * lighting(i.wp, nrm, O.flags.x, spec) * ao * (1.0 - 0.55 * metal);
   }
   if (O.flags.w > 0.5) { col += t.rgb * O.emissive.rgb; } else { col += O.emissive.rgb * t.a; }
   col = col * (1.0 - 0.8 * formEdge) + vec3f(1.0, 0.3, 0.05) * (ember * 1.3 + formEdge * 1.2);
@@ -297,7 +321,7 @@ const GHOST = SHARED + /* wgsl */`
 
 const SHADOW = /* wgsl */`
 struct SG { viewProj: mat4x4f, lightPos: vec4f };
-struct Obj { model: mat4x4f, tint: vec4f, emissive: vec4f, uvx: vec4f, flags: vec4f, extra: vec4f };
+struct Obj { model: mat4x4f, tint: vec4f, emissive: vec4f, uvx: vec4f, flags: vec4f, extra: vec4f, pbr: vec4f };
 @group(0) @binding(0) var<uniform> G: SG;
 @group(1) @binding(0) var<uniform> O: Obj;
 @vertex fn vs(@location(0) p: vec3f) -> @builtin(position) vec4f {
@@ -497,7 +521,9 @@ export class Renderer {
       { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: {} },
       { binding: 1, visibility: GPUShaderStage.FRAGMENT, texture: {} },
       { binding: 2, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
-      { binding: 3, visibility: GPUShaderStage.FRAGMENT, texture: {} }] });
+      { binding: 3, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+      { binding: 4, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+      { binding: 5, visibility: GPUShaderStage.FRAGMENT, texture: {} }] });
     this.gBind = d.createBindGroup({ layout: this.gLayout, entries: [
       { binding: 0, resource: { buffer: this.globals } },
       { binding: 1, resource: this.shadowTex.createView({ dimension: '2d-array' }) },
@@ -558,6 +584,8 @@ export class Renderer {
     this.mipModule = mip;
     this.width = 0; this.height = 0;
     this.whiteTex = this.solidTexture([255, 255, 255, 255]);
+    this.flatNormal = this.solidTexture([128, 128, 255, 255], false);
+    this.linearWhite = this.solidTexture([255, 255, 255, 255], false);
   }
 
   mipPipe(format) {
@@ -572,8 +600,8 @@ export class Renderer {
     return this.mipPipes[format];
   }
 
-  solidTexture(rgba) {
-    const t = this.device.createTexture({ size: [1, 1], format: 'rgba8unorm-srgb', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });
+  solidTexture(rgba, srgb = true) {
+    const t = this.device.createTexture({ size: [1, 1], format: srgb ? 'rgba8unorm-srgb' : 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });
     this.device.queue.writeTexture({ texture: t }, new Uint8Array(rgba), { bytesPerRow: 4 }, [1, 1]);
     return t;
   }
@@ -623,21 +651,30 @@ export class Renderer {
   // Drawable object
   object(mesh, tex, opts = {}) {
     const d = this.device;
-    const ub = d.createBuffer({ size: 144, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    const ub = d.createBuffer({ size: 160, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
     const o = {
       mesh, tex: tex || this.whiteTex, ub, pipe: opts.pipe || 'opaque', visible: true,
       model: opts.model || new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
       tint: opts.tint || [1, 1, 1, 1], emissive: opts.emissive || [0, 0, 0, 0],
       uvx: opts.uvx || [1, 1, 0, 0], flags: opts.flags || [0, 0, 1, 0], extra: opts.extra || [0, 0, 0, 0], tex2: opts.tex2 || this.whiteTex,
       clamp: !!opts.clamp, order: opts.order || 0, castShadow: opts.castShadow ?? false,
+      nrm: opts.nrm || null, mr: opts.mr || null,
+      pbr: [opts.nrm ? 1 : 0, opts.mr ? (opts.mrAO ? 2 : 1) : 0, opts.rough ?? 1, opts.metal ?? 0],
     };
-    o.bind = d.createBindGroup({ layout: this.oLayout, entries: [
-      { binding: 0, resource: { buffer: ub } },
+    this.rebind(o);
+    o._data = new Float32Array(40);
+    return o;
+  }
+
+  // (re)build an object's bind group, e.g. after swapping its texture
+  rebind(o) {
+    o.bind = this.device.createBindGroup({ layout: this.oLayout, entries: [
+      { binding: 0, resource: { buffer: o.ub } },
       { binding: 1, resource: o.tex.createView() },
       { binding: 2, resource: o.clamp ? this.samplerClamp : this.samplerRepeat },
-      { binding: 3, resource: o.tex2.createView() }] });
-    o._data = new Float32Array(36);
-    return o;
+      { binding: 3, resource: o.tex2.createView() },
+      { binding: 4, resource: (o.nrm || this.flatNormal).createView() },
+      { binding: 5, resource: (o.mr || this.linearWhite).createView() }] });
   }
 
   resize(w, h) {
@@ -676,7 +713,7 @@ export class Renderer {
     for (const o of objects) {
       if (!o.visible) continue;
       const a = o._data;
-      a.set(o.model, 0); a.set(o.tint, 16); a.set(o.emissive, 20); a.set(o.uvx, 24); a.set(o.flags, 28); a.set(o.extra, 32);
+      a.set(o.model, 0); a.set(o.tint, 16); a.set(o.emissive, 20); a.set(o.uvx, 24); a.set(o.flags, 28); a.set(o.extra, 32); a.set(o.pbr, 36);
       q.writeBuffer(o.ub, 0, a);
     }
     const enc = d.createCommandEncoder();

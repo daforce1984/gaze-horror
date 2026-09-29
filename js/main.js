@@ -17,7 +17,13 @@ const RX = 2.2, RZ = 2.5, RH = 2.6;
 const PI = Math.PI;
 const ASSETS = {
   wall: 'assets/wall.webp', wallClean: 'assets/wall_clean.webp', floor: 'assets/floor.webp', floorClean: 'assets/floor_clean.webp',
-  ceiling: 'assets/ceiling.webp', curtain: 'assets/curtain.webp', wood: 'assets/wood.webp', door: 'assets/door.webp',
+  ceiling: 'assets/ceiling_rot.webp', ceilClean: 'assets/ceiling.webp', rug: 'assets/rug.webp',
+  // PBR maps derived from the Codex albedo (tools/pbrmaps.py): _n normal, _m occlusion/roughness/metal
+  wallN: 'assets/wall_clean_n.webp', wallM: 'assets/wall_clean_m.webp', floorN: 'assets/floor_clean_n.webp', floorM: 'assets/floor_clean_m.webp',
+  ceilN: 'assets/ceiling_n.webp', ceilM: 'assets/ceiling_m.webp', curtainN: 'assets/curtain_n.webp', curtainM: 'assets/curtain_m.webp',
+  rugN: 'assets/rug_n.webp', rugM: 'assets/rug_m.webp', doorN: 'assets/door_n.webp', doorM: 'assets/door_m.webp',
+  woodLight: 'assets/wood_light.webp', woodN: 'assets/wood_n.webp', woodM: 'assets/wood_m.webp', woodLightN: 'assets/wood_light_n.webp', woodLightM: 'assets/wood_light_m.webp',
+  curtain: 'assets/curtain.webp', wood: 'assets/wood.webp', door: 'assets/door.webp',
   face: 'assets/ghost_face.webp', window: 'assets/window.webp', fabric: 'assets/fabric.webp', plastic: 'assets/plastic.webp',
   paper: 'assets/paper.webp', drawing: 'assets/child_drawing.webp', newspaper: 'assets/newspaper.webp', family: 'assets/family.webp',
   hands: 'assets/handprints.webp', kids: 'assets/kids_show.webp', kidsBad: 'assets/kids_show_bad.webp', ghostTex: 'assets/ghost_tex.webp', crawlTex: 'assets/ghost_crawl_tex.webp',
@@ -158,7 +164,9 @@ function add(o) { objects.push(o); return o; }
 function buildScene() {
   const T = {
     wall: tex('wall'), wallClean: tex('wallClean'), floor: tex('floor'), floorClean: tex('floorClean'), ceiling: tex('ceiling'),
-    ceilClean: R.solidTexture([232, 226, 212, 255]), curtain: tex('curtain'), wood: tex('wood'), door: tex('door'), window: tex('window'),
+    ceilClean: IMG.ceilClean ? tex('ceilClean') : R.solidTexture([232, 226, 212, 255]), curtain: tex('curtain'), rug: tex('rug'), woodLight: tex('woodLight'),
+    ...Object.fromEntries(['wallN', 'wallM', 'floorN', 'floorM', 'ceilN', 'ceilM', 'curtainN', 'curtainM', 'rugN', 'rugM', 'doorN', 'doorM', 'woodN', 'woodM', 'woodLightN', 'woodLightM']
+      .filter(k => IMG[k]).map(k => [k, R.texture(IMG[k], { mips: true, srgb: false })])), wood: tex('wood'), door: tex('door'), window: tex('window'),
     fabric: tex('fabric'), plastic: tex('plastic'), paper: tex('paper'), ghostTex: tex('ghostTex', { mips: true }), crawlTex: tex('crawlTex', { mips: true }),
     blob: R.texture(TX.radialTex('rgba(0,0,0,0.9)', 'rgba(0,0,0,0)')),
     halo: R.texture(TX.radialTex('rgba(255,210,150,1)', 'rgba(255,160,80,0)')),
@@ -175,31 +183,36 @@ function buildScene() {
 
   // decaying shell: tex = rotten, tex2 = the clean 1999 room
   const MAT = {
-    M_wall: { t: T.wall, t2: T.wallClean, decay: 1 }, M_floor: { t: T.floor, t2: T.floorClean, decay: 1, spec: 0.05 },
-    M_ceiling: { t: T.ceiling, t2: T.ceilClean, decay: 1 },
-    M_wood: { t: T.wood, tint: [0.95, 0.9, 0.85], spec: 0.2 }, M_wooddark: { t: T.wood, tint: [0.42, 0.36, 0.32], spec: 0.25 },
-    M_door: { t: T.door, spec: 0.12 }, M_curtain: { t: T.curtain, wrap: 0.4 },
+    M_wall: { t: T.wall, t2: T.wallClean, decay: 1, n: T.wallN, mr: T.wallM, uv: 2 }, M_floor: { t: T.floor, t2: T.floorClean, decay: 1, spec: 0.05, n: T.floorN, mr: T.floorM },
+    M_ceiling: { t: T.ceiling, t2: T.ceilClean, decay: 1, n: T.ceilN, mr: T.ceilM },
+    M_wood: { t: T.woodLight, n: T.woodLightN, mr: T.woodLightM }, M_wooddark: { t: T.wood, tint: [0.8, 0.75, 0.72], n: T.woodN, mr: T.woodM },
+    M_door: { t: T.door, spec: 0.12, n: T.doorN, mr: T.doorM }, M_curtain: { t: T.curtain, wrap: 0.4, n: T.curtainN, mr: T.curtainM },
     M_window: { t: T.window, unlit: true, tint: [0.3, 0.32, 0.4] }, M_tvscreen: { t: O.tvTex, unlit: true, key: 'screen' },
     M_clockface: { t: O.clockTex, key: 'clockface' }, M_bulb: { unlit: true, key: 'bulb' }, M_corridor: { unlit: true, key: 'corridor', tint: [0, 0, 0] },
     M_bag: { t: T.plastic, tint: [0.9, 0.9, 0.95], spec: 1.4 }, M_bagwhite: { spec: 0.9 }, M_paper: { t: T.paper, wrap: 0.3 }, M_cardboard: { t: T.paper, tint: [0.75, 0.6, 0.42] },
     M_dress: { t: T.fabric, wrap: 0.45, tint: [0.95, 0.95, 0.95], aoLift: 0.85 }, M_skin: { wrap: 0.35, spec: 0.3, aoLift: 0.5 }, M_hair: { spec: 1.6, wrap: 0.2, aoLift: 1.0 }, M_eye: { spec: 1.5, emissive: [0.05, 0.06, 0.06] },
     M_glassgreen: { spec: 2.0 }, M_can: { spec: 1.5 }, M_can2: { spec: 1.5 }, M_metal: { spec: 1.2 }, M_brass: { spec: 1.4 }, M_mirror: { spec: 2.5 },
-    M_rug: { t: T.fabric, tint: [0.55, 0.22, 0.18], wrap: 0.3, spec: 0.02 }, M_cushion: { t: T.fabric, tint: [0.75, 0.55, 0.32], wrap: 0.4 },
+    M_rug: { t: T.rug, wrap: 0.3, spec: 0.02, n: T.rugN, mr: T.rugM }, M_cushion: { t: T.fabric, tint: [0.75, 0.55, 0.32], wrap: 0.4 },
     M_ghosttex: { t: T.ghostTex, wrap: 0.4, spec: 0.35, aoLift: 1.0 },
     M_ghostcrawl: { t: T.crawlTex, wrap: 0.4, spec: 0.35, aoLift: 1.0 },
     M_dollcloth: { wrap: 0.4 }, M_dolldress: { t: T.fabric, tint: [0.6, 0.16, 0.18], wrap: 0.4 },
   };
   const NO_SHADOW = new Set(['floor', 'ceiling', 'wall_front', 'wall_back', 'wall_left', 'wall_right', 'trim', 'corridor', 'bulb', 'window_glass', 'clock_face', 'tv_screen']);
   O.nodes = {};
+  // PBR maps that came inside the GLB (Poly Haven props, retextured pieces): one GPU texture per image
+  const texCache = new Map();
+  const gpuTex = (img, srgb) => { if (!img) return null; const k = img; if (!texCache.has(k)) texCache.set(k, R.texture(img, { mips: true, srgb })); return texCache.get(k); };
   const addNode = (node, pipe = 'opaque', ghost = false) => {
     const list = node.prims.map(pr => {
       const m = MAT[pr.material.name] || {};
-      const c = pr.material.color;
-      const tint = m.tint ? [...m.tint, 1] : m.t ? [1, 1, 1, 1] : [c[0], c[1], c[2], 1];
+      const c = pr.material.color, maps = pr.material.maps || {};
+      const base = m.t || gpuTex(maps.base, true);
+      const tint = m.tint ? [...m.tint, 1] : base ? [c[0], c[1], c[2], 1].map((v, k) => maps.base && !m.t ? v : 1) : [c[0], c[1], c[2], 1];
       const spec = m.spec ?? Math.min(1.2, (1 - pr.material.rough) ** 2 * 1.3);
-      const o = add(R.object(R.mesh(pr.geo), m.t || null, {
-        pipe, model: node.matrix.slice(), tint, emissive: [...(m.emissive || [0, 0, 0]), ghost ? (m.aoLift || 0) : 0],
-        flags: [m.wrap ?? 0.1, m.unlit ? 1 : 0, spec, ghost ? 2 : 0], uvx: [1, 1, ghost && pr.material.name === 'M_hair' ? 1 : 0, ghost && m.t ? 1 : 0],
+      const o = add(R.object(R.mesh(pr.geo), base || null, {
+        nrm: ghost ? null : m.n || gpuTex(maps.normal, false), mr: ghost ? null : m.mr || gpuTex(maps.mr, false), mrAO: m.mr ? true : maps.mrAO, rough: m.mr ? 1 : pr.material.rough, metal: m.mr ? 1 : pr.material.metal,
+        pipe: pr.material.cutout && pipe === 'opaque' ? 'cutout' : pipe, model: node.matrix.slice(), tint, emissive: [...(m.emissive || [0, 0, 0]), ghost ? (m.aoLift || 0) : pr.material.cutout ? 0.5 : 0],
+        flags: [m.wrap ?? 0.1, m.unlit ? 1 : 0, spec, ghost ? 2 : 0], uvx: [m.uv || 1, m.uv || 1, ghost && pr.material.name === 'M_hair' ? 1 : 0, ghost && m.t ? 1 : 0],
         castShadow: !NO_SHADOW.has(node.name), tex2: m.t2, extra: [m.decay ? 1 : 0, 0, 0, 0],
       }));
       o.base = node.matrix; o.min = pr.min; o.max = pr.max;
@@ -241,7 +254,8 @@ function buildScene() {
   doc('news', TX.newsTex(IMG.newspaper), m4.trs([0.02, 0.006, 1.92], 0.5, [0.36, 0.27, 1], -PI / 2));
   const fb = O.nodes.item_frame[0].base;
   O.familyClean = TX.familyTex(IMG.family, 0); O.familyRuined = TX.familyTex(IMG.family, 1);
-  doc('photo', O.familyClean, m4.trs([fb[12], fb[13], -2.462], 0, [0.28, 0.35, 1]));
+  const fz = Math.min(...O.nodes.item_frame.map(o => o.base[14] + o.min[2]));   // back of the frame, on the wall
+  doc('photo', O.familyClean, m4.trs([fb[12], fb[13], fz + 0.006], 0, [0.3, 0.4, 1]));
   O.photoTex = O.photoObj.tex;
   O.photoRuinTex = R.texture(O.familyRuined);
   const sc = doc('scratch', TX.scratchTex(), m4.trs([0.62, 0.42, 2.527], PI, [0.34, 0.68, 1]), 'blend');
@@ -1912,9 +1926,7 @@ function update(dt) {
     if (ruined !== !!O.photoRuinedShown && !inView([-0.78, 1.55, -2.46], 1.2).visible) {
       O.photoRuinedShown = ruined;
       O.photoObj.tex = ruined ? O.photoRuinTex : O.photoTex;
-      O.photoObj.bind = R.device.createBindGroup({ layout: R.oLayout, entries: [
-        { binding: 0, resource: { buffer: O.photoObj.ub } }, { binding: 1, resource: O.photoObj.tex.createView() },
-        { binding: 2, resource: R.samplerClamp }, { binding: 3, resource: R.whiteTex.createView() }] });
+      R.rebind(O.photoObj);
     }
   }
 

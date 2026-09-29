@@ -1,4 +1,4 @@
-// Minimal GLB loader: meshes (POSITION/NORMAL/TEXCOORD_0/COLOR_0), materials, node transforms.
+// Minimal GLB loader: meshes (POSITION/NORMAL/TEXCOORD_0/COLOR_0), materials with embedded PBR maps, node transforms.
 const COMP = { 5120: Int8Array, 5121: Uint8Array, 5122: Int16Array, 5123: Uint16Array, 5125: Uint32Array, 5126: Float32Array };
 const SIZE = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
 const NORM = { 5121: 255, 5123: 65535, 5120: 127, 5122: 32767 };
@@ -39,9 +39,25 @@ export async function loadGLB(url) {
     else if (type === 0x004e4942) bin = chunk;
     off += 8 + len;
   }
+  // embedded images (png / jpeg / webp) decoded once, shared between materials
+  const imgs = await Promise.all((json.images || []).map(async im => {
+    if (im.bufferView == null) return null;
+    const bv = json.bufferViews[im.bufferView];
+    const bytes = new Uint8Array(bin.buffer, bin.byteOffset + (bv.byteOffset || 0), bv.byteLength);
+    try { return await createImageBitmap(new Blob([bytes], { type: im.mimeType || 'image/png' }), { colorSpaceConversion: 'none' }); } catch { return null; }
+  }));
+  const texImg = (ti) => {
+    if (!ti) return null;
+    const t = json.textures[ti.index]; if (!t) return null;
+    const src = t.source ?? t.extensions?.EXT_texture_webp?.source;
+    return src != null ? imgs[src] : null;
+  };
   const mats = (json.materials || []).map(m => {
     const p = m.pbrMetallicRoughness || {};
-    return { name: m.name, color: p.baseColorFactor || [1, 1, 1, 1], rough: p.roughnessFactor ?? 1, metal: p.metallicFactor ?? 0 };
+    const mr = texImg(p.metallicRoughnessTexture), occ = texImg(m.occlusionTexture);
+    return { name: m.name, color: p.baseColorFactor || [1, 1, 1, 1], rough: p.roughnessFactor ?? 1, metal: p.metallicFactor ?? 0,
+      maps: { base: texImg(p.baseColorTexture), normal: texImg(m.normalTexture), mr, mrAO: !!mr && mr === occ },
+      blend: m.alphaMode === 'BLEND', cutout: m.alphaMode === 'MASK' };
   });
   const meshes = (json.meshes || []).map(me => me.primitives.map(pr => {
     const A = pr.attributes;

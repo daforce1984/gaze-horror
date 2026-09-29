@@ -586,6 +586,9 @@ def build_room():
     # ---- trash piles by rigid body simulation
     build_trash(M)
     build_props(M)
+    upgrade_props(M)   # Poly Haven pieces take over (blender/props_ph.py)
+    upgrade_hy()       # Hunyuan3D doll / remote
+    ph_cleanup()
 
 
 def crumple(bm, amt, freq, seed):
@@ -670,13 +673,18 @@ def build_trash(M):
         order = [k for k, n in counts.items() for _ in range(n)]
         order.sort(key=lambda k: 0 if k in ('pizza', 'rag') else 1 if k == 'bag' else 2)
         for i, kind in enumerate(order):
-            r = trash_item(kind, M, rnd)
-            if not r:
-                continue
-            bm, mt = r
             a, d = rnd.uniform(0, 2 * PI), rad * math.sqrt(rnd.random())
             h = 0.12 + i * 0.07
-            ob = from_bm('%s_%s%d' % (name, kind, i), bm, mt, E(cx + math.cos(a) * d, h, cz + math.sin(a) * d))
+            ob = ph_trash_item(kind, rnd)   # scanned bags, cans, bottles, boxes
+            if ob:
+                ob.location = E(cx + math.cos(a) * d, h + (0.15 if kind == 'bag' else 0), cz + math.sin(a) * d)
+            else:
+                r = trash_item(kind, M, rnd)
+                if not r:
+                    continue
+                bm, mt = r
+                ob = from_bm('%s_%s%d' % (name, kind, i), bm, mt, E(cx + math.cos(a) * d, h, cz + math.sin(a) * d))
+                world_uv(ob, 0.35)
             ob.rotation_euler = (rnd.uniform(0, 2 * PI), rnd.uniform(0, 2 * PI), rnd.uniform(0, 2 * PI)) if kind not in ('pizza', 'rag') else (rnd.uniform(-0.2, 0.2), rnd.uniform(-0.2, 0.2), rnd.uniform(0, PI))
             bpy.context.view_layer.objects.active = ob
             bpy.ops.rigidbody.object_add(type='ACTIVE')
@@ -715,10 +723,12 @@ def build_trash(M):
         groups[name] = keep
     scene.frame_set(1)
     for name, items in groups.items():
+        for o in items:   # linked duplicates of the scanned pieces: give each its own mesh before joining
+            if o.data.users > 1:
+                o.data = o.data.copy()
         ob = join(name, items)
         bpy.context.view_layer.objects.active = ob
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-        world_uv(ob, 0.35)
 
 
 # ------------------------------------------------------------------------------------------
@@ -1089,6 +1099,8 @@ def build_ghost():
 
 
 # ------------------------------------------------------------------------------------------
+exec(open(os.path.join(HERE, 'props_ph.py'), encoding='utf-8').read())
+
 OPEN_MESHES = ('floor', 'ceiling', 'wall_', 'curtain_L', 'curtain_R', 'window_glass', 'tv_screen', 'clock_face', 'corridor', 'ghost_')
 
 
@@ -1098,7 +1110,7 @@ def smooth_all():
     for o in meshes:
         if o.modifiers:
             apply_mods(o)
-        if not o.name.startswith(OPEN_MESHES):
+        if not o.name.startswith(OPEN_MESHES) and 'ph' not in o:
             # closed props: make every face point outwards (grid fill / joins can flip islands)
             bm = bmesh.new()
             bm.from_mesh(o.data)
@@ -1146,7 +1158,8 @@ def export(name, ghost=False):
     bpy.ops.object.select_all(action='SELECT')
     path = os.path.join(OUT, name)
     bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=False, export_apply=True,
-                              export_image_format='NONE', export_vertex_color='ACTIVE', export_all_vertex_colors=False,
+                              export_image_format='WEBP' if not ghost else 'NONE', export_image_quality=82,
+                              export_vertex_color='ACTIVE', export_all_vertex_colors=False,
                               export_materials='EXPORT', export_yup=True, export_texcoords=True, export_normals=True,
                               export_extras=False, export_cameras=False, export_lights=False)
     print('EXPORTED', path, os.path.getsize(path))
