@@ -147,7 +147,7 @@ async function loadAll() {
     IMG[k] = await loadImage(ASSETS[k]);
     n++; ui.load.textContent = `불러오는 중… ${Math.round(n / keys.length * 100)}%`;
   }));
-  const [room, ghost] = await Promise.all([loadGLB('assets/room.glb'), loadGLB('assets/ghost.glb'), snd.prefetch()]);
+  const [room, ghost] = await Promise.all([loadGLB('assets/room.glb'), loadGLB('assets/ghost.glb'), snd.prefetch().then(() => snd.predecode())]);
   GLB.room = room; GLB.ghost = ghost;
   try { await document.fonts.load('bold 60px "Nanum Pen Script"'); } catch { }
 }
@@ -2393,6 +2393,11 @@ async function main() {
   setupInput();
   setupGyro();
   resize(); addEventListener('resize', resize);
+  // warm-up: draw every object once (ghost, trash, blood, flakes... all hidden at the start) so shaders,
+  // pipelines and textures are ready before play, instead of stalling the first time each one appears
+  ui.load.textContent = '준비 중…';
+  R.warm = true; try { frame(1 / 60); frame(1 / 60); } catch (e) { console.warn(e); } R.warm = false;
+  await R.device.queue.onSubmittedWorkDone();
   ui.load.textContent = '헤드폰을 권장합니다';
   ui.start.disabled = false;
   ui.start.addEventListener('click', () => {

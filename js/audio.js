@@ -70,6 +70,19 @@ export class Sound {
     this.verb.connect(out).connect(this.master);   // one output, however many voices send into it
     return this.verb;
   }
+  // decode everything while the title screen is up (an offline context needs no user gesture); a few at a
+  // time so the page stays responsive. AudioBuffers work in any context, so the live one just uses them.
+  async predecode() {
+    const C = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    if (!C) return;
+    const off = new C(1, 1, 44100), items = Object.entries(this.raw);
+    for (let i = 0; i < items.length; i += 4) {
+      await Promise.all(items.slice(i, i + 4).map(async ([n, ab]) => {
+        try { this.buf[n] = await off.decodeAudioData(ab.slice(0)); delete this.raw[n]; } catch { }
+      }));
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
   async decodeAll() {
     await Promise.all(Object.entries(this.raw).map(async ([n, ab]) => {
       try { this.buf[n] = await this.ctx.decodeAudioData(ab.slice(0)); } catch (e) { console.warn('audio decode failed', n, e); }

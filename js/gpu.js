@@ -894,8 +894,8 @@ export class Renderer {
   drawScene(pass, bind, objects, planes) {
     pass.setBindGroup(0, bind);
     const rank = { opaque: 0, cutout: 1, blend: 2, ghost: 3, add: 4 };
-    const list = objects.filter(o => o.visible && !(bind === this.gBindCam && o.noCam) && !(bind === this.gBind && o.camOnly)
-      && (!planes || o.noCull || sphereIn(planes, o._wc, o._wr))).sort((a, b) => (rank[a.pipe] - rank[b.pipe]) || (a.order - b.order));
+    const list = objects.filter(o => (o.visible || this.warm) && !(bind === this.gBindCam && o.noCam) && !(bind === this.gBind && o.camOnly)
+      && (!planes || o.noCull || this.warm || sphereIn(planes, o._wc, o._wr))).sort((a, b) => (rank[a.pipe] - rank[b.pipe]) || (a.order - b.order));
     let cur = null;
     if (bind === this.gBind) { this.stats.draws = list.length; this.stats.tris = list.reduce((n, o) => n + o.mesh.count / 3, 0); }
     for (const o of list) {
@@ -914,7 +914,7 @@ export class Renderer {
     const D = this.objData;
     let top = 0;
     for (const o of objects) {
-      if (!o.visible) continue;
+      if (!o.visible && !this.warm) continue;
       const b = o.slot * 64, m = o.model;
       D.set(m, b); D.set(o.tint, b + 16); D.set(o.emissive, b + 20); D.set(o.uvx, b + 24); D.set(o.flags, b + 28); D.set(o.extra, b + 32); D.set(o.pbr, b + 36);
       if (o.slot + 1 > top) top = o.slot + 1;
