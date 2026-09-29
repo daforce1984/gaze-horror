@@ -262,7 +262,7 @@ const LIT = SHARED + /* wgsl */`
     let da = (1.0 - smoothstep(0.4, 1.0, dq)) * i.col.z * 0.85;
     if (da < 0.01) { discard; }
     let cool = clamp((i.col.y - 2.0) * 1.6, 0.0, 1.0);
-    let dc = mix(vec3f(1.0, 0.38, 0.07) * 1.8, vec3f(0.05, 0.045, 0.04), cool);   // a spark that cools to ash
+    let dc = mix(vec3f(0.14, 0.012, 0.008), vec3f(0.04, 0.005, 0.005), cool);   // dark red crumbs
     return vec4f(fog(dc, i.wp), da);
   }
   if (O.extra.w > 0.5) {   // peeling flake: old wallpaper on its face, rust eating in from the ragged edge
@@ -281,10 +281,12 @@ const LIT = SHARED + /* wgsl */`
     let rustN = noise3(vec3f(i.uv * 9.0, i.col.x * 5.0));
     let rustAmt = clamp(0.25 + i.col.y * 1.8 + smoothstep(0.25, 0.7, edge) * 0.9 + (rustN - 0.5) * 0.5, 0.0, 1.0);
     let rust = mix(vec3f(0.36, 0.14, 0.05), vec3f(0.12, 0.05, 0.03), rustN);
-    var col = mix(paper, rust, rustAmt * 0.6);
-    col = col * (0.12 + 0.18 * G.bulbPos.w / 4.0 + G.ambient.r * 4.0);
+    // what falls away is not paper any more: dark, clotted red-black lumps
+    let clot = noise3(vec3f(i.uv * 7.0, i.col.x * 9.0));
+    var col = mix(vec3f(0.11, 0.006, 0.005), vec3f(0.035, 0.004, 0.004), clot) * (0.85 + 0.3 * paper.r);
+    col = col * (0.3 + 0.2 * G.bulbPos.w / 4.0 + G.ambient.r * 4.0);
     col = mix(col, vec3f(0.015, 0.01, 0.008), charB * 0.9);
-    col += vec3f(1.0, 0.35, 0.06) * glow * (1.6 + 0.8 * noise3(vec3f(i.uv * 20.0, G.camPos.w * 3.0)));
+    col += vec3f(0.35, 0.04, 0.01) * glow * (0.6 + 0.4 * noise3(vec3f(i.uv * 20.0, G.camPos.w * 3.0)));
     return vec4f(fog(col, i.wp), a);
   }
   var ember = 0.0;
@@ -305,7 +307,7 @@ const LIT = SHARED + /* wgsl */`
     t = vec4f(mix(t.rgb, metal, ow * 0.85), t.a);
     let rustC = mix(vec3f(0.34, 0.13, 0.05), vec3f(0.14, 0.06, 0.03), noise3(i.wp * 14.0));
     t = vec4f(mix(t.rgb, rustC, clamp(burn * chg * (0.3 + rim * 0.6), 0.0, 0.7)), t.a);
-    ember = rim * burn * chg * (0.6 + 0.4 * noise3(i.wp * 9.0 + vec3f(0.0, G.camPos.w * 1.5, 0.0))) * 2.2;   // the burning line, only where it turns
+    ember = rim * rim * burn * chg * (0.5 + 0.5 * noise3(i.wp * 9.0 + vec3f(0.0, G.camPos.w * 1.5, 0.0))) * 0.9;   // the burning line, only where it turns
     t = vec4f(t.rgb * (1.0 - 0.8 * burn * chg * smoothstep(0.2, 0.6, dm)), t.a);                          // charred just behind it
   }
   // things that form out of the ash: burn in from the floor up with a glowing edge
