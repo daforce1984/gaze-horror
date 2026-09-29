@@ -410,8 +410,6 @@ const LIT = SHARED + /* wgsl */`
       a2 = mix(a2, vec3f(dot(a2, vec3f(0.3, 0.59, 0.11))) * vec3f(0.85, 0.7, 0.6), kc * 0.6) * (1.0 - 0.45 * kc);
       let stain = smoothstep(0.55, 0.75, noise3(i.wp * 6.0 + vec3f(3.3))) * kc;
       a2 = mix(a2, vec3f(0.1, 0.06, 0.035), stain * 0.7);
-      let blood = smoothstep(0.68, 0.8, noise3(i.wp * 11.0 + vec3f(7.1))) * smoothstep(0.5, 1.0, dlp);
-      a2 = mix(a2, vec3f(0.22, 0.01, 0.01), blood * 0.85);
       alb = a2;
     }
   }

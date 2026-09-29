@@ -24,6 +24,8 @@ const ASSETS = {
   wallN: 'assets/wall_modern_n.webp', wallM: 'assets/wall_modern_m.webp', floorN: 'assets/floor_modern_n.webp', floorM: 'assets/floor_modern_m.webp',
   ceilN: 'assets/ceiling_n.webp', ceilM: 'assets/ceiling_m.webp', curtainN: 'assets/curtain_n.webp', curtainM: 'assets/curtain_m.webp',
   rugN: 'assets/rug_n.webp', rugM: 'assets/rug_m.webp', doorN: 'assets/door_n.webp', doorM: 'assets/door_m.webp',
+  bloodSplatter: 'assets/blood_splatter.webp', bloodDrips: 'assets/blood_drips.webp', bloodDrag: 'assets/blood_drag.webp',
+  bloodHands: 'assets/blood_hands.webp', bloodPool: 'assets/blood_pool.webp', bloodDrops: 'assets/blood_drops.webp',
   rope: 'assets/rope.webp', ropeN: 'assets/rope_n.webp', ropeM: 'assets/rope_m.webp', rust: 'assets/rust.webp', rustN: 'assets/rust_n.webp', rustM: 'assets/rust_m.webp',
   woodLight: 'assets/wood_light.webp', woodN: 'assets/wood_n.webp', woodM: 'assets/wood_m.webp', woodLightN: 'assets/wood_light_n.webp', woodLightM: 'assets/wood_light_m.webp',
   curtain: 'assets/curtain.webp', curtainModern: 'assets/curtain_modern.webp', rugModern: 'assets/rug_modern.webp', wood: 'assets/wood.webp', door: 'assets/door.webp',
@@ -175,7 +177,7 @@ function buildScene() {
     ...Object.fromEntries(['wallN', 'wallM', 'floorN', 'floorM', 'ceilN', 'ceilM', 'curtainN', 'curtainM', 'rugN', 'rugM', 'doorN', 'doorM', 'woodN', 'woodM', 'woodLightN', 'woodLightM', 'ropeN', 'ropeM', 'rustN', 'rustM']
       .filter(k => IMG[k]).map(k => [k, R.texture(IMG[k], { mips: true, srgb: false })])), wood: tex('wood'), door: tex('door'), window: tex('window'),
     fabric: tex('fabric'), plastic: tex('plastic'), paper: tex('paper'), ghostTex: tex('ghostTex', { mips: true }), crawlTex: tex('crawlTex', { mips: true }),
-    blob: R.texture(TX.radialTex('rgba(0,0,0,0.9)', 'rgba(0,0,0,0)')),
+    blob: R.texture(TX.radialTex('rgba(0,0,0,0.9)', 'rgba(0,0,0,0)')), blood: {},
     halo: R.texture(TX.radialTex('rgba(255,210,150,1)', 'rgba(255,160,80,0)')),
     tvHalo: R.texture(TX.radialTex('rgba(150,190,255,1)', 'rgba(120,160,255,0)')),
   };
@@ -279,9 +281,13 @@ function buildScene() {
   O.rot = [
     { o: add(R.object(quad, scrawlTex, { pipe: 'blend', model: m4.trs([-2.185, 1.5, 1.4], PI / 2, [1.4, 0.7, 1]), clamp: true, tint: [1, 1, 1, 0] })), at: 0.55 },
     { o: add(R.object(quad, scrawl2, { pipe: 'blend', model: m4.trs([1.2, 1.55, -2.486], 0, [1.2, 0.6, 1]), clamp: true, tint: [1, 1, 1, 0] })), at: 0.7 },
-    { o: add(R.object(quad, handsTex, { pipe: 'blend', model: m4.trs([0, 2.595, 0.05], 0, [1.1, 1.1, 1], PI / 2), clamp: true, tint: [1, 1, 1, 0] })), at: 0.62 },
-    { o: add(R.object(quad, handsTex, { pipe: 'blend', model: m4.trs([-0.25, 1.1, 2.486], PI, [0.7, 0.7, 1]), clamp: true, tint: [1, 1, 1, 0] })), at: 0.8 },
-    { o: add(R.object(quad, handsTex, { pipe: 'blend', model: m4.trs([2.186, 1.0, -1.3], -PI / 2, [0.6, 0.6, 1], 0, 1.2), clamp: true, tint: [1, 1, 1, 0] })), at: 0.45 },
+    // blood (Codex-painted decals): walls, floor, ceiling; each appears where and when the room has rotted enough
+    ...[['bloodSplatter', [0.95, 1.45, -2.486], 0, 0.85, 0, 0.5], ['bloodDrips', [-2.186, 1.75, 1.85], PI / 2, 0.95, 0, 0.35],
+      ['bloodHands', [-0.3, 0.95, 2.486], PI, 0.55, 0, 0.5], ['bloodHands', [2.186, 0.85, 1.95], -PI / 2, 0.45, 0, 0.7],
+      ['bloodDrips', [1.6, 1.9, -2.486], 0, 0.8, 0, 0.8], ['bloodSplatter', [0, 2.595, 0.35], 0, 1.1, PI / 2, 0.85],
+      ['bloodDrag', [0.55, 0.009, 1.55], 0.5, 1.2, -PI / 2, 0.55], ['bloodPool', [-0.35, 0.009, -1.55], 1.1, 0.75, -PI / 2, 0.75],
+      ['bloodDrops', [1.05, 0.009, -0.85], -0.7, 0.9, -PI / 2, 0.4]].filter(([k]) => IMG[k]).map(([k, p, yaw, sz, pitch, at]) =>
+      ({ o: add(R.object(quad, T.blood[k] || (T.blood[k] = R.texture(IMG[k])), { pipe: 'blend', model: m4.trs(p, yaw, [sz, sz, 1], pitch), clamp: true, tint: [0.78, 0.7, 0.7, 0], order: 1, flags: [0.3, 0, 0.6, 0] })), at })),
     // a crude magic circle in blood on the floor round the chair: there once the first shift has passed (turn around to see it)
     { o: add(R.object(quad, R.texture(TX.bloodCircleTex()), { pipe: 'blend', model: m4.trs([0, 0.012, 0.42], 0.3, [2.3, 2.3, 1], -PI / 2), clamp: true, tint: [1.1, 0.8, 0.8, 0], order: 1, flags: [0.3, 0, 0.9, 0] })), at: 0.25 },
   ];
