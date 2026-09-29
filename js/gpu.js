@@ -16,6 +16,7 @@ struct Globals {
   shadowPos: vec4f,// xyz light, w = 1 when the moon owns the shadow map
   shift: vec4f,    // the other world spreading: xyz origin, w radius of the front
   shift2: vec4f,   // x decay behind the front, y decay inside, z burn (ember edge / ash), w ambient ash
+  torch: vec4f,    // the player's flashlight: xyz beam direction, w intensity (0 = off)
 };
 struct Obj {
   model: mat4x4f,
@@ -290,6 +291,14 @@ fn lightingS(p: vec3f, nIn: vec3f, wrap: f32, spec: f32, sh: f32) -> vec3f {
   // cold glow around the ghost
   let gl = G.ghostPos.xyz - p; let gd = length(gl);
   c += vec3f(0.35, 0.5, 0.6) * G.ghostPos.w * wrapDiffuse(n, gl / max(gd, 0.001), 0.5) / (1.0 + gd * gd * 6.0);
+  // the flashlight: a soft-edged cone from just below the eyes along the view
+  if (G.torch.w > 0.0) {
+    let to = G.camPos.xyz + vec3f(0.0, -0.08, 0.0);
+    let tl = to - p; let tdist = length(tl); let tdir = -tl / max(tdist, 1e-4);
+    let cosA = dot(tdir, G.torch.xyz);
+    let cone = smoothstep(0.84, 0.97, cosA) * (0.75 + 0.25 * smoothstep(0.96, 0.995, cosA));
+    c += vec3f(1.0, 0.93, 0.8) * G.torch.w * cone * wrapDiffuse(n, tl / max(tdist, 1e-4), 0.2) / (1.0 + tdist * tdist * 0.25);
+  }
   // faint light from the player's own position (to read things held in the lap)
   let hl = G.camPos.xyz + vec3f(0.0, 0.25, 0.1) - p; let hd = length(hl);
   c += vec3f(1.0, 0.9, 0.75) * G.extra.w * wrapDiffuse(n, hl / hd, 0.3) / (1.0 + hd * hd * 18.0);

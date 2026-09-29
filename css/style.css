@@ -271,3 +271,6 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
 .gfx button { flex: 1; min-width: 56px; padding: 8px 6px; border-radius: 8px; border: 1px solid rgba(220,210,190,.25); background: rgba(255,255,255,.04); color: #e9e1d2; font: inherit; font-size: 14px; }
 .gfx button.on { border-color: #e6a23c; background: rgba(230,162,60,.18); color: #ffd79a; }
 .gfx small { width: 100%; font-size: 11px; color: #8f877a; }
+
+#torchBtn.on { border-color: #ffd48a; color: #ffe2a8; box-shadow: 0 0 12px rgba(255,210,140,.45); }
+#torchBtn.nudge { animation: pulse .9s infinite; }

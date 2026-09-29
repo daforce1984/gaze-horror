@@ -38,7 +38,7 @@ const CCTV = { pos: [1.95, 2.42, 2.28], target: [-0.05, 0.3, -0.35], tanHalf: 0.
 const $ = (s) => document.querySelector(s);
 const ui = {
   title: $('#title'), start: $('#startBtn'), load: $('#loadText'), hud: $('#hud'), sub: $('#subtitle'),
-  action: $('#actionBtn'), zoom: $('#zoomBtn'), memoBtn: $('#memoBtn'), pauseBtn: $('#pauseBtn'), gyroBtn: $('#gyroBtn'),
+  action: $('#actionBtn'), zoom: $('#zoomBtn'), memoBtn: $('#memoBtn'), pauseBtn: $('#pauseBtn'), gyroBtn: $('#gyroBtn'), torchBtn: $('#torchBtn'),
   ring: $('#revealRing'), ringArc: $('#revealArc'), cross: $('#cross'), fear: $('#fearFill'), warm: $('#warmFill'),
   modal: $('#modal'), card: $('#modalCard'), scare: $('#scare'), ending: $('#ending'), fade: $('#fade'),
   nogpu: $('#nogpu'), canvas: $('#gl'), objective: $('#objective'), halluc: $('#halluc'), hint: $('#hint'), tray: $('#tray'),
@@ -1158,7 +1158,7 @@ function anApply(dt, time) {
     let X;
     if (k === 'table') X = m4.trs([0, e * (a.lift + Math.sin(time * 2.1) * 0.03), 0], e * 0.35, [1, 1, 1], 0, e * PI);
     else if (k === 'cushion') {
-      const fe = s.fled ? smooth(0, 1, s.fleeT) : 0, off = s.fled ? [(s.to[0] - piv[0]) * fe, (s.to[1] - piv[1] - a.lift) * fe, (s.to[2] - piv[2]) * fe] : [0, 0, 0];
+      const fe = s.fled ? smooth(0, 1, s.fleeT) * e : 0, off = s.fled ? [(s.to[0] - piv[0]) * fe, (s.to[1] - piv[1] - a.lift) * fe, (s.to[2] - piv[2]) * fe] : [0, 0, 0];   // shrinks with e: back home when fixed
       X = m4.trs([off[0], e * (a.lift + Math.sin(time * 1.7) * 0.05) + off[1], off[2]], e * time * 0.6, [1, 1, 1], e * 0.5, 0);
     }
     else if (k === 'frame') {   // knocked off its nail: hangs crooked, lower, and keeps swinging
@@ -1793,6 +1793,12 @@ function jumpscare() {
 // ---------------------------------------------------------------- input
 const pointers = new Map();
 let pinchDist = 0, dragInfo = null;
+// the flashlight
+const TORCH = { on: false, auto: false, k: 0 };
+function setTorch(on) {
+  TORCH.on = on; ui.torchBtn.classList.toggle('on', on); ui.torchBtn.setAttribute('aria-pressed', String(on)); ui.torchBtn.classList.remove('nudge');
+  snd.play('click'); log('torch', { on });
+}
 const GYRO_KEY = 'gaze-gyro';
 const gyro = { on: false, last: null, got: false };
 function deviceForward(e) {
@@ -1925,6 +1931,7 @@ function setupInput() {
   $('#chGive').addEventListener('click', hsGive);
   $('#chStay').addEventListener('click', hsStay);
   ui.memoBtn.addEventListener('click', () => { if (S.started && !ui.modal.classList.contains('show')) openMemo(); });
+  ui.torchBtn.addEventListener('click', () => { if (S.started) setTorch(!TORCH.on); });
   ui.pauseBtn.addEventListener('click', () => { if (S.started && !ui.modal.classList.contains('show')) openPause(); });
 
   const keys = new Set();
@@ -1933,6 +1940,7 @@ function setupInput() {
     keys.add(e.code);
     if (e.code === 'Space') { S.holdZoom = true; e.preventDefault(); }
     if (e.code === 'KeyE' || e.code === 'Enter') { if (S.useItem) applyUse(useTarget(camBasis().f)); }
+    if (e.code === 'KeyF' && S.started) setTorch(!TORCH.on);
     if (e.code === 'Escape') { if (ui.modal.classList.contains('show')) closeModal(); else if (S.insp) closeInspect(); else if (S.useItem) { S.useItem = null; renderTray(); } else if (S.started) openPause(); }
     if (e.code === 'KeyM' || e.code === 'Tab') { e.preventDefault(); if (S.started) ui.modal.classList.contains('show') ? closeModal() : openMemo(); }
     if (e.code === 'KeyR' && S.inv.includes('remote')) togglePad();
@@ -2353,6 +2361,10 @@ function frame(dt) {
   const shadowLight = moonOwns ? [-2.6, 1.75, -0.6] : [bulbPos[0], bulbPos[1] - 0.05, bulbPos[2]];
   G.set([...shadowLight, moonOwns ? 1 : 0], 60);
   G.set([...SHIFT.o, SHIFT.on ? SHIFT.r : 99], 64);
+  // flashlight: switches itself on the first time the room goes dark (then it is the player's to toggle)
+  if (!TORCH.auto && S.decay > 0.45 && S.started) { TORCH.auto = true; if (!TORCH.on) { setTorch(true); hsSay('어두워졌다. 손전등을 켰다. (🔦 버튼 / F)', 3); } }
+  TORCH.k = damp(TORCH.k, TORCH.on ? 1 : 0, 10, dt);
+  G.set([f[0], f[1], f[2], TORCH.k * (2.2 + S.decay * 1.2)], 72);
   G.set([SHIFT.on ? SHIFT.from : S.decay, SHIFT.on ? SHIFT.to : S.decay, SHIFT.on ? SHIFT.burn : 0, S.decay > 0.3 ? 0.18 + S.decay * 0.2 : 0], 68);
 
   // CCTV globals (only when it is on screen)
