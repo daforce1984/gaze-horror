@@ -57,7 +57,8 @@ fn hash21(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 
   let w = O.model * vec4f(lp, 1.0);
   o.pos = G.viewProj * w;
   o.wp = w.xyz;
-  o.n = normalize((O.model * vec4f(n, 0.0)).xyz);
+  let wn = (O.model * vec4f(n, 0.0)).xyz;
+  o.n = select(vec3f(0.0), normalize(wn), length(wn) > 1e-6);
   o.uv = uv * O.uvx.xy + select(O.uvx.zw, vec2f(0.0), O.flags.w > 1.5);
   o.col = c;
   return o;
@@ -209,12 +210,19 @@ const GHOST = SHARED + /* wgsl */`
   let a = O.tint.a;
   if (a < 0.995 && a < hash21(floor(i.pos.xy))) { discard; }   // screen-door only while fading
   let t = textureSample(tex, samp, i.uv);
-  let ao = mix(sqrt(i.col.r), 1.0, O.emissive.w);
+  let ao = select(sqrt(clamp(i.col.r, 0.0, 1.0)), 1.0, O.emissive.w > 0.999);
+  // scanned meshes have spots where opposite faces cancel the vertex normal: fall back to facing the viewer
+  let nl = length(i.n);
+  // the photographic texture already carries its shading: light her with a viewer-facing normal
+  // (scan normals are noisy), and take only a soft half-lambert form term from the mesh
+  let nrm = normalize(G.camPos.xyz - i.wp);
+  let nm = select(nrm, i.n / max(nl, 1e-6), nl > 1e-3);
+  let form = mix(0.5, 1.05, clamp(dot(nm, normalize(nrm + vec3f(0.0, 0.9, 0.0))) * 0.5 + 0.5, 0.0, 1.0));
   // no self-shadowing: thin cloth and hair would acne against their own shadow map
-  var col = t.rgb * O.tint.rgb * lightingS(i.wp, normalize(i.n), O.flags.x, O.flags.z, 1.0) * ao * 1.15 + t.rgb * O.emissive.rgb * ao;
+  var col = t.rgb * O.tint.rgb * lightingS(i.wp, nrm, O.flags.x, O.flags.z, 1.0) * ao * form * 1.15 + t.rgb * O.emissive.rgb * ao;
   col = mix(col, col * vec3f(0.8, 1.0, 1.12), 0.5);
   let Vg = normalize(G.camPos.xyz - i.wp);
-  let rim = pow(1.0 - clamp(abs(dot(normalize(i.n), Vg)), 0.0, 1.0), 2.5);
+  let rim = pow(1.0 - clamp(abs(dot(nm, Vg)), 0.0, 1.0), 2.5) * select(1.0, 0.25, O.uvx.w > 0.5);
   col += vec3f(0.35, 0.45, 0.55) * rim * 0.55 * (0.4 + 0.6 * ao);
   if (O.uvx.z > 0.5) {
     // hair: one flat wet-black with a faint cold sheen, independent of each lock's normal,

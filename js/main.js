@@ -20,7 +20,7 @@ const ASSETS = {
   ceiling: 'assets/ceiling.webp', curtain: 'assets/curtain.webp', wood: 'assets/wood.webp', door: 'assets/door.webp',
   face: 'assets/ghost_face.webp', window: 'assets/window.webp', fabric: 'assets/fabric.webp', plastic: 'assets/plastic.webp',
   paper: 'assets/paper.webp', drawing: 'assets/child_drawing.webp', newspaper: 'assets/newspaper.webp', family: 'assets/family.webp',
-  hands: 'assets/handprints.webp', kids: 'assets/kids_show.webp', kidsBad: 'assets/kids_show_bad.webp',
+  hands: 'assets/handprints.webp', kids: 'assets/kids_show.webp', kidsBad: 'assets/kids_show_bad.webp', ghostTex: 'assets/ghost_tex.webp', crawlTex: 'assets/ghost_crawl_tex.webp',
 };
 const GLB = {};
 const LAP = () => v3.add(EYE, v3.add(v3.scale(flatFwd(), 0.34), [0, -0.46, 0]));
@@ -159,7 +159,7 @@ function buildScene() {
   const T = {
     wall: tex('wall'), wallClean: tex('wallClean'), floor: tex('floor'), floorClean: tex('floorClean'), ceiling: tex('ceiling'),
     ceilClean: R.solidTexture([232, 226, 212, 255]), curtain: tex('curtain'), wood: tex('wood'), door: tex('door'), window: tex('window'),
-    fabric: tex('fabric'), plastic: tex('plastic'), paper: tex('paper'),
+    fabric: tex('fabric'), plastic: tex('plastic'), paper: tex('paper'), ghostTex: tex('ghostTex', { mips: true }), crawlTex: tex('crawlTex', { mips: true }),
     blob: R.texture(TX.radialTex('rgba(0,0,0,0.9)', 'rgba(0,0,0,0)')),
     halo: R.texture(TX.radialTex('rgba(255,210,150,1)', 'rgba(255,160,80,0)')),
     tvHalo: R.texture(TX.radialTex('rgba(150,190,255,1)', 'rgba(120,160,255,0)')),
@@ -185,6 +185,8 @@ function buildScene() {
     M_dress: { t: T.fabric, wrap: 0.45, tint: [0.95, 0.95, 0.95], aoLift: 0.85 }, M_skin: { wrap: 0.35, spec: 0.3, aoLift: 0.5 }, M_hair: { spec: 1.6, wrap: 0.2, aoLift: 1.0 }, M_eye: { spec: 1.5, emissive: [0.05, 0.06, 0.06] },
     M_glassgreen: { spec: 2.0 }, M_can: { spec: 1.5 }, M_can2: { spec: 1.5 }, M_metal: { spec: 1.2 }, M_brass: { spec: 1.4 }, M_mirror: { spec: 2.5 },
     M_rug: { t: T.fabric, tint: [0.55, 0.22, 0.18], wrap: 0.3, spec: 0.02 }, M_cushion: { t: T.fabric, tint: [0.75, 0.55, 0.32], wrap: 0.4 },
+    M_ghosttex: { t: T.ghostTex, wrap: 0.4, spec: 0.35, aoLift: 1.0 },
+    M_ghostcrawl: { t: T.crawlTex, wrap: 0.4, spec: 0.35, aoLift: 1.0 },
     M_dollcloth: { wrap: 0.4 }, M_dolldress: { t: T.fabric, tint: [0.6, 0.16, 0.18], wrap: 0.4 },
   };
   const NO_SHADOW = new Set(['floor', 'ceiling', 'wall_front', 'wall_back', 'wall_left', 'wall_right', 'trim', 'corridor', 'bulb', 'window_glass', 'clock_face', 'tv_screen']);
@@ -197,7 +199,7 @@ function buildScene() {
       const spec = m.spec ?? Math.min(1.2, (1 - pr.material.rough) ** 2 * 1.3);
       const o = add(R.object(R.mesh(pr.geo), m.t || null, {
         pipe, model: node.matrix.slice(), tint, emissive: [...(m.emissive || [0, 0, 0]), ghost ? (m.aoLift || 0) : 0],
-        flags: [m.wrap ?? 0.1, m.unlit ? 1 : 0, spec, ghost ? 2 : 0], uvx: [1, 1, ghost && pr.material.name === 'M_hair' ? 1 : 0, 0],
+        flags: [m.wrap ?? 0.1, m.unlit ? 1 : 0, spec, ghost ? 2 : 0], uvx: [1, 1, ghost && pr.material.name === 'M_hair' ? 1 : 0, ghost && m.t ? 1 : 0],
         castShadow: !NO_SHADOW.has(node.name), tex2: m.t2, extra: [m.decay ? 1 : 0, 0, 0, 0],
       }));
       o.base = node.matrix; o.min = pr.min; o.max = pr.max;
@@ -430,6 +432,7 @@ function hsTap(px, py, dir) {
     if (HS.phase === 'final') return true;   // the choice is made with its two labelled buttons
     log('false_tap', { where: HS.phase }); return true;
   }
+  if (HS.phase === 'anom') return AN.on ? anTap(px, py, dir) : true;
   if (HS.phase !== 'seek') return false;
   if (!HS.firstInput) { HS.firstInput = true; log('first_input', { kind: 'tap' }); }
   if (HS.round === 4 && !HS.cctv) {
@@ -480,16 +483,14 @@ function hsFound() {
   voice(line[0], h.c, 2.2); hsSay(`“${line[1]}”`, 2.2);
   if (HS.round === 1) {   // the reward floats to your lap while you can still look around
     hsAfter(0.9, () => { S.job = { w: W.remote, t: 0, phase: 'lift', carry: false, from: W.remote.c.slice(), pos: W.remote.c.slice(), spin: 0, free: true }; });
-    hsAfter(2.2, () => { voice('hs_again', null, 2.0); hsSay('“한 번 더! 이번엔 못 찾을걸?”', 2.2); });
-    hsAfter(3.4, () => hsRound(2));
+    hsAfter(2.4, () => anStart(1));
   } else if (HS.round === 2) {   // one-line story fragment, 3 seconds
     hsAfter(1.6, () => { S.tape = Math.max(S.tape, 1); hsSay('📼 …책상 위 자동응답기에 빨간 불이 켜졌다. “수아야~ 엄마야…”', 3); snd.play('beep', [1.81, 0.8, 0.12]); });
     hsAfter(3.6, () => hsRound(3));
   } else if (HS.round === 3) {
-    hsAfter(1.2, () => { voice('hs_under', null, 2.0); hsSay('“이번엔… 진짜 못 찾을걸.”', 2.2); });
-    hsAfter(3.2, () => hsRound(4));
+    hsAfter(2.0, () => anStart(2));
   } else if (HS.round === 4) {
-    hsAfter(1.4, () => hsStory());
+    hsAfter(2.0, () => anStart(3));
   }
 }
 function hsFail() {
@@ -631,6 +632,254 @@ function turnAround() {
   HS.turning = { from: S.yaw, to: target, t: 0, p0: S.pitch };
   if (!HS.firstInput) { HS.firstInput = true; log('first_input', { kind: 'turn' }); }
   log('turn', {});
+}
+
+// ================================================================ 이상현상 (the room turns wrong)
+// One rule, same verb as hide and seek: "이상한 곳을 눌러 원래대로 돌려요". She changes things only where you are
+// not looking; three wrong things at once gives you a few seconds to fix one, then she comes for you.
+const AN = { on: false, phase: 0, goal: 0, fixed: 0, act: {}, next: 0, danger: 0, fails: 0, lock: 0, script: [], hintT: 0 };
+const ANOM = {
+  table: { node: 'lowtable', name: '탁자', sfx: 'bang', cue: '…무언가 둥실 떠오르는 소리.', lift: 0.45 },
+  tv: { node: 'tv', name: 'TV', sfx: 'static', cue: '…TV가 저절로 켜졌다.' },
+  doll: { node: 'item_doll', name: '인형', sfx: 'bang', cue: '…등 뒤에서, 작은 발소리.', to: [-0.35, 0.02, 1.95] },   // climbs down and sits behind you, facing you
+  frame: { node: 'item_frame', name: '가족사진', sfx: 'creak', cue: '…액자가 삐걱 돌아가는 소리.' },
+  drawer: { node: 'drawer', name: '서랍', sfx: 'drawer', cue: '…서랍이 드르륵 열렸다.' },
+  cushion: { node: 'cushion', name: '방석', sfx: 'whisper', cue: '…누가 속삭인다.', lift: 1.0 },
+  door: { node: 'door', name: '문', sfx: 'knock', cue: '…등 뒤에서, 잠긴 문이 열리는 소리.' },
+  curtain: { name: '커튼', sfx: 'giggle', cue: '…커튼 쪽에서 킥킥.', ghost: true },
+  crawl: { name: '기어오는 아이', sfx: 'steps', cue: '…바닥을 긁으며 기어오는 소리.', ghost: true },
+};
+function nodeBox(name, pad = 0.08) {
+  const mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+  for (const o of O.nodes[name]) for (let q = 0; q < 3; q++) {
+    mn[q] = Math.min(mn[q], o.base[12 + q] + o.min[q] - pad); mx[q] = Math.max(mx[q], o.base[12 + q] + o.max[q] + pad);
+  }
+  return { min: mn, max: mx, c: mn.map((v, q) => (v + mx[q]) / 2) };
+}
+function anBox(k) {
+  const a = ANOM[k];
+  if (k === 'curtain') return HIDE.curtain;
+  if (k === 'crawl') { const p = AN.act.crawl?.p || [0, 0, -1.5]; return { min: [p[0] - 0.55, 0, p[2] - 0.55], max: [p[0] + 0.55, 0.75, p[2] + 0.55], c: [p[0], 0.35, p[2]] }; }
+  if (!a.box) a.box = nodeBox(a.node, k === 'doll' ? 0.15 : 0.1);
+  const b = a.box, s = AN.act[k];
+  if (a.to && s && s.k > 0.5) { const t = a.to; return { min: [t[0] - 0.3, 0, t[2] - 0.3], max: [t[0] + 0.3, 0.65, t[2] + 0.3], c: [t[0], 0.3, t[2]] }; }
+  if (!a.lift || !s) return b;
+  const up = a.lift * s.k;
+  return { min: b.min, max: [b.max[0], b.max[1] + up, b.max[2]], c: [b.c[0], b.c[1] + up, b.c[2]] };
+}
+function anHud() {
+  const n = Object.keys(AN.act).length;
+  $('#anHud').classList.toggle('show', AN.on);
+  $('#anHud').classList.toggle('danger', AN.danger > 0);
+  document.querySelectorAll('#anHud .pips i').forEach((el, i) => el.classList.toggle('on', i < n));
+  $('#anCount').textContent = `${Math.min(AN.fixed, AN.goal)} / ${AN.goal}`;
+}
+function anStart(phase) {
+  hsNewBeat();
+  AN.on = true; AN.phase = phase; AN.fixed = 0; AN.act = {}; AN.danger = 0; AN.lock = 0;
+  AN.goal = [0, 8, 11, 12][phase];
+  HS.phase = 'anom'; HS.spot = null; S.ghost = null;
+  ui.hud.classList.add('turnon');
+  S.decayTarget = [0, 0.15, 0.35, 0.5][phase];
+  log('anom_start', { phase });
+  if (phase === 1) {
+    AN.script = ['tv', 'doll'];   // taught in order after the table: in front, then behind you
+    voice('an_intro', null, 2.0); hsSay('“이번엔 내가 방을 이상하게 바꿔 놓을게! 엄마가 원래대로 돌려놔~”', 3.6);
+    hsAfter(1.2, () => { anSpawn('table', true); hsTip('<b>이상한 곳</b>을 눌러 원래대로 돌려요'); });
+    AN.next = 1e9;
+  } else if (phase === 2) {
+    AN.script = ['crawl'];
+    voice('an_more', null, 2.0); hsSay('“이번엔… 나도 움직일 거야.”', 3);
+    AN.next = 3;
+  } else {   // the last night: the bulb dies, only the TV and the moon are left
+    AN.script = ['curtain', 'crawl'];
+    S.bulbDead = true; snd.play('pop', [0, 2.2, -0.6]); S.flash = 0.3; S.flashCol = [1, 0.9, 0.7];
+    voice('an_last', null, 2.0); hsSay('“불 꺼졌다… 이제 엄마도 나처럼 어둠 속에서 찾아.”', 3.6);
+    AN.next = 3.5;
+  }
+  anHud();
+}
+function anSpawn(k, force = false) {
+  const a = ANOM[k];
+  if (AN.act[k]) return false;
+  if (a.ghost && (AN.act.curtain || AN.act.crawl)) return false;   // one of her at a time
+  if (!force && k !== 'crawl' && inView(anBox(k).c, 1.15).visible) return false;    // never change what you are watching (she picks an unseen corner herself)
+  const s = { k: 0, t: 0, seen: false };
+  AN.act[k] = s;
+  if (k === 'tv') { S.tv.on = true; S.tv.ch = 13; snd.play('static', O.tvCenter); S.glitch = 0.5; }
+  if (k === 'door') S.doorOpenT = 0.2;
+  if (k === 'curtain') S.ghost = { p: HIDE.curtain.ghost.slice(), kind: 'stand', alpha: 1, target: 1, mode: 'anom', clip: 0.3 };
+  if (k === 'crawl') {
+    const starts = [[-0.85, 0, -2.0], [1.7, 0, -1.6], [-1.7, 0, 1.6], [1.5, 0, 1.9]].filter(p => !inView([p[0], 0.4, p[2]], 1.2).visible);
+    if (!starts.length) { delete AN.act[k]; return false; }
+    s.p = pick(starts).slice(); s.stepT = 0;
+    S.ghost = { p: s.p, kind: 'crouch', alpha: 0, target: 1, mode: 'crawl' };
+  }
+  const pos = anBox(k).c;
+  snd.play(a.sfx, pos);
+  log('anom_spawn', { k, n: Object.keys(AN.act).length });
+  anHud();
+  return true;
+}
+function anFix(k) {
+  const s = AN.act[k]; if (!s) return;
+  delete AN.act[k];
+  const pos = anBox(k).c;
+  AN.fixed++;
+  log('anom_fix', { k, t: +s.t.toFixed(1), fixed: AN.fixed });
+  S.flash = 0.12; S.flashCol = [1, 0.95, 0.85];
+  snd.play(k === 'tv' ? 'pop' : k === 'drawer' ? 'drawer' : k === 'door' ? 'bang' : k === 'curtain' ? 'curtain' : 'chime', pos);
+  if (k === 'tv') { S.tv.on = false; }
+  if (k === 'door') S.doorOpenT = 0;
+  if (k === 'curtain') { S.curtainTarget = 1; hsAfter(1.4, () => { S.curtainTarget = 0; }); if (S.ghost) S.ghost.target = 0; snd.play('giggle', pos); }
+  if (k === 'crawl') { if (S.ghost) { S.ghost.target = 0; S.ghost.twitch = 1; } S.glitch = 0.8; snd.play('whisper', pos); }
+  // pending restore animation: s.k runs back to 0 in anApply
+  AN.back = AN.back || {}; AN.back[k] = s;
+  if (Object.keys(AN.act).length < 3 && AN.danger > 0) { AN.danger = 0; S.lampDim = 0; hsTip(''); log('anom_rescue', {}); }
+  // her reactions: short, never blocking
+  const lines = [['an_fix1', '에이~ 들켰다.'], ['an_fix2', '엄마 눈 좋다~'], ['hs_found1', '헤헤, 들켰다!']];
+  if (AN.fixed === 1 || Math.random() < 0.35) { const l = pick(lines); voice(l[0], pos, 1.8); hsSay(`“${l[1]}”`, 2); }
+  if (s.nudged || (AN.fixed === 3 && AN.phase === 1)) hsTip(AN.phase === 1 && AN.fixed < 3 ? '<b>이상한 곳</b>을 눌러 원래대로 돌려요' : '');
+  if (!Object.keys(AN.act).length) AN.next = Math.min(AN.next, AN.script.length ? 1.2 : rnd(2, 3.5));
+  if (AN.fixed >= AN.goal && !Object.keys(AN.act).length) hsAfter(1.2, () => anEnd());
+  anHud();
+}
+function anFail(why) {
+  hsNewBeat();
+  AN.fails++; AN.danger = 0; S.lampDim = 0; hsTip('');
+  log('anom_fail', { why, fails: AN.fails, active: Object.keys(AN.act) });
+  const p = v3.add([EYE[0], 0, EYE[2]], v3.scale(flatFwd(), 0.65));
+  S.ghost = { p, kind: 'stand', alpha: 0.3, target: 1, mode: 'close' };
+  snd.play('scare'); S.shake = 0.7; S.flash = 0.35; S.flashCol = [0.45, 0.04, 0.04];
+  voice('an_fail', [p[0], 1.1, p[2]], 2.4); hsSay('“엄마 바보~ 하나도 못 고쳤지롱.”', 2.5);
+  touch(14, 'anom_fail');
+  for (const k of Object.keys(AN.act)) { AN.back = AN.back || {}; AN.back[k] = AN.act[k]; if (k === 'tv') S.tv.on = false; if (k === 'door') S.doorOpenT = 0; }
+  AN.act = {};
+  hsAfter(1.8, () => { if (S.ghost?.mode === 'close') S.ghost.target = 0; });
+  if (AN.fails >= 3) { hsAfter(2.4, () => { AN.on = false; HS.on = false; anHud(); showEnding('grab'); }); return; }
+  AN.next = 4;
+  anHud();
+}
+function anEnd() {
+  if (!AN.on) return;
+  AN.on = false; AN.act = {}; hsTip(''); anHud();
+  log('anom_end', { phase: AN.phase, fails: AN.fails, t: +S.time.toFixed(1) });
+  voice('an_done', null, 2.0); hsSay('“와~ 다 찾았다! 엄마 최고!”', 2.4);
+  if (AN.phase === 1) hsAfter(2.6, () => { voice('hs_again', null, 2.0); hsSay('“이번엔 진짜 숨을게. 못 찾을걸?”', 2.2); hsAfter(1.6, () => hsRound(2)); });
+  else if (AN.phase === 2) hsAfter(2.6, () => { voice('hs_under', null, 2.0); hsSay('“이번엔… 진짜 못 찾을걸.”', 2.4); hsAfter(2.4, () => hsRound(4)); });
+  else hsAfter(2.8, () => { S.bulbDead = false; hsStory(); });
+}
+function anTap(px, py, dir) {
+  if (AN.lock > 0) return true;
+  if (!HS.firstInput) { HS.firstInput = true; log('first_input', { kind: 'tap' }); }
+  const cands = Object.keys(ANOM).filter(k => AN.act[k] || (!ANOM[k].ghost && (k !== 'tv' || !S.tv.on)));
+  const rect = ui.canvas.getBoundingClientRect();
+  let best = null, bd = 1e9;
+  for (const k of cands) {
+    const b = anBox(k), c = b.c;
+    const tb = rayAABB(EYE, dir, b.min, b.max);
+    const cw = G[3] * c[0] + G[7] * c[1] + G[11] * c[2] + G[15];
+    let sd = 1e9;
+    if (cw > 0.05) {
+      const sx = ((G[0] * c[0] + G[4] * c[1] + G[8] * c[2] + G[12]) / cw * 0.5 + 0.5) * rect.width + rect.left;
+      const sy = (0.5 - (G[1] * c[0] + G[5] * c[1] + G[9] * c[2] + G[13]) / cw * 0.5) * rect.height + rect.top;
+      sd = Math.hypot(px - sx, py - sy);
+    }
+    // anomalies win over normal things; a near miss on a real one still counts
+    const score = (AN.act[k] ? 0 : 5) + (tb >= 0 ? tb : sd < 70 ? 3 + sd / 100 : 1e9);
+    if (score < bd) { bd = score; best = k; }
+  }
+  if (!best || bd >= 1e8) { log('false_tap', { where: 'nothing' }); return true; }
+  if (AN.act[best]) { anFix(best); return true; }
+  // reported something that is fine: small, visible cost
+  log('false_report', { k: best });
+  AN.lock = 1.0; snd.play('click');
+  hsSay(`…${ANOM[best].name}엔 이상이 없다.`, 1.6);
+  return true;
+}
+function anUpdate(dt) {
+  if (!AN.on || S.paused) return;
+  AN.lock = Math.max(0, AN.lock - dt);
+  const keys = Object.keys(AN.act), n = keys.length;
+  for (const k of keys) {
+    const s = AN.act[k];
+    s.t += dt; s.k = Math.min(1, s.k + dt * 1.6);
+    const c = anBox(k).c;
+    if (!s.seen && inView(c, 0.9).visible) { s.seen = true; s.seenAt = s.t; log('anom_seen', { k, after: +s.t.toFixed(1) }); }
+    // looked at it and did not notice: name it once (only while she is still teaching)
+    if (s.seen && !s.nudged && AN.phase === 1 && s.t - s.seenAt > 8 && inView(c, 0.9).visible) { s.nudged = true; hsTip(`<b>${ANOM[k].name}</b>… 원래 저랬던가? 눌러서 돌려놔요`); log('hint_used', { hint: 'name_' + k }); }
+    // she keeps reminding you of the ones you have not found
+    if (!s.seen && s.t > 9 && (s.t - dt) % 9 > s.t % 9) { snd.play(ANOM[k].sfx, c); hsSay(ANOM[k].cue, 2.4); log('hint_used', { hint: k }); if (c[2] > EYE[2] + 0.2) $('#turnBtn').classList.add('pulse'); }
+  }
+  // the crawler moves only while you are not looking at her
+  const cr = AN.act.crawl;
+  if (cr && S.ghost?.mode === 'crawl') {
+    const head = [cr.p[0], 0.4, cr.p[2]], seen = inView(head, 0.9).visible;
+    cr.stepT += dt;
+    const to = v3.sub([EYE[0], 0, EYE[2]], cr.p); to[1] = 0; const dist = v3.len(to);
+    if (!seen && cr.stepT > 0.9) {
+      cr.stepT = 0;
+      if (dist < 0.8) { anFail('crawl'); return; }
+      const step = v3.scale(v3.norm(to), Math.min(0.2, dist - 0.7));
+      cr.p[0] += step[0]; cr.p[2] += step[2];
+      snd.play('steps', [cr.p[0], 0.1, cr.p[2]]);
+      if (dist < 1.4) { S.fear = Math.max(S.fear, 0.5); hsSay('…바로 뒤에서, 숨소리.', 1.6); }
+    }
+    if (seen) S.ghost.twitch = Math.max(S.ghost.twitch || 0, 0.3);
+  }
+  // three at once: a few seconds to fix one
+  if (n >= 3) {
+    if (AN.danger <= 0) { AN.danger = AN.phase === 1 ? 12 : 8; log('anom_danger', { active: keys }); snd.play('whisper'); }
+    AN.danger -= dt; S.lampDim = 0.45; S.fear = Math.max(S.fear, 0.4);
+    hsTip(`이상한 곳이 <b>3개</b>! 하나라도 고쳐요 · ${Math.ceil(AN.danger)}`);
+    if (AN.danger <= 0) { anFail('three'); return; }
+  }
+  // what to change next
+  if (AN.fixed + n >= AN.goal) return;
+  AN.next -= dt;
+  if (AN.next <= 0) {
+    if (AN.script.length) {
+      const k = AN.script[0];
+      if (anSpawn(k, AN.phase === 1 && k !== 'doll')) {
+        AN.script.shift();
+        if (k === 'doll') { hsAfter(0.4, () => { hsSay('…등 뒤, 책장 쪽에서 툭.', 2.6); $('#turnBtn').classList.add('pulse'); }); }
+      }
+      AN.next = !AN.act[k] ? 1.5 : AN.script.length ? 1e9 : 6;   // a taught one waits for its fix
+      return;
+    }
+    AN.recent = AN.recent || [];
+    const pool = Object.keys(ANOM).filter(k => !AN.act[k] && (k !== 'crawl' || AN.phase >= 2));
+    // things she has not changed for a while first
+    const order = pool.sort(() => Math.random() - 0.5).sort((x, y) => AN.recent.indexOf(x) - AN.recent.indexOf(y));
+    let ok = false;
+    for (const k of order) if (anSpawn(k)) { ok = true; AN.recent = [...AN.recent.filter(x => x !== k), k]; break; }
+    const base = [0, rnd(6.5, 9), rnd(4.5, 6.5), rnd(3.5, 5.5)][AN.phase];
+    AN.next = ok ? base * (n >= 2 ? 1.5 : 1) : 1.5;
+  }
+}
+// what each wrong thing looks like (called every frame after the room's own animation)
+function anApply(dt, time) {
+  const all = { ...(AN.back || {}), ...AN.act };
+  for (const [k, s] of Object.entries(all)) {
+    if (!AN.act[k]) { s.k = Math.max(0, s.k - dt * 2.5); if (s.k <= 0) { delete AN.back[k]; } }
+    const a = ANOM[k], e = smooth(0, 1, s.k);
+    if (!a.node || k === 'tv' || k === 'door') continue;
+    const list = O.nodes[a.node], b = a.box || anBox(k), piv = b.c;
+    let X;
+    if (k === 'table') X = m4.trs([0, e * (a.lift + Math.sin(time * 2.1) * 0.03), 0], e * 0.35, [1, 1, 1], 0, e * PI);
+    else if (k === 'cushion') X = m4.trs([0, e * (a.lift + Math.sin(time * 1.7) * 0.05), 0], e * time * 0.6, [1, 1, 1], e * 0.5, 0);
+    else if (k === 'frame') X = m4.trs([0, 0, 0], 0, [1, 1, 1], 0, e * PI);   // upside down
+    else if (k === 'doll') {   // it is simply somewhere else, bigger than you remember, looking at you
+      const b0 = list[0].base, at = s.k > 0.5 ? a.to : [b0[12], b0[13], b0[14]], sc = s.k > 0.5 ? 1.6 : 1;
+      const yaw = s.k > 0.5 ? Math.atan2(EYE[0] - at[0], EYE[2] - at[2]) : 0;
+      for (const o of list) o.model = m4.mul(m4.trs(at, yaw, [sc, sc, sc]), m4.mul(m4.trs([o.base[12] - b0[12], o.base[13] - b0[13], o.base[14] - b0[14]]), strip(o.base)));
+      continue;
+    }
+    else if (k === 'drawer') X = m4.trs([-0.32 * e, 0, 0]);
+    if (!X) continue;
+    const M = m4.mul(m4.mul(m4.trs(piv), X), m4.trs(v3.scale(piv, -1)));
+    for (const o of list) o.model = m4.mul(M, o.base);
+  }
 }
 
 // ---------------------------------------------------------------- stages
@@ -1087,6 +1336,8 @@ function padPress(k) {
 function tvContent() {
   const ch = S.tv.ch;
   if (!S.tv.on) return { mode: 'off' };
+  tvScreen.showFace = !!AN.act.tv;
+  if (AN.act.tv) return { mode: 'text', lines: ['엄마', '보지 마'] };
   if (ch === 7) return { mode: 'cctv' };
   if (ch === 3) return { mode: 'kids', bad: S.act >= 2 };
   if (ch === 5) return { mode: 'text', lines: S.act >= 2 ? ['2000년 1월 14일', '(금)'] : ['1999년 12월 24일', '(금) 오후 7:55'] };
@@ -1438,6 +1689,7 @@ function update(dt) {
   }
   updateJob(dt);
   hsUpdate(dt);
+  anUpdate(dt);
   if (HS.turning) { const tr = HS.turning; tr.t = Math.min(1, tr.t + dt / 0.55); S.yaw = lerp(tr.from, tr.to, smooth(0, 1, tr.t)); S.pitch = lerp(tr.p0, -0.12, smooth(0, 1, tr.t)); if (tr.t >= 1) HS.turning = null; }
 
   // ---- examine by looking closely
@@ -1672,6 +1924,7 @@ function frame(dt) {
     if (!inView([db[12], db[13], db[14]], 1.2).visible || O.dollYaw === undefined) O.dollYaw = want;
     setModel(O.nodes.item_doll, m4.trs([db[12], db[13], db[14]], O.dollYaw ?? 0));
   }
+  anApply(dt, time);
 
   // item in hand
   if (S.insp) {
@@ -1723,7 +1976,7 @@ function frame(dt) {
   if (g) {
     const list = g.kind === 'crouch' ? O.ghostCrouch : O.ghostStand;
     setVisible(list, g.alpha > 0.005);
-    const clipY = g.mode === 'hide' && HS.spot === 'curtain' ? 0.3 : 0;
+    const clipY = g.clip || (g.mode === 'hide' && HS.spot === 'curtain' ? 0.3 : 0);
     for (const o of list) { o.camOnly = !!g.camOnly; o.castShadow = !g.camOnly; o.extra[1] = clipY; }
     let p = g.p;
     if (g.twitch > 0 || S.glitch > 0.3) {
@@ -1896,6 +2149,6 @@ async function main() {
     try { update(dt); frame(dt); } catch (e) { if (!loop.err) console.error(e); loop.err = e; window.__err = e.stack || String(e); }
   };
   requestAnimationFrame(loop);
-  window.__game = { tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
+  window.__game = { hsStory, AN, ANOM, anSpawn, anFix, anTap, anBox, anStart, tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
 }
 main();

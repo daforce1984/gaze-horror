@@ -32,3 +32,9 @@ Generated with **ElevenLabs Eleven v3**. The girl: Voice Library kid character v
 
 ## Images
 Textures, key art, documents and the jump-scare face: AI image generation. 3D models: Blender scripts in `blender/`.
+
+## Ghost models
+The ghost girl (standing and crawling) was reconstructed from AI-generated concept images with **Tencent Hunyuan3D 2.1** (run in ComfyUI; Tencent Hunyuan 3D 2.1 Community License), then cleaned, decimated, UV-projected and AO-baked in Blender (`blender/ghost_hy.py`). The concept images are also used as the textures. Look-and-feel references (not downloaded or reused): J-horror ghost designs such as Sadako (*Ring*) and Kayako (*Ju-on*).
+
+## Game design references
+*Observation Duty* (anomaly spotting), *Exit 8* (noticing what changed in a familiar space) — referenced for the loop only; no assets used.

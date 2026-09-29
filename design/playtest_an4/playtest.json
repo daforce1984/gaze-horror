@@ -1,0 +1,914 @@
+{
+ "mode": "normal",
+ "shots": [
+  {
+   "t": 0.5,
+   "file": "00_t0_start.png",
+   "sub": "",
+   "tip": "수아를 찾아 눌러요"
+  },
+  {
+   "t": 3.1,
+   "file": "01_t3_curtain.png",
+   "sub": "",
+   "tip": "수아를 찾아 눌러요"
+  },
+  {
+   "t": 5.6,
+   "file": "02_r1_found.png",
+   "sub": "“헤헤, 들켰다!”",
+   "tip": ""
+  },
+  {
+   "t": 7.2,
+   "file": "03_r1_reward_flying.png",
+   "sub": "“이번엔 내가 방을 이상하게 바꿔 놓을게! 엄마가 원래대로 돌려놔~”",
+   "tip": ""
+  },
+  {
+   "t": 9.7,
+   "file": "04_an1_table.png",
+   "sub": "“이번엔 내가 방을 이상하게 바꿔 놓을게! 엄마가 원래대로 돌려놔~”",
+   "tip": "이상한 곳을 눌러 원래대로 돌려요"
+  },
+  {
+   "t": 16.1,
+   "file": "05_an1_tv.png",
+   "sub": "“에이~ 들켰다.”",
+   "tip": "이상한 곳을 눌러 원래대로 돌려요"
+  },
+  {
+   "t": 20.7,
+   "file": "06_an1_doll.png",
+   "sub": "…등 뒤, 책장 쪽에서 툭.",
+   "tip": "이상한 곳을 눌러 원래대로 돌려요"
+  },
+  {
+   "t": 32.2,
+   "file": "07_an1_cushion.png",
+   "sub": "“헤헤, 들켰다!”",
+   "tip": ""
+  },
+  {
+   "t": 52.2,
+   "file": "08_an1_done.png",
+   "sub": "“와~ 다 찾았다! 엄마 최고!”",
+   "tip": ""
+  },
+  {
+   "t": 58.5,
+   "file": "09_r2_seek_start.png",
+   "sub": "“다 숨었다! 찾아봐~”",
+   "tip": ""
+  },
+  {
+   "t": 69.2,
+   "file": "10_r2_found.png",
+   "sub": "“와, 엄마 잘 찾는다!”",
+   "tip": ""
+  },
+  {
+   "t": 75.0,
+   "file": "11_r3_seek_start.png",
+   "sub": "“다 숨었다! 찾아봐~”",
+   "tip": ""
+  },
+  {
+   "t": 81.9,
+   "file": "12_r3_after_cheat.png",
+   "sub": "…등 뒤에서, 의자가 삐걱.",
+   "tip": ""
+  },
+  {
+   "t": 82.9,
+   "file": "13_r3_turned.png",
+   "sub": "…등 뒤에서, 의자가 삐걱.",
+   "tip": ""
+  },
+  {
+   "t": 83.9,
+   "file": "14_r3_found.png",
+   "sub": "“찾았다…”",
+   "tip": ""
+  },
+  {
+   "t": 93.1,
+   "file": "15_an2_crawl.png",
+   "sub": "“이번엔… 나도 움직일 거야.”",
+   "tip": ""
+  },
+  {
+   "t": 96.0,
+   "file": "16_an2_door.png",
+   "sub": "“엄마 눈 좋다~”",
+   "tip": ""
+  },
+  {
+   "t": 102.5,
+   "file": "17_an2_curtain.png",
+   "sub": "“에이~ 들켰다.”",
+   "tip": ""
+  },
+  {
+   "t": 113.3,
+   "file": "18_an2_frame.png",
+   "sub": "“엄마 눈 좋다~”",
+   "tip": ""
+  },
+  {
+   "t": 133.3,
+   "file": "19_an2_doll.png",
+   "sub": "“엄마 눈 좋다~”",
+   "tip": ""
+  },
+  {
+   "t": 145.4,
+   "file": "20_an2_done.png",
+   "sub": "“와~ 다 찾았다! 엄마 최고!”",
+   "tip": ""
+  },
+  {
+   "t": 153.0,
+   "file": "21_r4_tv_on.png",
+   "sub": "TV가 저절로 켜졌다. …방 구석 카메라 화면.",
+   "tip": "TV를 눌러 봐요"
+  },
+  {
+   "t": 154.4,
+   "file": "22_r4_cctv_view.png",
+   "sub": "TV가 저절로 켜졌다. …방 구석 카메라 화면.",
+   "tip": ""
+  },
+  {
+   "t": 155.3,
+   "file": "23_r4_found.png",
+   "sub": "“와, 엄마 잘 찾는다!”",
+   "tip": ""
+  },
+  {
+   "t": 161.3,
+   "file": "24_an3_curtain.png",
+   "sub": "“불 꺼졌다… 이제 엄마도 나처럼 어둠 속에서 찾아.”",
+   "tip": ""
+  },
+  {
+   "t": 163.9,
+   "file": "25_an3_crawl.png",
+   "sub": "“에이~ 들켰다.”",
+   "tip": ""
+  },
+  {
+   "t": 169.8,
+   "file": "26_an3_crawl.png",
+   "sub": "“에이~ 들켰다.”",
+   "tip": ""
+  },
+  {
+   "t": 180.3,
+   "file": "27_an3_drawer.png",
+   "sub": "“에이~ 들켰다.”",
+   "tip": ""
+  },
+  {
+   "t": 197.6,
+   "file": "28_an3_table.png",
+   "sub": "“에이~ 들켰다.”",
+   "tip": ""
+  },
+  {
+   "t": 210.4,
+   "file": "29_an3_done.png",
+   "sub": "“와~ 다 찾았다! 엄마 최고!”",
+   "tip": ""
+  },
+  {
+   "t": 220.5,
+   "file": "30_story_point_photo.png",
+   "sub": "그 애가 벽의 가족사진을 가리킨다.",
+   "tip": "가족사진을 눌러 봐요"
+  },
+  {
+   "t": 222.1,
+   "file": "31_photo_doc.png",
+   "sub": "그 애가 벽의 가족사진을 가리킨다.",
+   "tip": ""
+  },
+  {
+   "t": 223.7,
+   "file": "32_choice.png",
+   "sub": "“엄마… 이번엔 어디 안 갈 거지?”",
+   "tip": ""
+  },
+  {
+   "t": 229.9,
+   "file": "33_after_choice.png",
+   "sub": "손목의 밧줄이 풀린다. …문을 잠근 손은, 내 손이었다.",
+   "tip": ""
+  },
+  {
+   "t": 249.5,
+   "file": "34_ending.png",
+   "sub": "손목의 밧줄이 풀린다. …문을 잠근 손은, 내 손이었다.",
+   "tip": ""
+  }
+ ],
+ "log": [
+  {
+   "t": 0,
+   "ev": "chapter_start",
+   "ch": 1
+  },
+  {
+   "t": 0,
+   "ev": "round_start",
+   "n": 1,
+   "spot": "curtain"
+  },
+  {
+   "t": 4.79,
+   "ev": "first_input",
+   "kind": "tap"
+  },
+  {
+   "t": 4.79,
+   "ev": "valid_target",
+   "round": 1,
+   "spot": "curtain",
+   "realTime": 4.8,
+   "penalty": 0
+  },
+  {
+   "t": 7.21,
+   "ev": "anom_start",
+   "phase": 1
+  },
+  {
+   "t": 8.41,
+   "ev": "anom_spawn",
+   "k": "table",
+   "n": 1
+  },
+  {
+   "t": 8.41,
+   "ev": "anom_seen",
+   "k": "table",
+   "after": 0
+  },
+  {
+   "t": 1.5,
+   "ev": "anom_fix",
+   "k": "table",
+   "fixed": 1
+  },
+  {
+   "t": 11.1,
+   "ev": "anom_spawn",
+   "k": "tv",
+   "n": 1
+  },
+  {
+   "t": 14.87,
+   "ev": "anom_seen",
+   "k": "tv",
+   "after": 3.8
+  },
+  {
+   "t": 5.2,
+   "ev": "anom_fix",
+   "k": "tv",
+   "fixed": 2
+  },
+  {
+   "t": 17.46,
+   "ev": "anom_spawn",
+   "k": "doll",
+   "n": 1
+  },
+  {
+   "t": 19.53,
+   "ev": "anom_seen",
+   "k": "doll",
+   "after": 2.1
+  },
+  {
+   "t": 3.4,
+   "ev": "anom_fix",
+   "k": "doll",
+   "fixed": 3
+  },
+  {
+   "t": 23.47,
+   "ev": "anom_spawn",
+   "k": "table",
+   "n": 1
+  },
+  {
+   "t": 4,
+   "ev": "anom_fix",
+   "k": "table",
+   "fixed": 4
+  },
+  {
+   "t": 30.08,
+   "ev": "anom_spawn",
+   "k": "cushion",
+   "n": 1
+  },
+  {
+   "t": 30.93,
+   "ev": "anom_seen",
+   "k": "cushion",
+   "after": 0.9
+  },
+  {
+   "t": 2.3,
+   "ev": "anom_fix",
+   "k": "cushion",
+   "fixed": 5
+  },
+  {
+   "t": 35.53,
+   "ev": "anom_spawn",
+   "k": "drawer",
+   "n": 1
+  },
+  {
+   "t": 3.4,
+   "ev": "anom_fix",
+   "k": "drawer",
+   "fixed": 6
+  },
+  {
+   "t": 41.8,
+   "ev": "anom_spawn",
+   "k": "tv",
+   "n": 1
+  },
+  {
+   "t": 42.92,
+   "ev": "anom_seen",
+   "k": "tv",
+   "after": 1.1
+  },
+  {
+   "t": 2.3,
+   "ev": "anom_fix",
+   "k": "tv",
+   "fixed": 7
+  },
+  {
+   "t": 47.55,
+   "ev": "anom_spawn",
+   "k": "doll",
+   "n": 1
+  },
+  {
+   "t": 3.4,
+   "ev": "anom_fix",
+   "k": "doll",
+   "fixed": 8
+  },
+  {
+   "t": 52.2,
+   "ev": "anom_end",
+   "phase": 1,
+   "fails": 0
+  },
+  {
+   "t": 57.99,
+   "ev": "round_start",
+   "n": 2,
+   "spot": "desk",
+   "decoys": [
+    "curtain",
+    "shelf"
+   ],
+   "retry": false
+  },
+  {
+   "t": 57.99,
+   "ev": "input_enabled",
+   "n": 2
+  },
+  {
+   "t": 63.14,
+   "ev": "false_tap",
+   "where": "curtain"
+  },
+  {
+   "t": 64.98,
+   "ev": "hint_used",
+   "hint": "voice"
+  },
+  {
+   "t": 68.47,
+   "ev": "valid_target",
+   "round": 2,
+   "spot": "desk",
+   "realTime": 10.5,
+   "penalty": 3
+  },
+  {
+   "t": 74.1,
+   "ev": "round_start",
+   "n": 3,
+   "spot": "behind",
+   "decoys": [
+    "curtain"
+   ],
+   "retry": false
+  },
+  {
+   "t": 74.1,
+   "ev": "input_enabled",
+   "n": 3
+  },
+  {
+   "t": 77.7,
+   "ev": "false_tap",
+   "where": "curtain"
+  },
+  {
+   "t": 80.91,
+   "ev": "hint_used",
+   "hint": "behind"
+  },
+  {
+   "t": 82.03,
+   "ev": "turn"
+  },
+  {
+   "t": 83.09,
+   "ev": "valid_target",
+   "round": 3,
+   "spot": "behind",
+   "realTime": 8.4,
+   "penalty": 0
+  },
+  {
+   "t": 85.09,
+   "ev": "anom_start",
+   "phase": 2
+  },
+  {
+   "t": 88.08,
+   "ev": "anom_spawn",
+   "k": "crawl",
+   "n": 1
+  },
+  {
+   "t": 92.13,
+   "ev": "anom_seen",
+   "k": "crawl",
+   "after": 4
+  },
+  {
+   "t": 5.1,
+   "ev": "anom_fix",
+   "k": "crawl",
+   "fixed": 1
+  },
+  {
+   "t": 94.09,
+   "ev": "anom_spawn",
+   "k": "door",
+   "n": 1
+  },
+  {
+   "t": 94.91,
+   "ev": "anom_seen",
+   "k": "door",
+   "after": 0.8
+  },
+  {
+   "t": 2.1,
+   "ev": "anom_fix",
+   "k": "door",
+   "fixed": 2
+  },
+  {
+   "t": 98.75,
+   "ev": "anom_spawn",
+   "k": "curtain",
+   "n": 1
+  },
+  {
+   "t": 101.54,
+   "ev": "anom_seen",
+   "k": "curtain",
+   "after": 2.8
+  },
+  {
+   "t": 3.9,
+   "ev": "anom_fix",
+   "k": "curtain",
+   "fixed": 3
+  },
+  {
+   "t": 105.03,
+   "ev": "anom_spawn",
+   "k": "crawl",
+   "n": 1
+  },
+  {
+   "t": 107.12,
+   "ev": "anom_seen",
+   "k": "crawl",
+   "after": 2.1
+  },
+  {
+   "t": 3.1,
+   "ev": "anom_fix",
+   "k": "crawl",
+   "fixed": 4
+  },
+  {
+   "t": 110.14,
+   "ev": "anom_spawn",
+   "k": "frame",
+   "n": 1
+  },
+  {
+   "t": 112.24,
+   "ev": "anom_seen",
+   "k": "frame",
+   "after": 2.1
+  },
+  {
+   "t": 3.3,
+   "ev": "anom_fix",
+   "k": "frame",
+   "fixed": 5
+  },
+  {
+   "t": 116.32,
+   "ev": "anom_spawn",
+   "k": "cushion",
+   "n": 1
+  },
+  {
+   "t": 1.4,
+   "ev": "anom_fix",
+   "k": "cushion",
+   "fixed": 6
+  },
+  {
+   "t": 121.17,
+   "ev": "anom_spawn",
+   "k": "drawer",
+   "n": 1
+  },
+  {
+   "t": 124.12,
+   "ev": "anom_seen",
+   "k": "drawer",
+   "after": 2.9
+  },
+  {
+   "t": 3.9,
+   "ev": "anom_fix",
+   "k": "drawer",
+   "fixed": 7
+  },
+  {
+   "t": 126.02,
+   "ev": "anom_spawn",
+   "k": "table",
+   "n": 1
+  },
+  {
+   "t": 127.4,
+   "ev": "anom_seen",
+   "k": "table",
+   "after": 1.4
+  },
+  {
+   "t": 2.4,
+   "ev": "anom_fix",
+   "k": "table",
+   "fixed": 8
+  },
+  {
+   "t": 130.79,
+   "ev": "anom_spawn",
+   "k": "doll",
+   "n": 1
+  },
+  {
+   "t": 132.37,
+   "ev": "anom_seen",
+   "k": "doll",
+   "after": 1.6
+  },
+  {
+   "t": 2.7,
+   "ev": "anom_fix",
+   "k": "doll",
+   "fixed": 9
+  },
+  {
+   "t": 136.07,
+   "ev": "anom_spawn",
+   "k": "tv",
+   "n": 1
+  },
+  {
+   "t": 138.76,
+   "ev": "anom_seen",
+   "k": "tv",
+   "after": 2.7
+  },
+  {
+   "t": 3.8,
+   "ev": "anom_fix",
+   "k": "tv",
+   "fixed": 10
+  },
+  {
+   "t": 140.92,
+   "ev": "anom_spawn",
+   "k": "door",
+   "n": 1
+  },
+  {
+   "t": 3.2,
+   "ev": "anom_fix",
+   "k": "door",
+   "fixed": 11
+  },
+  {
+   "t": 145.3,
+   "ev": "anom_end",
+   "phase": 2,
+   "fails": 0
+  },
+  {
+   "t": 151.53,
+   "ev": "round_start",
+   "n": 4,
+   "spot": "under",
+   "decoys": [],
+   "retry": false
+  },
+  {
+   "t": 151.53,
+   "ev": "input_enabled",
+   "n": 4
+  },
+  {
+   "t": 153.6,
+   "ev": "cctv_view"
+  },
+  {
+   "t": 154.57,
+   "ev": "valid_target",
+   "round": 4,
+   "spot": "under",
+   "realTime": 3.1,
+   "penalty": 0
+  },
+  {
+   "t": 156.58,
+   "ev": "anom_start",
+   "phase": 3
+  },
+  {
+   "t": 160.06,
+   "ev": "anom_spawn",
+   "k": "curtain",
+   "n": 1
+  },
+  {
+   "t": 160.27,
+   "ev": "anom_seen",
+   "k": "curtain",
+   "after": 0.2
+  },
+  {
+   "t": 1.4,
+   "ev": "anom_fix",
+   "k": "curtain",
+   "fixed": 1
+  },
+  {
+   "t": 162.65,
+   "ev": "anom_spawn",
+   "k": "crawl",
+   "n": 1
+  },
+  {
+   "t": 1.4,
+   "ev": "anom_fix",
+   "k": "crawl",
+   "fixed": 2
+  },
+  {
+   "t": 167.5,
+   "ev": "anom_spawn",
+   "k": "crawl",
+   "n": 1
+  },
+  {
+   "t": 168.83,
+   "ev": "anom_seen",
+   "k": "crawl",
+   "after": 1.3
+  },
+  {
+   "t": 2.5,
+   "ev": "anom_fix",
+   "k": "crawl",
+   "fixed": 3
+  },
+  {
+   "t": 172.66,
+   "ev": "anom_spawn",
+   "k": "curtain",
+   "n": 1
+  },
+  {
+   "t": 175.27,
+   "ev": "anom_seen",
+   "k": "curtain",
+   "after": 2.6
+  },
+  {
+   "t": 176.2,
+   "ev": "anom_spawn",
+   "k": "drawer",
+   "n": 2
+  },
+  {
+   "t": 3.7,
+   "ev": "anom_fix",
+   "k": "curtain",
+   "fixed": 4
+  },
+  {
+   "t": 179.38,
+   "ev": "anom_seen",
+   "k": "drawer",
+   "after": 3.2
+  },
+  {
+   "t": 4.3,
+   "ev": "anom_fix",
+   "k": "drawer",
+   "fixed": 5
+  },
+  {
+   "t": 181.44,
+   "ev": "anom_spawn",
+   "k": "frame",
+   "n": 1
+  },
+  {
+   "t": 182.33,
+   "ev": "anom_seen",
+   "k": "frame",
+   "after": 0.9
+  },
+  {
+   "t": 1.8,
+   "ev": "anom_fix",
+   "k": "frame",
+   "fixed": 6
+  },
+  {
+   "t": 186.03,
+   "ev": "anom_spawn",
+   "k": "cushion",
+   "n": 1
+  },
+  {
+   "t": 186.83,
+   "ev": "anom_seen",
+   "k": "cushion",
+   "after": 0.8
+  },
+  {
+   "t": 1.8,
+   "ev": "anom_fix",
+   "k": "cushion",
+   "fixed": 7
+  },
+  {
+   "t": 189.9,
+   "ev": "anom_spawn",
+   "k": "doll",
+   "n": 1
+  },
+  {
+   "t": 190.86,
+   "ev": "anom_seen",
+   "k": "doll",
+   "after": 1
+  },
+  {
+   "t": 2,
+   "ev": "anom_fix",
+   "k": "doll",
+   "fixed": 8
+  },
+  {
+   "t": 193.85,
+   "ev": "anom_spawn",
+   "k": "table",
+   "n": 1
+  },
+  {
+   "t": 3.9,
+   "ev": "anom_fix",
+   "k": "table",
+   "fixed": 9
+  },
+  {
+   "t": 199.18,
+   "ev": "anom_spawn",
+   "k": "door",
+   "n": 1
+  },
+  {
+   "t": 3.2,
+   "ev": "anom_fix",
+   "k": "door",
+   "fixed": 10
+  },
+  {
+   "t": 203.11,
+   "ev": "anom_spawn",
+   "k": "tv",
+   "n": 1
+  },
+  {
+   "t": 205.37,
+   "ev": "anom_seen",
+   "k": "tv",
+   "after": 2.3
+  },
+  {
+   "t": 3.2,
+   "ev": "anom_fix",
+   "k": "tv",
+   "fixed": 11
+  },
+  {
+   "t": 207.83,
+   "ev": "anom_spawn",
+   "k": "crawl",
+   "n": 1
+  },
+  {
+   "t": 208.02,
+   "ev": "anom_seen",
+   "k": "crawl",
+   "after": 0.2
+  },
+  {
+   "t": 1.3,
+   "ev": "anom_fix",
+   "k": "crawl",
+   "fixed": 12
+  },
+  {
+   "t": 210.3,
+   "ev": "anom_end",
+   "phase": 3,
+   "fails": 0
+  },
+  {
+   "t": 213.09,
+   "ev": "story_start"
+  },
+  {
+   "t": 219.9,
+   "ev": "input_enabled",
+   "n": "photo"
+  },
+  {
+   "t": 221.11,
+   "ev": "valid_target",
+   "round": "photo"
+  },
+  {
+   "t": 221.71,
+   "ev": "input_enabled",
+   "n": "choice"
+  },
+  {
+   "t": 222.76,
+   "ev": "choice",
+   "give": "photo"
+  },
+  {
+   "t": 222.76,
+   "ev": "ending_choice",
+   "type": "release"
+  },
+  {
+   "t": 238.26,
+   "ev": "ending_shown",
+   "type": "good"
+  }
+ ]
+}

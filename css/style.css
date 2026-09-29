@@ -239,3 +239,14 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
 #choice button { white-space: nowrap; }
 @media (max-width: 480px) { #choice { flex-direction: column; width: min(86vw, 320px); } #choice button { min-width: 0; width: 100%; } }
 #hud.choosing #tray { display: none; }
+
+/* ---- anomaly night: three slots and how many are fixed */
+#anHud { position: absolute; top: calc(92px + var(--safe-t)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px;
+  padding: 5px 12px; border-radius: 16px; background: rgba(8,8,10,.45); color: #d8d0c2; font-size: 13px; letter-spacing: .08em;
+  opacity: 0; transition: opacity .4s; pointer-events: none; }
+#anHud.show { opacity: 1; }
+#anHud .pips { display: flex; gap: 6px; }
+#anHud .pips i { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid rgba(230,220,200,.6); transition: background .2s, border-color .2s; }
+#anHud .pips i.on { background: #e6a23c; border-color: #e6a23c; box-shadow: 0 0 8px rgba(230,160,60,.7); }
+#anHud.danger .pips i.on { background: #ff3a2a; border-color: #ff3a2a; box-shadow: 0 0 12px rgba(255,50,30,.9); animation: pulse .6s infinite; }
+#anHud b { font-weight: 600; min-width: 42px; text-align: right; }

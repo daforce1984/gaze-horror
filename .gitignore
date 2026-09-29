@@ -6,3 +6,7 @@ __pycache__/
 audio-source/pixabay/*.mp3
 audio-source/music/*/*.flac
 tools/el/.el_tab.json
+design/ghost3d/*.glb
+design/refs/
+assets/ghost_prev.glb
+design/playtest_*.out

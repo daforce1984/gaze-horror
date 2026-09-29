@@ -251,6 +251,48 @@
    "voice": "GIRL",
    "stability": 0.5,
    "text": "[singing softly] 무궁화 꽃이… 피었습니다."
+  },
+  {
+   "id": "an_intro",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[excited] 이번엔 내가 방을 이상하게 바꿔 놓을게! 엄마가 원래대로 돌려놔~"
+  },
+  {
+   "id": "an_more",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 이번엔… 나도 움직일 거야."
+  },
+  {
+   "id": "an_fix1",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[giggles] 에이~ 들켰다."
+  },
+  {
+   "id": "an_fix2",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[giggles] 엄마 눈 좋다~"
+  },
+  {
+   "id": "an_done",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[happy] 와~ 다 찾았다! 엄마 최고!"
+  },
+  {
+   "id": "an_fail",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[giggles] 엄마 바보~ 하나도 못 고쳤지롱."
+  },
+  {
+   "id": "an_last",
+   "voice": "GIRL",
+   "stability": 0.5,
+   "text": "[whispers] 불 꺼졌다… 이제 엄마도 나처럼 어둠 속에서 찾아."
   }
  ]
 }
