@@ -50,6 +50,14 @@ def ph_import(pid, keep=None, drop_mats=(), res=512, skip=(), faces=None, flat=F
     for m in ob.data.materials:
         if not m or not m.use_nodes:
             continue
+        # a separate greyscale roughness map would be exported as a 1-channel image (WebP can't): use a constant
+        for l in list(m.node_tree.links):
+            src = l.from_node
+            while src and src.type not in ('TEX_IMAGE',) and src.inputs and src.inputs[0].is_linked:
+                src = src.inputs[0].links[0].from_node
+            if l.to_socket.name == 'Roughness' and src and src.type == 'TEX_IMAGE' and src.image and '_arm' not in src.image.name:
+                l.to_socket.default_value = 0.75
+                m.node_tree.links.remove(l)
         for n in m.node_tree.nodes:
             if n.type == 'TEX_IMAGE' and n.image and max(n.image.size) > res:
                 n.image.scale(res, res)
@@ -90,6 +98,7 @@ def ph_place(ob, s, engine_pt, rotz=0.0, rotx=0.0, anchor='bottom'):
     """scale, turn (rotz: 0 = front faces the viewer at +z engine), then put the bbox bottom-centre
     (or centre / back-centre) on an engine-space point"""
     ob.scale = (s, s, s)
+    ob.rotation_mode = 'XYZ'   # the glTF importer leaves objects in quaternion mode (euler would be ignored)
     ob.rotation_euler = (rotx, 0, rotz)
     bpy.ops.object.select_all(action='DESELECT')
     ob.select_set(True)
@@ -199,7 +208,7 @@ def upgrade_props(M):
     ttop = ph_bounds(tbl)[1].z
     items = [cyl('lt_mug', (-1.08, ttop + 0.0425, -1.05), 0.038, 0.085, M['ceramic'], seg=18),
              box('lt_tray', (-0.85, ttop + 0.006, -0.95), (0.26, 0.012, 0.2), mat('M_tray', (0.55, 0.12, 0.1), 0.35), 0.004),
-             cyl('lt_bowl', (-0.85, ttop + 0.031, -0.95), 0.06, 0.04, M['ceramic'], seg=18, r2=0.045)]
+             ]
     world_uv(items[1], 0.5)
     lt = join('lowtable', [tbl] + items)
     lt['ph'] = 'chinese_tea_table'
@@ -245,8 +254,8 @@ def upgrade_props(M):
         doll.location.z += smx.z - dmn + 0.002
 
     # ---- wall clock: rim and dial of the model, our stopped face in front of it
-    clk = ph_import('wall_clock', skip=('hand',), drop_mats=('glass',), res=512, faces=1200)
-    ph_place(clk, 1.15, (RX - 0.03, 1.85, -0.3), rotz=-PI / 2, anchor='centre')
+    clk = ph_import('wall_clock', skip=('hand',), drop_mats=('glass',), res=512)
+    ph_place(clk, 1.15, (RX - 0.03, 1.85, -0.3), rotz=-PI / 2, anchor='centre')   # dial towards the room (-x)
     replace('clock_body', clk)
 
     # ---- family photo frame (our photo quad sits in its opening)
@@ -404,3 +413,48 @@ def upgrade_hy():
             ph_place(r, 1.0, (0.4, top, -2.1), rotz=0.35)
             replace('item_remote', r)
             item_origin(r)
+
+
+def add_props():
+    """lived-in detail (Poly Haven CC0): things a mother and a seven-year-old leave around"""
+    dx, dz, dtop = 1.86, -0.3, 0.74 + 0.018
+    def put(pid, name, s, pt, rotz=0.0, faces=2000, res=512, **kw):
+        ob = ph_import(pid, res=res, faces=faces, **kw)
+        ph_place(ob, s, pt, rotz=rotz)
+        ob.name = name; ob.data.name = name
+        return ob
+    put('desk_lamp_arm_01', 'deco_desklamp', 0.62, (dx + 0.14, dtop, dz - 0.46), rotz=-PI / 2 - 0.4, faces=3000)
+    sf = put('standing_picture_frame_01', 'deco_standframe', 0.85, (dx + 0.12, dtop, dz + 0.12), rotz=PI + 0.25, faces=1000, drop_mats=('glass',))   # this model faces +x
+    pol = bpy.data.images.load(os.path.join(os.path.dirname(HERE), 'assets', 'polaroid.webp'))
+    for m in sf.data.materials:   # the stock artwork becomes the polaroid of the empty chair
+        if m and 'artwork' in m.name:
+            for n in m.node_tree.nodes:
+                if n.type == 'TEX_IMAGE' and n.image and ('diff' in n.image.name or 'col' in n.image.name.lower()):
+                    n.image = pol
+    put('stationery_supplies', 'deco_pencils', 0.9, (dx - 0.12, dtop, dz - 0.12), rotz=0.5, faces=1500)
+    # the birthday cake on the tray of the low table (the bowl goes)
+    lt = bpy.data.objects['lowtable']
+    ttop = ph_bounds(lt)[1].z
+    put('strawberry_chocolate_cake', 'deco_cake', 0.8, (-0.85, 0.31 + 0.028 + 0.006, -0.95), rotz=0.3, faces=3000)
+    # a basket of toys by the desk, the duck inside; the mother's suitcase by the door
+    put('wicker_basket_01', 'deco_basket', 1.0, (1.12, 0.0, 0.95), rotz=0.4, faces=2500)
+    put('rubber_duck_toy', 'deco_duck', 0.45, (1.1, 0.03, 0.93), rotz=2.3, faces=1500)
+    put('vintage_suitcase', 'deco_suitcase', 0.85, (1.95, 0.0, 1.35), rotz=-PI / 2, faces=3000, keep=['suitcase_01'])
+
+
+def add_kid_things():
+    """a seven-year-old's things (Hunyuan3D from Codex front views): the room is hers too"""
+    cu = bpy.data.objects.get('cushion')
+    ctop = ph_bounds(cu)[1].z if cu else 0.08
+    for key, name, h, pt, rotz, faces in (
+            ('teddy', 'deco_teddy', 0.3, (-1.2, ctop - 0.01, 0.2), PI / 2 + 0.2, 3500),            # sitting on the cushion, looking at you
+            ('backpack', 'deco_backpack', 0.36, (1.42, 0.0, 0.5), -PI / 2 + 0.3, 3000),          # leaning by the desk
+            ('shoes', 'deco_shoes', 0.075, (0.45, 0.0, 2.28), PI + 0.15, 2000),                   # little red shoes at the door
+            ('musicbox_front', 'deco_musicbox', 0.15, (-0.36, None, -2.12), 0.25, 3000)):          # open on the TV stand
+        ob = hy_item(key, name, h, faces=faces)
+        if not ob:
+            continue
+        if pt[1] is None:
+            pt = (pt[0], ph_bounds(bpy.data.objects['tv_cabinet'])[1].z, pt[2])
+        ph_place(ob, 1.0, pt, rotz=rotz)
+        ob.name = name; ob.data.name = name

@@ -22,6 +22,7 @@ const ASSETS = {
   wallN: 'assets/wall_clean_n.webp', wallM: 'assets/wall_clean_m.webp', floorN: 'assets/floor_clean_n.webp', floorM: 'assets/floor_clean_m.webp',
   ceilN: 'assets/ceiling_n.webp', ceilM: 'assets/ceiling_m.webp', curtainN: 'assets/curtain_n.webp', curtainM: 'assets/curtain_m.webp',
   rugN: 'assets/rug_n.webp', rugM: 'assets/rug_m.webp', doorN: 'assets/door_n.webp', doorM: 'assets/door_m.webp',
+  rope: 'assets/rope.webp', ropeN: 'assets/rope_n.webp', ropeM: 'assets/rope_m.webp', rust: 'assets/rust.webp', rustN: 'assets/rust_n.webp', rustM: 'assets/rust_m.webp',
   woodLight: 'assets/wood_light.webp', woodN: 'assets/wood_n.webp', woodM: 'assets/wood_m.webp', woodLightN: 'assets/wood_light_n.webp', woodLightM: 'assets/wood_light_m.webp',
   curtain: 'assets/curtain.webp', wood: 'assets/wood.webp', door: 'assets/door.webp',
   face: 'assets/ghost_face.webp', window: 'assets/window.webp', fabric: 'assets/fabric.webp', plastic: 'assets/plastic.webp',
@@ -164,8 +165,8 @@ function add(o) { objects.push(o); return o; }
 function buildScene() {
   const T = {
     wall: tex('wall'), wallClean: tex('wallClean'), floor: tex('floor'), floorClean: tex('floorClean'), ceiling: tex('ceiling'),
-    ceilClean: IMG.ceilClean ? tex('ceilClean') : R.solidTexture([232, 226, 212, 255]), curtain: tex('curtain'), rug: tex('rug'), woodLight: tex('woodLight'),
-    ...Object.fromEntries(['wallN', 'wallM', 'floorN', 'floorM', 'ceilN', 'ceilM', 'curtainN', 'curtainM', 'rugN', 'rugM', 'doorN', 'doorM', 'woodN', 'woodM', 'woodLightN', 'woodLightM']
+    ceilClean: IMG.ceilClean ? tex('ceilClean') : R.solidTexture([232, 226, 212, 255]), curtain: tex('curtain'), rug: tex('rug'), woodLight: tex('woodLight'), rope: tex('rope'), rust: tex('rust'),
+    ...Object.fromEntries(['wallN', 'wallM', 'floorN', 'floorM', 'ceilN', 'ceilM', 'curtainN', 'curtainM', 'rugN', 'rugM', 'doorN', 'doorM', 'woodN', 'woodM', 'woodLightN', 'woodLightM', 'ropeN', 'ropeM', 'rustN', 'rustM']
       .filter(k => IMG[k]).map(k => [k, R.texture(IMG[k], { mips: true, srgb: false })])), wood: tex('wood'), door: tex('door'), window: tex('window'),
     fabric: tex('fabric'), plastic: tex('plastic'), paper: tex('paper'), ghostTex: tex('ghostTex', { mips: true }), crawlTex: tex('crawlTex', { mips: true }),
     blob: R.texture(TX.radialTex('rgba(0,0,0,0.9)', 'rgba(0,0,0,0)')),
@@ -191,7 +192,7 @@ function buildScene() {
     M_clockface: { t: O.clockTex, key: 'clockface' }, M_bulb: { unlit: true, key: 'bulb' }, M_corridor: { unlit: true, key: 'corridor', tint: [0, 0, 0] },
     M_bag: { t: T.plastic, tint: [0.9, 0.9, 0.95], spec: 1.4 }, M_bagwhite: { spec: 0.9 }, M_paper: { t: T.paper, wrap: 0.3 }, M_cardboard: { t: T.paper, tint: [0.75, 0.6, 0.42] },
     M_dress: { t: T.fabric, wrap: 0.45, tint: [0.95, 0.95, 0.95], aoLift: 0.85 }, M_skin: { wrap: 0.35, spec: 0.3, aoLift: 0.5 }, M_hair: { spec: 1.6, wrap: 0.2, aoLift: 1.0 }, M_eye: { spec: 1.5, emissive: [0.05, 0.06, 0.06] },
-    M_glassgreen: { spec: 2.0 }, M_can: { spec: 1.5 }, M_can2: { spec: 1.5 }, M_metal: { spec: 1.2 }, M_brass: { spec: 1.4 }, M_mirror: { spec: 2.5 },
+    M_glassgreen: { spec: 2.0 }, M_can: { spec: 1.5 }, M_can2: { spec: 1.5 }, M_metal: { t: T.rust, n: T.rustN, mr: T.rustM, uv: 4 }, M_rope: { t: T.rope, n: T.ropeN, mr: T.ropeM, uv: 3 }, M_brass: { spec: 1.4 }, M_mirror: { spec: 2.5 },
     M_rug: { t: T.rug, wrap: 0.3, spec: 0.02, n: T.rugN, mr: T.rugM }, M_cushion: { t: T.fabric, tint: [0.75, 0.55, 0.32], wrap: 0.4 },
     M_ghosttex: { t: T.ghostTex, wrap: 0.4, spec: 0.35, aoLift: 1.0 },
     M_ghostcrawl: { t: T.crawlTex, wrap: 0.4, spec: 0.35, aoLift: 1.0 },
@@ -707,9 +708,8 @@ const ANOM = {
   tv: { node: 'tv', name: 'TV', sfx: 'static', cue: '…TV가 저절로 켜졌다.' },
   doll: { node: 'item_doll', name: '인형', sfx: 'bang', cue: '…등 뒤에서, 작은 발소리.', to: [-0.7, 0, 2.2] },   // climbs down, grows, and stands behind you (clear of the chair back) facing you
   frame: { node: 'item_frame', name: '가족사진', sfx: 'creak', cue: '…액자가 삐걱삐걱 흔들리는 소리.', loopSfx: 3.5 },
-  drawer: { node: 'drawer', name: '서랍', sfx: 'drawer', cue: '…서랍이 드르륵 열렸다.' },
   cushion: { node: 'cushion', name: '방석', sfx: 'whisper', cue: '…누가 속삭인다.', lift: 1.0 },
-  door: { node: 'door', name: '문', sfx: 'knock', cue: '…등 뒤에서, 잠긴 문이 열리는 소리.' },
+  lamp: { node: 'lamp', name: '전등', sfx: 'creak', cue: '…머리 위에서 끼익, 끼익.', loopSfx: 2.2, drop: 0.95 },   // drops on a longer cord to eye level, swings hard, the light turns red
   curtain: { name: '커튼', sfx: 'giggle', cue: '…커튼 쪽에서 킥킥.', ghost: true },
   crawl: { name: '기어오는 아이', sfx: 'steps', cue: '…바닥을 긁으며 기어오는 소리.', ghost: true },
 };
@@ -727,6 +727,7 @@ function anBox(k) {
   if (!a.box) a.box = nodeBox(a.node, k === 'doll' ? 0.15 : 0.1);
   const b = a.box, s = AN.act[k];
   if (a.to && s && s.k > 0.5) { const t = a.to; return { min: [t[0] - 0.35, 0, t[2] - 0.35], max: [t[0] + 0.35, 0.7, t[2] + 0.35], c: [t[0], 0.35, t[2]] }; }
+  if (a.drop && s) { const d = a.drop * smooth(0, 1, s.k); return { min: [b.min[0] - 0.3, b.min[1] - d, b.min[2] - 0.3], max: [b.max[0] + 0.3, b.max[1] - d, b.max[2] + 0.3], c: [b.c[0], b.c[1] - d, b.c[2]] }; }
   if (!a.lift || !s) return b;
   const up = a.lift * s.k;
   return { min: b.min, max: [b.max[0], b.max[1] + up, b.max[2]], c: [b.c[0], b.c[1] + up, b.c[2]] };
@@ -969,7 +970,7 @@ function anApply(dt, time) {
   for (const [k, s] of Object.entries(all)) {
     if (!AN.act[k]) { s.k = Math.max(0, s.k - dt * 2.5); if (s.k <= 0) { delete AN.back[k]; } }
     const a = ANOM[k], e = smooth(0, 1, s.k);
-    if (!a.node || k === 'tv' || k === 'door') continue;
+    if (!a.node || k === 'tv' || k === 'lamp') continue;
     if (k === 'frame' && !O.photoObj.base) O.photoObj.base = O.photoObj.model.slice();
     const list = k === 'frame' ? [...O.nodes.item_frame, O.photoObj] : O.nodes[a.node], b = a.box || anBox(k), piv = b.c;
     let X;
@@ -2002,13 +2003,14 @@ function frame(dt) {
   G.set(m4.mul(proj, view), 0);
 
   // lamp
-  const sw = 0.05 + S.lampSwing * 0.25;
+  const lampK = smooth(0, 1, (AN.act.lamp || AN.back?.lamp)?.k || 0);
+  const sw = 0.05 + S.lampSwing * 0.25 + lampK * 0.5;
   const ax = Math.sin(time * 1.3) * sw, az = Math.cos(time * 1.1) * sw * 0.7;
-  const R0 = m4.trs([0, RH, -0.6], 0, [1, 1, 1], ax, az);
+  const R0 = m4.trs([0, RH - lampK * ANOM.lamp.drop, -0.6], 0, [1, 1, 1], ax, az);
   setModel(O.nodes.lamp, R0); setModel(O.nodes.bulb, R0);
   const bulbPos = [R0[12] + R0[4] * -0.54, R0[13] + R0[5] * -0.54, R0[14] + R0[6] * -0.54];
   const B = (S.bulb ?? 1) * (1 - (S.lampDim || 0) * 0.6);
-  O.bulb.emissive = [B * 7, B * 5.2, B * 3.2, 0]; O.bulb.tint = [0.08, 0.07, 0.06, 1];
+  O.bulb.emissive = [B * 7, B * 5.2 * (1 - lampK * 0.75), B * 3.2 * (1 - lampK * 0.85), 0]; O.bulb.tint = [0.08, 0.07, 0.06, 1];
   O.halo.model = billboard(bulbPos, 0.55 + B * 0.2, true);
   O.halo.tint[3] = B * 0.22;
   snd.bulbPan && snd.setPos(snd.bulbPan, bulbPos);
@@ -2098,7 +2100,7 @@ function frame(dt) {
     const list = g.kind === 'crouch' ? O.ghostCrouch : O.ghostStand;
     setVisible(list, g.alpha > 0.005);
     const clipY = g.clip || (g.mode === 'hide' && HS.spot === 'curtain' ? 0.3 : 0);
-    for (const o of list) { o.camOnly = !!g.camOnly; o.castShadow = !g.camOnly; o.extra[1] = clipY; }
+    for (const o of list) { o.camOnly = !!g.camOnly; o.castShadow = false; o.extra[1] = clipY; }   // no cube-shadow for her (6 extra draws of a dense mesh); the blob on the floor stays
     let p = g.p;
     if (g.twitch > 0 || S.glitch > 0.3) {
       g.twitch = Math.max(0, (g.twitch || 0) - dt * 3);
@@ -2122,7 +2124,7 @@ function frame(dt) {
   const amb = 0.018 + warmK * 0.03 + (S.bulbDead ? 0.004 : 0);
   G.set([eye[0], eye[1], eye[2], time], 16);
   G.set([bulbPos[0], bulbPos[1], bulbPos[2], (2.8 + warmK * 1.4) * B], 20);
-  G.set([1.0, 0.72 + warmK * 0.08, 0.45 + warmK * 0.05, 0], 24);
+  G.set([1.0, (0.72 + warmK * 0.08) * (1 - lampK * 0.65), (0.45 + warmK * 0.05) * (1 - lampK * 0.75), 0], 24);
   G.set([O.tvCenter[0], O.tvCenter[1], O.tvCenter[2] + 0.15, 1.6 * tvI], 28);
   G.set([0.55, 0.7, 1.0, 0], 32);
   G.set([-2.6, 1.75, -0.6, moon], 36);

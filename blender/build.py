@@ -499,7 +499,7 @@ def build_room():
         for l in f.loops:
             co = l.vert.co  # blender: y = -engine z, z = engine y
             # viewer faces +x (engine); viewer's right is engine -z = blender +y
-            l[uvl].uv = (0.5 + (co.y - ctr.co.y) / 0.34, 0.5 + (co.z - ctr.co.z) / 0.34)
+            l[uvl].uv = (0.5 - (co.y - ctr.co.y) / 0.34, 0.5 + (co.z - ctr.co.z) / 0.34)
     bm.normal_update()
     face = from_bm('clock_face', bm, M['clockface'])
     if face.data.polygons[0].normal.x > 0:
@@ -588,6 +588,8 @@ def build_room():
     build_props(M)
     upgrade_props(M)   # Poly Haven pieces take over (blender/props_ph.py)
     upgrade_hy()       # Hunyuan3D doll / remote
+    add_props()        # more lived-in detail
+    add_kid_things()   # teddy, backpack, shoes, music box
     ph_cleanup()
 
 
@@ -1139,8 +1141,12 @@ def bake_ao():
     scene.render.bake.target = 'VERTEX_COLORS'
     # trash piles only appear later in the game, so they must not darken the floor in the clean room
     trash = [o for o in meshes if o.name.startswith('trash_')]
-    rest = [o for o in meshes if o not in trash]
-    for group, hide in ((rest, trash), (trash, [])):
+    # scanned Poly Haven props bring their own occlusion map: don't darken them twice (they still occlude others)
+    own_ao = [o for o in meshes if o not in trash and 'ph' in o and not str(o['ph']).startswith('hy_')]
+    rest = [o for o in meshes if o not in trash and o not in own_ao]
+    for o in own_ao:
+            o.data.color_attributes.remove(o.data.color_attributes['AO'])
+    for group, hide in ((rest, trash), (trash, [])):   # own_ao props stay visible as occluders
         if not group:
             continue
         for o in hide:

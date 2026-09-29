@@ -42,6 +42,9 @@ def load(path, name, height, target_faces, mat='M_ghosttex', tilt=0.0, rear=0.0)
     bm.to_mesh(ob.data); bm.free()
     # decimate
     n = len(ob.data.polygons)
+    # remesh: the scan's triangle soup becomes one clean closed surface (even density, sane normals)
+    r = ob.modifiers.new('rem', 'REMESH'); r.mode = 'VOXEL'; r.voxel_size = ob.dimensions.z / 230; r.adaptivity = 0.0
+    bpy.context.view_layer.objects.active = ob; bpy.ops.object.modifier_apply(modifier=r.name)
     for _ in range(4):   # collapse stalls on non-manifold scans: repeat until near the budget
         cur = len(ob.data.polygons)
         if cur < target_faces * 1.15: break
@@ -85,9 +88,9 @@ def load(path, name, height, target_faces, mat='M_ghosttex', tilt=0.0, rear=0.0)
     print('GHOST', name, n, '->', len(me.polygons), 'faces, dims', tuple(round(d, 3) for d in ob.dimensions))
     return ob
 
-stand = load(argv[0], 'ghost_stand', 1.36, 32000)
+stand = load(argv[0], 'ghost_stand', 1.36, 9000)
 if len(argv) > 1 and os.path.exists(argv[1]):
-    crouch = load(argv[1], 'ghost_crouch', 0.5, 26000, 'M_ghostcrawl', math.radians(25), 0.5)   # on all fours, crawling towards you
+    crouch = load(argv[1], 'ghost_crouch', 0.5, 7000, 'M_ghostcrawl', math.radians(25), 0.5)   # on all fours, crawling towards you
 else:   # keep the previous crouching mesh until a new one exists
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=os.path.join(ROOT, 'assets', 'ghost_prev.glb'))
