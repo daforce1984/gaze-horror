@@ -290,11 +290,15 @@ function buildScene() {
     grid(-2.1, 2.1, 0.05, 2.55, (x, y) => [[x, y, 2.495], [0, 0, -1]]);
     grid(-2.1, 2.1, -2.4, 2.4, (x, z) => [[x, 2.595, z], [0, -1, 0]]);
     for (let k = 0; k < 220; k++) seeds.push([[J(-2.1, 2.1), 0.006, J(-2.4, 2.4)], [0, 1, 0]]);
-    const N = seeds.length, v = new Float32Array(N * 4 * 12), idx = new Uint32Array(N * 6);
+    // each flake is one quad (c.w = 1) plus four dust grains (c.w = 2..5) it crumbles into
+    const PER = 5, N = seeds.length * PER, v = new Float32Array(N * 4 * 12), idx = new Uint32Array(N * 6);
     seeds.forEach(([p, n], k) => {
       const r1 = Math.random(), sz = Math.random(), r2 = Math.random();
-      [[0, 0], [1, 0], [1, 1], [0, 1]].forEach(([u, w], c) => v.set([...p, ...n, u, w, r1, sz, r2, 1], (k * 4 + c) * 12));
-      idx.set([0, 1, 2, 0, 2, 3].map(x => x + k * 4), k * 6);
+      for (let d = 0; d < PER; d++) {
+        const q = k * PER + d;
+        [[0, 0], [1, 0], [1, 1], [0, 1]].forEach(([u, w], c) => v.set([...p, ...n, u, w, r1, sz, r2, 1 + d], (q * 4 + c) * 12));
+        idx.set([0, 1, 2, 0, 2, 3].map(x => x + q * 4), q * 6);
+      }
     });
     O.ash = add(R.object(R.mesh({ v, i: idx }), T.wallClean, { pipe: 'blend', extra: [0, 0, 0, 1], order: 5 }));
     O.ash.noCull = true;
@@ -1788,6 +1792,7 @@ function update(dt) {
   S.flash = damp(S.flash, 0, 4, dt); S.shake = damp(S.shake, 0, 3, dt); S.glitch = damp(S.glitch, 0, 2.5, dt);
   S.curtainOpen = damp(S.curtainOpen, S.curtainTarget, 0.9, dt);
   shiftUpdate(dt); formUpdate(dt);
+  if (O.ash) O.ash.visible = SHIFT.on;
   S.frost = damp(S.frost, Math.max(0, (45 - S.warmth) / 70), 0.8, dt);
   if (S.doorLight > 0) S.doorLight = Math.min(S.doorLight + dt * 0.5, 3);
   S.doorOpen = damp(S.doorOpen, S.doorOpenT, 0.7, dt);

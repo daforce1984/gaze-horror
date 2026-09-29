@@ -76,7 +76,20 @@ fn hash21(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 
     let q = (uv - vec2f(0.5)) * size;
     let rise = pow(max(life - 0.18, 0.0), 1.5) * (1.2 + c.x * 0.8);
     let center = p + n * (0.003 + peel * 0.07) + vec3f(0.0, rise, 0.0) + t1 * sin(t * 1.3 + c.x * 9.0) * 0.05 * life;
-    let wp = center + t1 * q.x + a2 * q.y;
+    var wp = center + t1 * q.x + a2 * q.y;
+    if (c.w > 1.5) {   // a dust grain shed by this flake as it crumbles: drifts away, sinks a little, fades
+      let di = c.w - 1.0;
+      let h = fract(sin(vec3f(di * 12.9, di * 78.2, di * 37.7) + c.xyz * 43.1) * 43758.5);
+      let shed = clamp((life - 0.3 - h.x * 0.25) / 0.45, 0.0, 1.0);
+      let dir = normalize(h * 2.0 - vec3f(1.0) + n * 0.6 + vec3f(0.0, 0.15, 0.0));
+      let gp = center + (t1 * (h.y - 0.5) + a2 * (h.z - 0.5)) * mix(0.06, 0.13, c.y) + dir * shed * (0.12 + h.y * 0.22) + vec3f(0.0, -shed * shed * 0.08, 0.0);
+      let gs = mix(0.006, 0.016, h.z) * step(0.001, shed) * (1.0 - shed) * alive;
+      let f = normalize(gp - G.camPos.xyz); let r = normalize(cross(f, vec3f(0.0, 1.0, 0.0))); let u2 = cross(r, f);
+      wp = gp + (r * (uv.x - 0.5) + u2 * (uv.y - 0.5)) * gs;
+      o.pos = G.viewProj * vec4f(wp, 1.0);
+      o.wp = wp; o.n = vec3f(0.0); o.uv = uv; o.col = vec4f(c.x, 2.0 + shed, (1.0 - shed), 1.0);   // col.y > 1.5 marks dust
+      return o;
+    }
     o.pos = G.viewProj * vec4f(wp, 1.0);
     o.wp = wp;
     // which bit of wallpaper this flake was (same world mapping for every flake)
@@ -220,12 +233,36 @@ fn fog(col: vec3f, p: vec3f) -> vec3f {
 
 const LIT = SHARED + /* wgsl */`
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
+  // every implicit-derivative operation first, while control flow is still uniform
+  var t = textureSample(tex, samp, i.uv);
+  let t2 = textureSample(tex2, samp, i.uv);
+  let tn = textureSample(ntex, samp, i.uv).xyz * 2.0 - 1.0;
+  let mr = textureSample(mtex, samp, i.uv);
+  let n0 = normalize(i.n + vec3f(0.0, 1e-6, 0.0));
+  let dp1 = dpdx(i.wp); let dp2 = dpdy(i.wp); let duv1 = dpdx(i.uv); let duv2 = dpdy(i.uv);   // cotangent frame for normal maps
+  let paper = textureSample(tex, samp, i.n.xy + (i.uv - vec2f(0.5)) * 0.07).rgb;           // flakes: the wallpaper they were
+  if (O.extra.w > 0.5 && i.col.y > 1.5) {   // dust grain
+    let dq = length(i.uv - vec2f(0.5)) * 2.0;
+    let da = (1.0 - smoothstep(0.4, 1.0, dq)) * i.col.z * 0.85;
+    if (da < 0.01) { discard; }
+    let dc = mix(vec3f(0.28, 0.12, 0.05), vec3f(0.08, 0.06, 0.05), i.col.y - 2.0) * (0.12 + 0.18 * G.bulbPos.w / 4.0 + G.ambient.r * 4.0);
+    return vec4f(fog(dc, i.wp), da);
+  }
   if (O.extra.w > 0.5) {   // peeling flake: old wallpaper on its face, rust eating in from the ragged edge
     let q = (i.uv - vec2f(0.5)) * 2.0;
     let edge = max(abs(q.x), abs(q.y)) * 0.6 + length(q) * 0.4 + (noise3(vec3f(i.uv * 6.0, i.col.x * 17.0)) - 0.5) * 0.55;
+    // crumbling: cracks open between shards, then each shard and the paper between them erode away
+    let life = i.col.y;
+    let cu = i.uv * 3.0 + vec2f(noise3(vec3f(i.uv * 5.0, i.col.x * 7.0)), noise3(vec3f(i.uv * 5.0 + 3.1, i.col.x * 7.0))) * 0.7;
+    let cell = floor(cu); let fr = fract(cu);
+    let crack = min(min(fr.x, 1.0 - fr.x), min(fr.y, 1.0 - fr.y));
+    let shardT = fract(sin(dot(cell + vec2f(i.col.x * 31.0), vec2f(12.9898, 78.233))) * 43758.5453);
+    let crumble = smoothstep(0.25, 0.95, life);
+    if (crack < crumble * 0.16) { discard; }
+    if (crumble > 0.15 + shardT * 0.7) { discard; }
+    if (noise3(vec3f(i.uv * 14.0, i.col.x * 11.0)) < crumble * 0.9 - 0.15) { discard; }
     let a = (1.0 - smoothstep(0.62, 0.8, edge)) * i.col.z * O.tint.a;
     if (a < 0.01) { discard; }
-    let paper = textureSample(tex, samp, i.n.xy + (i.uv - vec2f(0.5)) * 0.07).rgb;
     let rustN = noise3(vec3f(i.uv * 9.0, i.col.x * 5.0));
     let rustAmt = clamp(0.25 + i.col.y * 1.8 + smoothstep(0.25, 0.7, edge) * 0.9 + (rustN - 0.5) * 0.5, 0.0, 1.0);
     let rust = mix(vec3f(0.36, 0.14, 0.05), vec3f(0.12, 0.05, 0.03), rustN);
@@ -234,13 +271,6 @@ const LIT = SHARED + /* wgsl */`
     col += vec3f(0.9, 0.28, 0.05) * smoothstep(0.55, 0.78, edge) * (1.0 - smoothstep(0.0, 0.35, i.col.y)) * 0.6;   // a thin glowing rim just as it lets go
     return vec4f(fog(col, i.wp), a);
   }
-  var t = textureSample(tex, samp, i.uv);
-  let t2 = textureSample(tex2, samp, i.uv);
-  let tn = textureSample(ntex, samp, i.uv).xyz * 2.0 - 1.0;
-  let mr = textureSample(mtex, samp, i.uv);
-  // normal map in a cotangent frame from screen derivatives (no tangents needed)
-  let n0 = normalize(i.n);
-  let dp1 = dpdx(i.wp); let dp2 = dpdy(i.wp); let duv1 = dpdx(i.uv); let duv2 = dpdy(i.uv);
   var ember = 0.0;
   if (O.extra.x > 0.5) {
     let dm = decayMask(i.wp);
@@ -248,8 +278,7 @@ const LIT = SHARED + /* wgsl */`
     t = mix(t2, t, dm);
     let burn = burnBand(i.wp);
     // while the front passes, the edge between the two worlds chars and glows like burning paper
-    let flake = step(0.5, noise3(i.wp * 22.0)) * burn;
-    t = vec4f(t.rgb * (1.0 - 0.45 * rim * step(0.02, roomDecay(i.wp))) * (1.0 - 0.5 * flake), t.a);
+    t = vec4f(t.rgb * (1.0 - 0.45 * rim * step(0.02, roomDecay(i.wp))), t.a);   // (the flaking itself is real geometry now)
     let rustC = mix(vec3f(0.34, 0.13, 0.05), vec3f(0.14, 0.06, 0.03), noise3(i.wp * 14.0));
     t = vec4f(mix(t.rgb, rustC, clamp(burn * (0.4 + rim * 0.8), 0.0, 0.85)), t.a);   // rust creeping just behind the front
     ember = rim * rim * rim * burn * (0.5 + 0.5 * noise3(i.wp * 9.0 + vec3f(0.0, G.camPos.w * 0.8, 0.0)));
