@@ -1716,7 +1716,7 @@ function openMemo() {
 function openPause() {
   openModal(`<h2>일시정지</h2>
     <p class="hint">드래그 / 방향키 / 📱 자이로: 둘러보기 · ↻ 버튼: 뒤돌아보기<br>숨은 아이, 이상하게 바뀐 곳을 눌러 원래대로 돌려놓는다</p>
-    <div class="gfx"><span>그래픽</span>${[['auto', '자동'], ['low', '낮음'], ['medium', '중간'], ['high', '높음']].map(([k, l]) =>
+    <div class="gfx"><span>그래픽</span>${IS_MOBILE ? '<button class="on" disabled>낮음 (모바일 고정)</button>' : [['auto', '자동'], ['low', '낮음'], ['medium', '중간'], ['high', '높음']].map(([k, l]) =>
       `<button class="${k === gfxChoice ? 'on' : ''}" data-gfx="${k}">${l}</button>`).join('')}<small id="gfxFps"></small></div>
     <div class="vols">${[['master', '전체'], ['music', '음악'], ['sfx', '효과음']].map(([k, l]) =>
       `<label><span>${l}</span><input type="range" min="0" max="1" step="0.05" value="${snd.vol[k]}" data-vol="${k}"></label>`).join('')}</div>
@@ -2458,8 +2458,13 @@ const GFX = {
 };
 let gfxChoice = 'auto';
 try { gfxChoice = localStorage.getItem(GFX_KEY) || 'auto'; } catch { }
-const gfxPreset = (c = gfxChoice) => GFX[c] || (matchMedia('(pointer: coarse)').matches ? GFX.low : GFX.high);
+// phones and tablets always run the low preset (a setting saved earlier or chosen in the menu does not override it)
+const IS_MOBILE = navigator.userAgentData?.mobile || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+  || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)) || matchMedia('(pointer: coarse)').matches;
+if (IS_MOBILE) gfxChoice = 'low';
+const gfxPreset = (c = gfxChoice) => IS_MOBILE ? GFX.low : GFX[c] || GFX.high;
 function applyGfx(choice) {
+  if (IS_MOBILE) choice = 'low';
   gfxChoice = choice;
   TEL?.event('gfx', { choice });
   try { localStorage.setItem(GFX_KEY, choice); } catch { }
