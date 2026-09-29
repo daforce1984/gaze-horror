@@ -131,11 +131,13 @@ fn noise3(p: vec3f) -> f32 {
 // how rotten this spot of the room is (0 clean .. 1 rotten); stains creep out of corners, floor and ceiling
 fn frontDist(p: vec3f) -> f32 { return length(p - G.shift.xyz) + (noise3(p * 2.3) - 0.5) * 0.9; }
 fn roomDecay(p: vec3f) -> f32 {
+  if (G.shift.w > 50.0) { return G.shift2.y; }   // no change rolling through the room right now
   let passed = 1.0 - smoothstep(G.shift.w - 0.5, G.shift.w, frontDist(p));
   return mix(G.shift2.x, G.shift2.y, passed);
 }
 // the burning, peeling edge right behind the front
 fn burnBand(p: vec3f) -> f32 {
+  if (G.shift2.z <= 0.0) { return 0.0; }
   let k = G.shift.w - frontDist(p);
   return G.shift2.z * smoothstep(-0.1, 0.12, k) * (1.0 - smoothstep(0.15, 0.7, k));
 }
@@ -503,13 +505,12 @@ export class Renderer {
     this.hdrFormat = 'rgba16float';
     const d = device;
     this.shadowSize = opts.shadowSize || 1024;
-    this.shadowTex = d.createTexture({ size: [this.shadowSize, this.shadowSize, 6], format: 'depth32float', usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING });
-    this.shadowFaces = [0, 1, 2, 3, 4, 5].map(i => this.shadowTex.createView({ dimension: '2d', baseArrayLayer: i, arrayLayerCount: 1 }));
+    this.maxTex = opts.maxTex || 0;
     this.samplerShadow = d.createSampler({ compare: 'less', magFilter: 'linear', minFilter: 'linear' });
     this.globalsCam = d.createBuffer({ size: 320, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
     this.globals = d.createBuffer({ size: 320, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
     this.postBuf = d.createBuffer({ size: 128, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-    this.samplerRepeat = d.createSampler({ addressModeU: 'repeat', addressModeV: 'repeat', magFilter: 'linear', minFilter: 'linear', mipmapFilter: 'linear', maxAnisotropy: 8 });
+    this.samplerRepeat = d.createSampler({ addressModeU: 'repeat', addressModeV: 'repeat', magFilter: 'linear', minFilter: 'linear', mipmapFilter: 'linear', maxAnisotropy: opts.aniso || 8 });
     this.samplerClamp = d.createSampler({ addressModeU: 'clamp-to-edge', addressModeV: 'clamp-to-edge', magFilter: 'linear', minFilter: 'linear', mipmapFilter: 'linear' });
     this.samplerLinear = d.createSampler({ magFilter: 'linear', minFilter: 'linear' });
 
@@ -524,14 +525,7 @@ export class Renderer {
       { binding: 3, visibility: GPUShaderStage.FRAGMENT, texture: {} },
       { binding: 4, visibility: GPUShaderStage.FRAGMENT, texture: {} },
       { binding: 5, visibility: GPUShaderStage.FRAGMENT, texture: {} }] });
-    this.gBind = d.createBindGroup({ layout: this.gLayout, entries: [
-      { binding: 0, resource: { buffer: this.globals } },
-      { binding: 1, resource: this.shadowTex.createView({ dimension: '2d-array' }) },
-      { binding: 2, resource: this.samplerShadow }] });
-    this.gBindCam = d.createBindGroup({ layout: this.gLayout, entries: [
-      { binding: 0, resource: { buffer: this.globalsCam } },
-      { binding: 1, resource: this.shadowTex.createView({ dimension: '2d-array' }) },
-      { binding: 2, resource: this.samplerShadow }] });
+    this.setShadowSize(this.shadowSize);
     // CCTV: a small second view rendered to a texture shown on the TV
     this.camW = 320; this.camH = 240;
     this.camMsaa = d.createTexture({ size: [this.camW, this.camH], format: this.hdrFormat, sampleCount: this.samples, usage: GPUTextureUsage.RENDER_ATTACHMENT });
@@ -588,6 +582,24 @@ export class Renderer {
     this.linearWhite = this.solidTexture([255, 255, 255, 255], false);
   }
 
+  // quality settings that can change while playing
+  setShadowSize(n) {
+    const d = this.device;
+    if (this.shadowTex) this.shadowTex.destroy();
+    this.shadowSize = n;
+    this.shadowTex = d.createTexture({ size: [n, n, 6], format: 'depth32float', usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING });
+    this.shadowFaces = [0, 1, 2, 3, 4, 5].map(i => this.shadowTex.createView({ dimension: '2d', baseArrayLayer: i, arrayLayerCount: 1 }));
+    const g = (buf) => d.createBindGroup({ layout: this.gLayout, entries: [
+      { binding: 0, resource: { buffer: buf } },
+      { binding: 1, resource: this.shadowTex.createView({ dimension: '2d-array' }) },
+      { binding: 2, resource: this.samplerShadow }] });
+    this.gBind = g(this.globals); this.gBindCam = g(this.globalsCam);
+  }
+  setAniso(n, objects) {
+    this.samplerRepeat = this.device.createSampler({ addressModeU: 'repeat', addressModeV: 'repeat', magFilter: 'linear', minFilter: 'linear', mipmapFilter: 'linear', maxAnisotropy: n });
+    for (const o of objects) if (!o.clamp) this.rebind(o);
+  }
+
   mipPipe(format) {
     if (!this.mipPipes[format]) {
       this.mipPipes[format] = this.device.createRenderPipeline({
@@ -608,6 +620,12 @@ export class Renderer {
 
   // source: ImageBitmap | HTMLCanvasElement
   texture(source, { mips = true, srgb = true } = {}) {
+    if (this.maxTex && Math.max(source.width, source.height) > this.maxTex && mips) {
+      const k = this.maxTex / Math.max(source.width, source.height);
+      const c = new OffscreenCanvas(Math.max(1, Math.round(source.width * k)), Math.max(1, Math.round(source.height * k)));
+      const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(source, 0, 0, c.width, c.height);
+      source = c;
+    }
     const w = source.width, h = source.height;
     const levels = mips ? Math.floor(Math.log2(Math.max(w, h))) + 1 : 1;
     const format = srgb ? 'rgba8unorm-srgb' : 'rgba8unorm';

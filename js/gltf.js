@@ -8,6 +8,12 @@ function readAccessor(json, bin, idx) {
   const n = SIZE[a.type], T = COMP[a.componentType];
   const stride = bv.byteStride || n * T.BYTES_PER_ELEMENT;
   const base = (bv.byteOffset || 0) + (a.byteOffset || 0);
+  // fast path: tightly packed, aligned data is copied in one go (parsing element by element is slow on phones)
+  const at = bin.byteOffset + base;
+  if (stride === n * T.BYTES_PER_ELEMENT && at % T.BYTES_PER_ELEMENT === 0 && !a.normalized) {
+    const src = new T(bin.buffer, at, a.count * n);
+    return { data: T === Float32Array ? src.slice() : Float32Array.from(src), n, count: a.count };
+  }
   const out = new Float32Array(a.count * n);
   const dv = new DataView(bin.buffer, bin.byteOffset);
   const get = { 5126: (o) => dv.getFloat32(o, true), 5125: (o) => dv.getUint32(o, true), 5123: (o) => dv.getUint16(o, true),

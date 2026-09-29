@@ -264,3 +264,10 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
 #anMark.arrow span { top: 22px; }
 @keyframes markPulse { 50% { transform: scale(1.18); opacity: .55; } }
 @keyframes markNudge { 50% { opacity: .5; } }
+
+/* graphics preset buttons in the pause menu */
+.gfx { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 4px; }
+.gfx > span { width: 100%; font-size: 13px; color: #bdb3a2; }
+.gfx button { flex: 1; min-width: 56px; padding: 8px 6px; border-radius: 8px; border: 1px solid rgba(220,210,190,.25); background: rgba(255,255,255,.04); color: #e9e1d2; font: inherit; font-size: 14px; }
+.gfx button.on { border-color: #e6a23c; background: rgba(230,162,60,.18); color: #ffd79a; }
+.gfx small { width: 100%; font-size: 11px; color: #8f877a; }

@@ -19,8 +19,6 @@ def ph_import(pid, keep=None, drop_mats=(), res=512, skip=(), faces=None, flat=F
         mw = o.matrix_world.copy()
         o.parent = None
         o.matrix_world = mw
-        if flat:   # the mesh is modelled lying down; the scene stood it up
-            o.rotation_euler = (0, 0, 0)
     for o in new:
         if o not in meshes:
             bpy.data.objects.remove(o, do_unlink=True)
@@ -29,6 +27,14 @@ def ph_import(pid, keep=None, drop_mats=(), res=512, skip=(), faces=None, flat=F
     ob.select_set(True)
     bpy.context.view_layer.objects.active = ob
     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    if flat:   # modelled leaning against something: turn its thinnest axis (PCA) upright so it lies down
+        import numpy as np
+        co = np.array([v.co for v in ob.data.vertices]); co -= co.mean(0)
+        w, vec = np.linalg.eigh(co.T @ co)
+        thin = Vector(vec[:, 0])
+        if thin.z < 0:
+            thin = -thin
+        ob.data.transform(thin.rotation_difference(Vector((0, 0, 1))).to_matrix().to_4x4())
     if faces and len(ob.data.polygons) > faces:   # scans are dense; the room is seen from one chair
         m = ob.modifiers.new('dec', 'DECIMATE')
         m.ratio = faces / len(ob.data.polygons)
@@ -49,6 +55,8 @@ def ph_import(pid, keep=None, drop_mats=(), res=512, skip=(), faces=None, flat=F
                 n.image.scale(res, res)
             if n.type == 'TEX_IMAGE' and n.image and n.image.channels == 1:   # WebP can't hold 1-channel images
                 n.image = _rgb(n.image)
+    while len(ob.data.uv_layers) > 1:   # second UV set (lightmaps) is never used: drop it
+        ob.data.uv_layers.remove(ob.data.uv_layers[-1])
     ob['ph'] = pid
     return ob
 
@@ -127,7 +135,7 @@ def ph_trash_item(kind, rnd):
               'bottle': ('plastic_bottle_gallon', 0.75), 'pizza': ('cardboard_box_01', 0.75)}.get(kind, (None, 1))
     if not pid:
         return None
-    t = ph_template(pid, res=512, faces=1400)
+    t = ph_template(pid, res=512, faces=500)
     ob = t.copy()
     ob.data = t.data
     link(ob)
@@ -149,7 +157,7 @@ def ph_cleanup():
 
 def upgrade_props(M):
     # ---- TV stand: an old chest of drawers
-    cab = ph_import('vintage_wooden_drawer_01', res=512)
+    cab = ph_import('vintage_wooden_drawer_01', res=512, faces=2500)
     ph_place(cab, 1.1, (0, 0, -2.235))
     replace('tv_cabinet', cab)
     top = ph_bounds(cab)[1].z
@@ -200,7 +208,7 @@ def upgrade_props(M):
     bx, bz = -1.55, 2.33
     old = bpy.data.objects['bookshelf']
     bpy.data.objects.remove(old, do_unlink=True)
-    shf = ph_import('wooden_bookshelf_worn', res=512, faces=4000)
+    shf = ph_import('wooden_bookshelf_worn', res=512, faces=2500)
     ph_place(shf, 0.58, (bx, 0, bz), rotz=PI)
     smn, smx = ph_bounds(shf)
     bpy.context.view_layer.update()
@@ -237,19 +245,19 @@ def upgrade_props(M):
         doll.location.z += smx.z - dmn + 0.002
 
     # ---- wall clock: rim and dial of the model, our stopped face in front of it
-    clk = ph_import('wall_clock', skip=('hand',), drop_mats=('glass',), res=512)
+    clk = ph_import('wall_clock', skip=('hand',), drop_mats=('glass',), res=512, faces=1200)
     ph_place(clk, 1.15, (RX - 0.03, 1.85, -0.3), rotz=-PI / 2, anchor='centre')
     replace('clock_body', clk)
 
     # ---- family photo frame (our photo quad sits in its opening)
-    fr = ph_import('hanging_picture_frame_01', drop_mats=('glass', 'artwork'), res=512)
+    fr = ph_import('hanging_picture_frame_01', drop_mats=('glass', 'artwork'), res=512, faces=700)
     ph_place(fr, 0.6, (-0.78, 1.55, -2.49), anchor='centre')
     replace('item_frame', fr)
     item_origin(fr)
 
     # ---- the mother's answering machine: an old tape recorder on the desk, its LED on the front
     dx, dz, dtop = 1.86, -0.3, 0.74 + 0.018
-    am = ph_import('cassette_player', res=512)
+    am = ph_import('cassette_player', res=512, faces=1500)
     ph_place(am, 1.0, (dx - 0.05, dtop, dz + 0.42), rotz=-PI / 2)
     amn, amx = ph_bounds(am)
     replace('answering_machine', am)
@@ -258,7 +266,7 @@ def upgrade_props(M):
     led.scale = (0.5, 0.5, 0.5)
 
     # ---- floor cushion: one of the throw pillows, lying down
-    cu = ph_import('throw_pillows_01', keep=['pillow01'], res=512, flat=True)
+    cu = ph_import('throw_pillows_01', keep=['pillow01'], res=512, flat=True, faces=1200)
     for m in cu.data.materials:   # its roughness map is 1-channel (WebP can't); fabric is uniformly rough anyway
         for l in list(m.node_tree.links):
             if l.to_socket.name == 'Roughness':
@@ -271,7 +279,7 @@ def upgrade_props(M):
     kold = bpy.data.objects['item_knife']
     bpy.context.view_layer.update()
     kc = kold.matrix_world.translation.copy()
-    kn = ph_import('fish_knife', res=512)
+    kn = ph_import('fish_knife', res=512, faces=700)
     ph_place(kn, 0.95, (kc.x, 0.759, -kc.y), rotx=PI / 2, rotz=0.6 + PI / 2)
     replace('item_knife', kn)
     item_origin(kn)
@@ -281,7 +289,7 @@ def upgrade_props(M):
     bulb_old = bpy.data.objects['bulb']
     bb = ph_bounds(bulb_old)
     bc = (bb[0] + bb[1]) / 2
-    bl = ph_import('lightbulb_01', res=256)
+    bl = ph_import('lightbulb_01', res=256, faces=700)
     ph_place(bl, 1.25, (bc.x, bc.z - 0.02, -bc.y), rotx=PI, anchor='centre')
     bl.data.materials.clear()
     bl.data.materials.append(M['bulb'])
@@ -381,7 +389,7 @@ def upgrade_hy():
     if old:
         bpy.context.view_layer.update()
         omn, omx = ph_bounds(old)
-        d = hy_item('doll', 'hy_doll', 0.34)
+        d = hy_item('doll', 'hy_doll', 0.34, faces=3500)
         if d:
             ph_place(d, 1.0, ((omn.x + omx.x) / 2, omn.z, -(omn.y + omx.y) / 2), rotz=PI)
             replace('item_doll', d)
@@ -389,7 +397,7 @@ def upgrade_hy():
     # the remote on the TV stand, next to the set
     old = bpy.data.objects.get('item_remote')
     if old:
-        r = hy_item('remote', 'hy_remote', 0.2, color=(0.025, 0.025, 0.028), up='len')
+        r = hy_item('remote', 'hy_remote', 0.2, color=(0.025, 0.025, 0.028), up='len', faces=1500)
         if r:
             cab = bpy.data.objects['tv_cabinet']
             top = ph_bounds(cab)[1].z

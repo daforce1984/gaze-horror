@@ -213,7 +213,7 @@ function buildScene() {
         nrm: ghost ? null : m.n || gpuTex(maps.normal, false), mr: ghost ? null : m.mr || gpuTex(maps.mr, false), mrAO: m.mr ? true : maps.mrAO, rough: m.mr ? 1 : pr.material.rough, metal: m.mr ? 1 : pr.material.metal,
         pipe: pr.material.cutout && pipe === 'opaque' ? 'cutout' : pipe, model: node.matrix.slice(), tint, emissive: [...(m.emissive || [0, 0, 0]), ghost ? (m.aoLift || 0) : pr.material.cutout ? 0.5 : 0],
         flags: [m.wrap ?? 0.1, m.unlit ? 1 : 0, spec, ghost ? 2 : 0], uvx: [m.uv || 1, m.uv || 1, ghost && pr.material.name === 'M_hair' ? 1 : 0, ghost && m.t ? 1 : 0],
-        castShadow: !NO_SHADOW.has(node.name), tex2: m.t2, extra: [m.decay ? 1 : 0, 0, 0, 0],
+        castShadow: !NO_SHADOW.has(node.name) && Math.max(...pr.max.map((v, k) => v - pr.min[k])) > 0.18, tex2: m.t2, extra: [m.decay ? 1 : 0, 0, 0, 0],   // tiny things cast no shadow (6 draws each)
       }));
       o.base = node.matrix; o.min = pr.min; o.max = pr.max;
       if (m.key) O[m.key] = o;
@@ -1570,12 +1570,20 @@ function openMemo() {
 }
 function openPause() {
   openModal(`<h2>일시정지</h2>
-    <p class="hint">드래그: 둘러보기 · 👁/우클릭/휠/두 손가락: 확대<br>멀리 있는 물건을 확대해서 오래 바라보면 그 애가 가져다준다 (❄ 온기 소모)<br>아래 물건: 누르면 살펴보기 · [사용] 후 대상을 바라보고 누르기</p>
+    <p class="hint">드래그 / 방향키 / 📱 자이로: 둘러보기 · ↻ 버튼: 뒤돌아보기<br>숨은 아이, 이상하게 바뀐 곳을 눌러 원래대로 돌려놓는다</p>
+    <div class="gfx"><span>그래픽</span>${[['auto', '자동'], ['low', '낮음'], ['medium', '중간'], ['high', '높음']].map(([k, l]) =>
+      `<button class="${k === gfxChoice ? 'on' : ''}" data-gfx="${k}">${l}</button>`).join('')}<small id="gfxFps"></small></div>
     <div class="vols">${[['master', '전체'], ['music', '음악'], ['sfx', '효과음']].map(([k, l]) =>
       `<label><span>${l}</span><input type="range" min="0" max="1" step="0.05" value="${snd.vol[k]}" data-vol="${k}"></label>`).join('')}</div>
     <div class="row"><button class="ghostbtn" id="restartBtn">처음부터</button><button class="primary" data-close>계속</button></div>`);
   $('#restartBtn').addEventListener('click', () => { clearSave(); location.reload(); });
   ui.card.querySelectorAll('[data-vol]').forEach(r => r.addEventListener('input', () => snd.setVolume(r.dataset.vol, +r.value)));
+  ui.card.querySelectorAll('[data-gfx]').forEach(b => b.addEventListener('click', () => {
+    const texBefore = gfxPreset().tex;
+    applyGfx(b.dataset.gfx);
+    ui.card.querySelectorAll('[data-gfx]').forEach(x => x.classList.toggle('on', x === b));
+    if (gfxPreset().tex !== texBefore) $('#gfxFps').textContent = '텍스처 해상도는 다시 시작하면 적용';
+  }));
 }
 
 function jumpscare() {
@@ -2181,7 +2189,10 @@ function frame(dt) {
     O.diagBg.visible = true; O.diagBg.model = m4.trs(v3.add(EYE, v3.scale(f, 4)), S.yaw + PI, [8, 8, 1], -S.pitch);
     for (const o of (g?.kind === 'crouch' ? O.ghostCrouch : O.ghostStand)) o.visible = true;
   }
-    R.render(G, PST, objects, shadowLight, camG);
+    // the swinging bulb moves slowly: on phones (or when frames run long) its shadow map is redrawn every other frame
+    PERF.frame = (PERF.frame || 0) + 1;
+    const skipShadow = (gfxPreset().skip || PERF.shadowSkip) && PERF.frame % 2 === 1 && !S.bulbBurst;
+    R.render(G, PST, objects, skipShadow ? null : shadowLight, camG);
 
   snd.listener(EYE, f, u);
   snd.update(dt, {
@@ -2220,17 +2231,54 @@ function restore(sv) {
 }
 
 // ---------------------------------------------------------------- main
+function perfTick(dt) {
+  PERF.acc += dt; PERF.n++;
+  const target = gfxPreset().cap || 60;
+  if (PERF.acc < 1) return;
+  const avg = PERF.acc / PERF.n; PERF.fps = Math.round(1 / avg); PERF.acc = 0; PERF.n = 0;
+  if (!S.started || S.paused) return;
+  // below ~48 fps for 2 s: fewer pixels; comfortably at 60 for 5 s: a little more
+  if (avg > 1 / (target * 0.8)) { PERF.slow++; PERF.fast = 0; } else if (avg < 1 / (target * 0.95)) { PERF.fast++; PERF.slow = 0; } else { PERF.slow = PERF.fast = 0; }
+  if (PERF.slow >= 2 && PERF.scale > PERF.min) { PERF.scale = Math.max(PERF.min, PERF.scale * 0.85); PERF.slow = 0; PERF.shadowSkip = true; resize(); }
+  else if (PERF.fast >= 5 && PERF.scale < 1) { PERF.scale = Math.min(1, PERF.scale * 1.08); PERF.fast = 0; resize(); }
+  window.__perf = { fps: PERF.fps, scale: +PERF.scale.toFixed(2), px: `${R.width}x${R.height}`, gfx: gfxChoice, shadow: R.shadowSize };
+  const el = $('#gfxFps'); if (el) el.textContent = `${PERF.fps} fps · ${R.width}×${R.height}`;
+}
+// graphics presets: auto = low on phones/tablets, high on PC (dynamic resolution still guards the frame rate)
+const GFX_KEY = 'gaze-gfx';
+const GFX = {
+  low: { name: '낮음', px: 0.9e6, shadow: 512, skip: true, aniso: 1, tex: 512, cap: 60, min: 0.5 },
+  medium: { name: '중간', px: 1.6e6, shadow: 1024, skip: false, aniso: 4, tex: 1024, cap: 60, min: 0.6 },
+  high: { name: '높음', px: 4.2e6, shadow: 2048, skip: false, aniso: 16, tex: 0, cap: 0, min: 0.75 },
+};
+let gfxChoice = 'auto';
+try { gfxChoice = localStorage.getItem(GFX_KEY) || 'auto'; } catch { }
+const gfxPreset = (c = gfxChoice) => GFX[c] || (matchMedia('(pointer: coarse)').matches ? GFX.low : GFX.high);
+function applyGfx(choice) {
+  gfxChoice = choice;
+  try { localStorage.setItem(GFX_KEY, choice); } catch { }
+  const g = gfxPreset();
+  PERF.scale = 1; PERF.min = g.min; PERF.shadowSkip = false;
+  if (R.shadowSize !== g.shadow) R.setShadowSize(g.shadow);
+  R.setAniso(g.aniso, objects);
+  resize();
+}
+// dynamic resolution: the loop lowers PERF.scale when frames run long and raises it back when there is headroom
+const PERF = { scale: 1, min: 0.6, acc: 0, n: 0, slow: 0, fast: 0, fps: 60, shadowSkip: false, coarse: matchMedia('(pointer: coarse)').matches };
 function resize() {
   const dpr = Math.min(devicePixelRatio || 1, 2);
   let w = Math.round(innerWidth * dpr), h = Math.round(innerHeight * dpr);
-  const maxPx = matchMedia('(pointer: coarse)').matches ? 1.5e6 : 2.4e6, s = Math.min(1, Math.sqrt(maxPx / (w * h)));
+  const g = gfxPreset(), dprMax = g === GFX.high ? 2.5 : 2;
+  w = Math.round(innerWidth * Math.min(devicePixelRatio || 1, dprMax)); h = Math.round(innerHeight * Math.min(devicePixelRatio || 1, dprMax));
+  const maxPx = g.px * PERF.scale * PERF.scale, s = Math.min(1, Math.sqrt(maxPx / (w * h)));
   w = Math.max(1, Math.round(w * s)); h = Math.max(1, Math.round(h * s));
   R.resize(w, h);
 }
 
 async function main() {
   const coarse = matchMedia('(pointer: coarse)').matches;
-  try { R = await Renderer.create(ui.canvas, { shadowSize: coarse ? 512 : 1024 }); }
+  const gp = gfxPreset();
+  try { R = await Renderer.create(ui.canvas, { shadowSize: gp.shadow, maxTex: gp.tex, aniso: gp.aniso }); }
   catch (e) { ui.nogpu.classList.add('show'); ui.title.classList.add('hidden'); console.error(e); return; }
   R.device.lost.then(info => { console.error('device lost', info); ui.nogpu.querySelector('p').textContent = 'GPU 장치가 초기화되었습니다. 새로고침 해주세요.'; ui.nogpu.classList.add('show'); });
   await loadAll();
@@ -2259,11 +2307,15 @@ async function main() {
   }
   let last = performance.now();
   const loop = (now) => {
-    const dt = Math.min(0.05, (now - last) / 1000); last = now;
     requestAnimationFrame(loop);
+    // 60 fps is plenty: on 90/120 Hz phones skip the in-between frames (half the GPU work and heat)
+    const cap = gfxPreset().cap;
+    if (cap && now - last < 1000 / (cap + 4)) return;
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    perfTick(dt);
     try { update(dt); frame(dt); } catch (e) { if (!loop.err) console.error(e); loop.err = e; window.__err = e.stack || String(e); }
   };
   requestAnimationFrame(loop);
-  window.__game = { hsStory, AN, ANOM, anSpawn, anFix, anTap, anBox, anStart, tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
+  window.__game = { applyGfx, PERF, hsStory, AN, ANOM, anSpawn, anFix, anTap, anBox, anStart, tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
 }
 main();
