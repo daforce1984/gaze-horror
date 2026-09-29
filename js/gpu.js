@@ -59,27 +59,30 @@ fn hash21(p: vec2f) -> f32 { return fract(sin(dot(p, vec2f(12.9898, 78.233))) * 
     let row = floor(p.y * 18.0);
     lp.x += (hash21(vec2f(row, floor(t * 20.0))) - 0.5) * 0.06 * g * step(0.8, hash21(vec2f(row * 3.1, floor(t * 13.0))));
   }
-  if (O.extra.w > 0.5) {   // ash flake: p = where it peels off, n = random, uv = corner, c = (hot, size, phase)
+  if (O.extra.w > 0.5) {   // peeling flake: p = its place on the surface, n = surface normal, uv = corner, c = (rand, size, rand)
     let t = G.camPos.w;
-    let life = fract(t * (0.07 + n.x * 0.08) + c.z);
-    let sway = vec3f(sin(t * 0.9 + n.y * 6.3), 0.0, cos(t * 0.7 + n.x * 6.3)) * (0.12 + 0.3 * life);
-    let inward = -normalize(vec3f(p.x, 0.0, p.z) + vec3f(0.001)) * life * 0.35 * step(0.05, p.y);
-    let cpos = p + sway * life + inward + vec3f(0.0, life * (0.9 + n.z * 1.4), 0.0);
-    // released where the front has just passed, plus a thin drift that never stops once the room has turned
-    let dist = length(p - G.shift.xyz);
-    let fresh = G.shift2.z * smoothstep(0.0, 0.3, G.shift.w - dist) * (1.0 - smoothstep(1.2, 2.6, G.shift.w - dist));
-    let amb = G.shift2.w * step(n.z, 0.35);
-    let gate = clamp(max(fresh, amb), 0.0, 1.0) * smoothstep(0.0, 0.08, life) * (1.0 - smoothstep(0.75, 1.0, life));
-    let f = normalize(cpos - G.camPos.xyz);
-    let r = normalize(cross(f, vec3f(0.0, 1.0, 0.0)));
-    let u = cross(r, f);
-    let ang = t * (n.x - 0.5) * 5.0 + n.y * 6.3;
-    let q = (uv - vec2f(0.5)) * vec2f(1.0, 0.6 + 0.4 * sin(t * 3.0 + n.x * 9.0));   // flakes flutter edge-on
-    let rq = vec2f(q.x * cos(ang) - q.y * sin(ang), q.x * sin(ang) + q.y * cos(ang));
-    let size = mix(0.012, 0.04, c.y) * select(0.0, 1.0, gate > 0.002);
-    let wp = cpos + (r * rq.x + u * rq.y) * size;
+    let behind = G.shift.w - frontDist(p);                  // how far the front has already gone past this spot
+    let life = clamp(behind / (0.9 + c.z * 0.9), 0.0, 1.0);
+    let alive = step(0.0, behind) * step(life, 0.999) * step(0.001, G.shift2.z);
+    let peel = smoothstep(0.0, 0.3, life);
+    var t1 = cross(n, vec3f(0.0, 1.0, 0.0));
+    if (length(t1) < 0.1) { t1 = vec3f(1.0, 0.0, 0.0); }
+    t1 = normalize(t1);
+    let t2 = cross(n, t1);
+    // curl out of the surface around its own edge, then tumble slowly as it rises
+    let ang = peel * (0.9 + c.x * 1.1) + life * life * (1.5 + c.x * 3.0);
+    let a2 = t2 * cos(ang) + n * sin(ang);
+    let size = mix(0.06, 0.13, c.y) * alive;
+    let q = (uv - vec2f(0.5)) * size;
+    let rise = pow(max(life - 0.18, 0.0), 1.5) * (1.2 + c.x * 0.8);
+    let center = p + n * (0.003 + peel * 0.07) + vec3f(0.0, rise, 0.0) + t1 * sin(t * 1.3 + c.x * 9.0) * 0.05 * life;
+    let wp = center + t1 * q.x + a2 * q.y;
     o.pos = G.viewProj * vec4f(wp, 1.0);
-    o.wp = wp; o.n = -f; o.uv = uv; o.col = vec4f(c.x, life, gate, 1.0);
+    o.wp = wp;
+    // which bit of wallpaper this flake was (same world mapping for every flake)
+    let su = select(select(vec2f(p.x, p.z), vec2f(p.x, p.y), abs(n.z) > 0.5), vec2f(p.z, p.y), abs(n.x) > 0.5);
+    o.n = vec3f(su * 0.9, 0.0);
+    o.uv = uv; o.col = vec4f(c.x, life, alive * (1.0 - smoothstep(0.65, 1.0, life)), 1.0);
     return o;
   }
   let w = O.model * vec4f(lp, 1.0);
@@ -217,15 +220,18 @@ fn fog(col: vec3f, p: vec3f) -> vec3f {
 
 const LIT = SHARED + /* wgsl */`
 @fragment fn fs(i: VOut) -> @location(0) vec4f {
-  if (O.extra.w > 0.5) {   // ash flake
+  if (O.extra.w > 0.5) {   // peeling flake: old wallpaper on its face, rust eating in from the ragged edge
     let q = (i.uv - vec2f(0.5)) * 2.0;
-    let edge = length(q) + (noise3(vec3f(i.uv * 5.0, i.col.x * 10.0)) - 0.5) * 0.7;
-    let a = (1.0 - smoothstep(0.55, 0.9, edge)) * i.col.z * O.tint.a;
+    let edge = max(abs(q.x), abs(q.y)) * 0.6 + length(q) * 0.4 + (noise3(vec3f(i.uv * 6.0, i.col.x * 17.0)) - 0.5) * 0.55;
+    let a = (1.0 - smoothstep(0.62, 0.8, edge)) * i.col.z * O.tint.a;
     if (a < 0.01) { discard; }
-    let heat = i.col.x * (1.0 - smoothstep(0.1, 0.6, i.col.y));
-    let rimE = smoothstep(0.3, 0.8, edge);
-    var col = vec3f(0.045, 0.038, 0.032) * (0.5 + 2.5 * G.ambient.r * 10.0) + vec3f(0.02);
-    col = col * 0.8 + vec3f(1.0, 0.33, 0.06) * heat * (0.6 + 1.8 * rimE) * 2.0;
+    let paper = textureSample(tex, samp, i.n.xy + (i.uv - vec2f(0.5)) * 0.07).rgb;
+    let rustN = noise3(vec3f(i.uv * 9.0, i.col.x * 5.0));
+    let rustAmt = clamp(0.25 + i.col.y * 1.8 + smoothstep(0.25, 0.7, edge) * 0.9 + (rustN - 0.5) * 0.5, 0.0, 1.0);
+    let rust = mix(vec3f(0.36, 0.14, 0.05), vec3f(0.12, 0.05, 0.03), rustN);
+    var col = mix(paper, rust, rustAmt);
+    col = col * (0.12 + 0.18 * G.bulbPos.w / 4.0 + G.ambient.r * 4.0) * (1.0 - 0.55 * i.col.y);
+    col += vec3f(0.9, 0.28, 0.05) * smoothstep(0.55, 0.78, edge) * (1.0 - smoothstep(0.0, 0.35, i.col.y)) * 0.6;   // a thin glowing rim just as it lets go
     return vec4f(fog(col, i.wp), a);
   }
   var t = textureSample(tex, samp, i.uv);
@@ -243,7 +249,9 @@ const LIT = SHARED + /* wgsl */`
     let burn = burnBand(i.wp);
     // while the front passes, the edge between the two worlds chars and glows like burning paper
     let flake = step(0.5, noise3(i.wp * 22.0)) * burn;
-    t = vec4f(t.rgb * (1.0 - 0.45 * rim * step(0.02, roomDecay(i.wp))) * (1.0 - 0.75 * burn * rim) * (1.0 - 0.5 * flake), t.a);
+    t = vec4f(t.rgb * (1.0 - 0.45 * rim * step(0.02, roomDecay(i.wp))) * (1.0 - 0.5 * flake), t.a);
+    let rustC = mix(vec3f(0.34, 0.13, 0.05), vec3f(0.14, 0.06, 0.03), noise3(i.wp * 14.0));
+    t = vec4f(mix(t.rgb, rustC, clamp(burn * (0.4 + rim * 0.8), 0.0, 0.85)), t.a);   // rust creeping just behind the front
     ember = rim * rim * rim * burn * (0.5 + 0.5 * noise3(i.wp * 9.0 + vec3f(0.0, G.camPos.w * 0.8, 0.0)));
   }
   // things that form out of the ash: burn in from the floor up with a glowing edge
@@ -290,7 +298,7 @@ const LIT = SHARED + /* wgsl */`
     let k = select(dk, 0.0, O.flags.y > 0.5 || O.flags.w > 0.5);   // not the TV picture, clock face or glowing things
     col = col * mix(1.0, 0.08 + 0.92 * smoothstep(0.0, 1.5, edge) * mix(0.55, 1.0, smoothstep(0.0, 0.9, wall)), k);
   }
-  col = col * (1.0 - 0.8 * formEdge) + vec3f(1.0, 0.3, 0.05) * (ember * 1.3 + formEdge * 1.2);
+  col = col * (1.0 - 0.8 * formEdge) + vec3f(1.0, 0.3, 0.05) * (ember * 0.35 + formEdge * 1.2);
   col = fog(col, i.wp);
   return vec4f(col, a);
 }

@@ -34,29 +34,17 @@ export class Sound {
     const dest = pos ? (() => { const p = this.panner(pos); p.connect(this.master); return p; })() : this.master;
     const g = ctx.createGain(); g.gain.value = gain; g.connect(dest);
     const girl = /^(c_|hs_|an_)/.test(id);
-    // the dead girl never sounds quite like a child: lower and slower, doubled a hair out of tune,
-    // a gritty band-passed copy drowned in a long dark reverb, a faint metallic tremolo. It gets worse as the room rots.
-    const k = girl ? Math.min(1, 0.45 + (this.voiceFx || 0)) : 0;
-    const rate = girl ? 0.93 - k * 0.04 : 1;
+    // her voice (a young Korean woman's) is pitched up a little to sound like a child; only a dark
+    // reverb is added, stronger as the room rots. Nothing that slows or smears the words.
+    const k = girl ? Math.min(1, this.voiceFx || 0) : 0;
+    const rate = girl ? 1.06 : 1;
     const s = ctx.createBufferSource(); s.buffer = this.buf[id]; s.playbackRate.value = rate;
     const srcs = [s];
-    if (!girl) s.connect(g);
-    else {
-      const ring = ctx.createGain(); ring.gain.value = 1 - 0.25 * k;   // ring-mod tremolo: gain wobbles at ~38 Hz
-      const lfo = ctx.createOscillator(); lfo.frequency.value = 34 + Math.random() * 8;
-      const lg = ctx.createGain(); lg.gain.value = 0.25 * k; lfo.connect(lg).connect(ring.gain); srcs.push(lfo);
-      const dry = ctx.createGain(); dry.gain.value = 0.85;
-      s.connect(ring).connect(dry).connect(g);
-      // detuned double, slightly late
-      const s2 = ctx.createBufferSource(); s2.buffer = s.buffer; s2.playbackRate.value = rate * (0.985 - k * 0.01);
-      const dl = ctx.createDelay(0.2); dl.delayTime.value = 0.028;
-      const g2 = ctx.createGain(); g2.gain.value = 0.28 + 0.2 * k;
-      s2.connect(dl).connect(g2).connect(g); srcs.push(s2);
-      // grit into a long dark reverb
-      const sh = ctx.createWaveShaper(); sh.curve = this.softClip || (this.softClip = Float32Array.from({ length: 1024 }, (_, i) => { const x = i / 511.5 - 1; return Math.tanh(x * 3.5) * 0.8; }));
-      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1100; bp.Q.value = 0.8;
-      const wet = ctx.createGain(); wet.gain.value = 0.3 + 0.45 * k;
-      s.connect(sh).connect(bp).connect(wet).connect(this.darkVerb());   // send into the shared reverb bus
+    s.connect(g);
+    if (girl) {
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1300; bp.Q.value = 0.7;
+      const wet = ctx.createGain(); wet.gain.value = 0.12 + 0.35 * k;
+      s.connect(bp).connect(wet).connect(this.darkVerb());   // send into the shared reverb bus
     }
     for (const x of srcs) x.start(t);
     const dur = this.buf[id].duration / rate;

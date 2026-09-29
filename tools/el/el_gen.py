@@ -4,7 +4,7 @@ usage: el_gen.py [id ...]   (default: all missing)   env VARIANTS=2 to make alte
 import sys, os, json, base64, time, importlib.util
 HERE = os.path.dirname(os.path.abspath(__file__))
 spec = importlib.util.spec_from_file_location('el', os.path.join(HERE, 'el.py')); el = importlib.util.module_from_spec(spec); spec.loader.exec_module(el)
-VOICES = {'GIRL': 'EeQEodFZVtBkjtgK3HBc',    # Piku - expressive kid character (Voice Library)
+VOICES = {'GIRL': 'Lb7qkOn5hF8p7qfCDH8q',    # Annie - soft young Korean female (Voice Library); pitched up in the engine
           'MOTHER': 'JxIGrv4AVuvbo1Dxzryu',  # Park Hyun-mi - Korean female (Voice Library)
           'ANCHOR': 'lO4E4qxAvq4BhWUWF8Ci'}  # JasonK - Korean male, calm (Voice Library)
 root = os.path.dirname(os.path.dirname(HERE))

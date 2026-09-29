@@ -3,134 +3,134 @@
   {
    "id": "c_intro",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, voice trembling] 엄마…? [sniffles] [giggles softly] 왔어?"
+   "stability": 0.5,
+   "text": "[whispers] 엄마…? [soft giggle] 왔어?"
   },
   {
    "id": "c_first",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[giggling through tears] 엄마, 이거 보고 싶었어? [manic laugh] 내가 갖다 줄게."
+   "stability": 0.5,
+   "text": "[giggles] 히히힛, 엄마, 이거 보고 싶었어? 내가 갖다 줄게."
   },
   {
    "id": "c_bring1",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, sniffling] 가져왔어."
+   "stability": 0.5,
+   "text": "[whispers] 가져왔어."
   },
   {
    "id": "c_bring2",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[laughing and crying at once] 이것도 줄게, 엄마."
+   "stability": 0.5,
+   "text": "[laughing, voice shaking] 이것도 줄게, 엄마."
   },
   {
    "id": "c_bring3",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, voice cracking] 엄마 거야. [unsettling giggle] 만져 봐."
+   "stability": 0.5,
+   "text": "[whispers] 엄마 거야. [giggles] 만져 봐."
   },
   {
    "id": "c_heavy",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[straining, whimpering] 으응… 무거워…"
+   "stability": 0.5,
+   "text": "[straining] 으응… 무거워…"
   },
   {
    "id": "c_cold",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, sobbing quietly] 엄마 손… 차갑다. [broken laugh] 나처럼."
+   "stability": 0.5,
+   "text": "[whispers, sad] 엄마 손… 차갑다. [small laugh] 나처럼."
   },
   {
    "id": "c_cctv",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, giggling madly] 엄마 뒤에 있어."
+   "stability": 0.5,
+   "text": "[whispers] 히히… 엄마 뒤에 있어."
   },
   {
    "id": "c_doll",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[screaming, crying] 내 인형 만지지 마!"
+   "stability": 0.5,
+   "text": "[shouting, crying] 내 인형 만지지 마!"
   },
   {
    "id": "c_song",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[softly, voice breaking] 이 노래… [sniffles] 엄마가 불러 줬던 거."
+   "stability": 0.5,
+   "text": "[softly, sad] 이 노래… 엄마가 불러 줬던 거."
   },
   {
    "id": "c_wait",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[sobbing] 나 착하게 기다렸어. [manic whisper] 소리도 안 냈어."
+   "stability": 0.5,
+   "text": "[sniffles] 나 착하게 기다렸어. [whispers] 소리도 안 냈어."
   },
   {
    "id": "c_why",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[crying hysterically] 엄마… [laughs through sobs] 왜 안 왔어?"
+   "stability": 0.5,
+   "text": "[crying] 엄마… [laughs through tears] 왜 안 왔어?"
   },
   {
    "id": "c_rope",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[desperate, sobbing] 가지 마… [whispers] 또 가지 마."
+   "stability": 0.5,
+   "text": "[pleading, crying] 가지 마… 또 가지 마."
   },
   {
    "id": "c_turn",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[cold, then a crazed giggle] 이번엔… 엄마가 기다려."
+   "stability": 0.5,
+   "text": "[coldly] 이번엔… [giggles] 엄마가 기다려."
   },
   {
    "id": "c_look",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, trembling] 나를 봐."
+   "stability": 0.5,
+   "text": "[softly, eerie] 나를 봐."
   },
   {
    "id": "c_stay",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, weeping and smiling] 같이 있자… 계속."
+   "stability": 0.5,
+   "text": "[whispers] 같이 있자… 계속."
   },
   {
    "id": "c_found",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[manic giggle, sniffling] 찾았다."
+   "stability": 0.5,
+   "text": "[giggles] 히히히힛, 찾았다."
   },
   {
    "id": "c_clock",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, sad] 시계가 멈췄을 때… [broken laugh] 나도 멈췄어."
+   "stability": 0.5,
+   "text": "[whispers] 시계가 멈췄을 때… 나도 멈췄어."
   },
   {
    "id": "c_door",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, voice cracking] 문은… 밖에서 잠겼어. [sobbing laugh] 엄마가 잠갔잖아."
+   "stability": 0.5,
+   "text": "[whispers] 문은… 밖에서 잠겼어. [sad laugh] 엄마가 잠갔잖아."
   },
   {
    "id": "c_take",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[softly, crying] 이거… 나야? [sniffles] 엄마랑… 나."
+   "stability": 0.5,
+   "text": "[softly, crying] 이거… 나야? 엄마랑… 나."
   },
   {
    "id": "c_bye",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[crying softly, then a small relieved laugh] 엄마… 이제 가도 돼. 문 열어 줄게."
+   "stability": 0.5,
+   "text": "[crying softly] 엄마… 이제 가도 돼. 문 열어 줄게."
   },
   {
    "id": "c_end",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, sobbing] 엄마… 또 와줘."
+   "stability": 0.5,
+   "text": "[whispers] 엄마… 또 와줘."
   },
   {
    "id": "m_tape0",
@@ -165,134 +165,134 @@
   {
    "id": "hs_start",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[manic excitement, voice cracking] 엄마! 일어났다! [crazed giggle] 우리 숨바꼭질 하자. [sniffles] 엄마가 술래야!"
+   "stability": 0.5,
+   "text": "[excited] 엄마! 일어났다! [giggles] 히히힛, 우리 숨바꼭질 하자. 엄마가 술래야!"
   },
   {
    "id": "hs_count",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[singsong, laughing and sobbing] 하나… 둘… 셋… 넷… 다섯… [giggles] 여섯… 일곱… 여덟… [crying] 아홉… 열!"
+   "stability": 0.5,
+   "text": "[playful] 하나… 둘… 셋… 넷… 다섯… 여섯… 일곱… 여덟… 아홉… 열!"
   },
   {
    "id": "hs_ready",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[crazed giggle through tears] 다 숨었다! 찾아봐~"
+   "stability": 0.5,
+   "text": "[giggles] 히히히힛! 다 숨었다! 찾아봐~"
   },
   {
    "id": "hs_found1",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[giggles hysterically, sniffling] 헤헤, 들켰다!"
+   "stability": 0.5,
+   "text": "[giggles] 히히히힛, 들켰다!"
   },
   {
    "id": "hs_found2",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[manic laugh, voice breaking] 와, 엄마 잘 찾는다!"
+   "stability": 0.5,
+   "text": "[happy, a little crazy] 와, 엄마 잘 찾는다! 히히."
   },
   {
    "id": "hs_again",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[excited, a little too loud, then a sob] 한 번 더! 이번엔 못 찾을걸?"
+   "stability": 0.5,
+   "text": "[excited] 한 번 더! 이번엔 못 찾을걸?"
   },
   {
    "id": "hs_hint",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, giggling and sniffling] 나 여기 있는데~"
+   "stability": 0.5,
+   "text": "[whispers] 히히… 나 여기 있는데~"
   },
   {
    "id": "hs_wrong",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[mocking giggle, voice trembling] 거기 아니야~"
+   "stability": 0.5,
+   "text": "[giggles] 히히히힛, 거기 아니야~"
   },
   {
    "id": "hs_fail",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[crazed laughter turning into sobs] 엄마 바보~ 여기 있었지롱."
+   "stability": 0.5,
+   "text": "[laughing, then sniffles] 히히히힛! 엄마 바보~ 여기 있었지롱."
   },
   {
    "id": "hs_behind",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers right behind, sobbing] 엄마… 뒤에."
+   "stability": 0.5,
+   "text": "[softly, eerie] 엄마… 바로 뒤에 있어."
   },
   {
    "id": "hs_cheat",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[manic laughter] 속았지? [sniffles] 커튼엔 아무도 없었어!"
+   "stability": 0.5,
+   "text": "[laughs] 히히히힛! 속았지? 커튼엔 아무도 없었어!"
   },
   {
    "id": "hs_closer",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, breathing fast, giggling] 가까이 왔다…"
+   "stability": 0.5,
+   "text": "[whispers] 가까이… 왔다… 히히."
   },
   {
    "id": "hs_under",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, sad and crazed] 엄마 밑에 있어… [broken giggle] 안 보이지?"
+   "stability": 0.5,
+   "text": "[whispers] 엄마 밑에 있어… 안 보이지?"
   },
   {
    "id": "hs_eyes",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[softly, voice trembling] 눈 감아. [giggles] 뭐가 달라졌게?"
+   "stability": 0.5,
+   "text": "[softly] 눈 감아. 뭐가 달라졌게?"
   },
   {
    "id": "hs_song",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[singing softly, off-key, sobbing] 무궁화 꽃이… 피었습니다."
+   "stability": 0.5,
+   "text": "[singing softly] 무궁화 꽃이… 피었습니다."
   },
   {
    "id": "an_intro",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[manic excitement, sniffling] 이번엔 내가 방을 이상하게 바꿔 놓을게! [crazed giggle] 엄마가 원래대로 돌려놔~"
+   "stability": 0.5,
+   "text": "[excited] 이번엔 내가 방을 이상하게 바꿔 놓을게! [giggles] 히히힛, 엄마가 원래대로 돌려놔~"
   },
   {
    "id": "an_more",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, crying and smiling] 이번엔… 나도 움직일 거야."
+   "stability": 0.5,
+   "text": "[whispers] 이번엔… 나도 움직일 거야."
   },
   {
    "id": "an_fix1",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[giggles through tears] 에이~ 들켰다."
+   "stability": 0.5,
+   "text": "[giggles] 히히히힛, 에이~ 들켰다."
   },
   {
    "id": "an_fix2",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[manic giggle, voice cracking] 엄마 눈 좋다~"
+   "stability": 0.5,
+   "text": "[giggles] 엄마 눈 좋다~ 히히."
   },
   {
    "id": "an_done",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[laughing hysterically, then sobbing] 와~ 다 찾았다! 엄마 최고!"
+   "stability": 0.5,
+   "text": "[laughing, voice breaking] 와~ 다 찾았다! 엄마 최고!"
   },
   {
    "id": "an_fail",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[crazed laughter turning into crying] 엄마 바보~ 하나도 못 고쳤지롱."
+   "stability": 0.5,
+   "text": "[laughing, then crying] 히히히힛! 엄마 바보~ 하나도 못 고쳤지롱."
   },
   {
    "id": "an_last",
    "voice": "GIRL",
-   "stability": 0.0,
-   "text": "[whispers, weeping, a broken laugh] 불이 죽어 간다… 이제 엄마도 나처럼 어둠 속에서 찾아."
+   "stability": 0.5,
+   "text": "[whispers, sad] 불이 죽어 간다… 이제 엄마도 나처럼 어둠 속에서 찾아."
   }
  ]
 }

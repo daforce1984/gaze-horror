@@ -279,17 +279,25 @@ function buildScene() {
     { o: add(R.object(quad, handsTex, { pipe: 'blend', model: m4.trs([-0.25, 1.1, 2.486], PI, [0.7, 0.7, 1]), clamp: true, tint: [1, 1, 1, 0] })), at: 0.8 },
     { o: add(R.object(quad, handsTex, { pipe: 'blend', model: m4.trs([2.186, 1.0, -1.3], -PI / 2, [0.6, 0.6, 1], 0, 1.2), clamp: true, tint: [1, 1, 1, 0] })), at: 0.45 },
   ];
-  // ash: flakes that peel off the walls and floor and drift up while the other world spreads
+  // peeling skin of the room: flakes sit flat on the walls and ceiling; when the other world's front
+  // reaches one it rusts, curls off the surface, floats up and is gone (each flake once, never at random)
   {
-    const N = 1100, v = new Float32Array(N * 4 * 12), idx = new Uint32Array(N * 6);
-    for (let k = 0; k < N; k++) {
-      const r = Math.random(), y = Math.random() * 2.5;
-      const p = r < 0.3 ? [rnd(-2.1, 2.1), 0.02, rnd(-2.4, 2.4)] : r < 0.5 ? [pick([-2.17, 2.17]), y, rnd(-2.4, 2.4)] : r < 0.7 ? [rnd(-2.1, 2.1), y, pick([-2.47, 2.47])] : r < 0.85 ? [rnd(-2.1, 2.1), 2.55, rnd(-2.4, 2.4)] : [rnd(-1.8, 1.8), rnd(0.2, 2.2), rnd(-2.1, 2.1)];
-      const nn = [Math.random(), Math.random(), Math.random()], hot = Math.random() < 0.35 ? rnd(0.5, 1) : 0, sz = Math.random(), ph = Math.random();
-      [[0, 0], [1, 0], [1, 1], [0, 1]].forEach(([u, w], c) => v.set([...p, ...nn, u, w, hot, sz, ph, 1], (k * 4 + c) * 12));
+    const seeds = [], J = (a, b) => a + Math.random() * (b - a), cell = 0.13;
+    const grid = (u0, u1, v0, v1, put) => { for (let u = u0; u < u1; u += cell) for (let v = v0; v < v1; v += cell) if (Math.random() < 0.85) seeds.push(put(J(u, u + cell), J(v, v + cell))); };
+    grid(-2.4, 2.4, 0.05, 2.55, (z, y) => [[-2.195, y, z], [1, 0, 0]]);
+    grid(-2.4, 2.4, 0.05, 2.55, (z, y) => [[2.195, y, z], [-1, 0, 0]]);
+    grid(-2.1, 2.1, 0.05, 2.55, (x, y) => [[x, y, -2.495], [0, 0, 1]]);
+    grid(-2.1, 2.1, 0.05, 2.55, (x, y) => [[x, y, 2.495], [0, 0, -1]]);
+    grid(-2.1, 2.1, -2.4, 2.4, (x, z) => [[x, 2.595, z], [0, -1, 0]]);
+    for (let k = 0; k < 220; k++) seeds.push([[J(-2.1, 2.1), 0.006, J(-2.4, 2.4)], [0, 1, 0]]);
+    const N = seeds.length, v = new Float32Array(N * 4 * 12), idx = new Uint32Array(N * 6);
+    seeds.forEach(([p, n], k) => {
+      const r1 = Math.random(), sz = Math.random(), r2 = Math.random();
+      [[0, 0], [1, 0], [1, 1], [0, 1]].forEach(([u, w], c) => v.set([...p, ...n, u, w, r1, sz, r2, 1], (k * 4 + c) * 12));
       idx.set([0, 1, 2, 0, 2, 3].map(x => x + k * 4), k * 6);
-    }
-    O.ash = add(R.object(R.mesh({ v, i: idx }), null, { pipe: 'blend', extra: [0, 0, 0, 1], order: 5 }));
+    });
+    O.ash = add(R.object(R.mesh({ v, i: idx }), T.wallClean, { pipe: 'blend', extra: [0, 0, 0, 1], order: 5 }));
+    O.ash.noCull = true;
   }
   // trash builds up as the night goes on (each pile forms out of the ash when the other world reaches it)
   O.trash = [['trash_1', 0.3], ['trash_6', 0.4], ['trash_2', 0.5], ['trash_3', 0.62], ['trash_5', 0.72], ['trash_4', 0.82]]
@@ -2386,6 +2394,6 @@ async function main() {
   requestAnimationFrame(loop);
   // test hook: advance the game by hand (the automation tab may be in a hidden window where rAF does not run)
   window.__step = (n = 1, dt = 1 / 60) => { for (let k = 0; k < n; k++) { update(dt); frame(dt); } return R.stats; };
-  window.__game = { applyGfx, PERF, hsStory, AN, ANOM, anSpawn, anFix, anTap, anBox, anStart, tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
+  window.__game = { SHIFT, applyGfx, PERF, hsStory, AN, ANOM, anSpawn, anFix, anTap, anBox, anStart, tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
 }
 main();
