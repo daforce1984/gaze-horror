@@ -1221,8 +1221,8 @@ function anApply(dt, time) {
     else if (a.kind === 'shake') X = m4.trs([(Math.random() - 0.5) * 0.012 * e, Math.abs(Math.sin(time * 31)) * 0.01 * e, (Math.random() - 0.5) * 0.012 * e], (Math.random() - 0.5) * 0.06 * e);
     else if (a.kind === 'face') X = m4.trs([0, 0, 0], e * (s.fy || 0));
     else if (a.kind === 'flip') X = m4.trs([0, 0, 0], 0, [1, 1, 1], 0, e * PI);
-    else if (a.kind === 'move') { const b0 = list[0].base, tp = a.to, yaw = Math.atan2(EYE[0] - tp[0], EYE[2] - tp[2]);
-      X = m4.trs([(tp[0] - b0[12]) * e, 0, (tp[2] - b0[14]) * e], e * yaw); }
+    else if (a.kind === 'move') { const tp = a.to, yaw = Math.atan2(EYE[0] - tp[0], EYE[2] - tp[2]);   // from its bbox centre (node origins vary)
+      X = m4.trs([(tp[0] - piv[0]) * e, 0, (tp[2] - piv[2]) * e], e * yaw); }
     else if (a.kind === 'rat') { const b0 = list[0].base, rp = s.pos || [b0[12], 0, b0[14]]; X = m4.trs([rp[0] - b0[12], 0, rp[2] - b0[14]], s.ry || 0);
       if (!AN.act[k] && s.k <= 0.02) for (const o of list) o.visible = false; }
     if (a.glow) for (const o of list) o.emissive = [a.glow[0] * e, a.glow[1] * e, a.glow[2] * e, 0];
