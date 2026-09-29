@@ -496,6 +496,18 @@ const FACES = [
   [[1, 0, 0], [0, 0, 1], [0, 1, 0]], [[-1, 0, 0], [0, 0, 1], [0, -1, 0]],
   [[-1, 0, 0], [0, 1, 0], [0, 0, 1]], [[1, 0, 0], [0, 1, 0], [0, 0, -1]]];
 
+// frustum planes (a, b, c, d) of a column-major view-projection matrix, WebGPU depth 0..1
+function frustum(m) {
+  const row = (i) => [m[i], m[4 + i], m[8 + i], m[12 + i]];
+  const r0 = row(0), r1 = row(1), r2 = row(2), r3 = row(3);
+  const pl = [r3.map((x, k) => x + r0[k]), r3.map((x, k) => x - r0[k]), r3.map((x, k) => x + r1[k]), r3.map((x, k) => x - r1[k]), r2, r3.map((x, k) => x - r2[k])];
+  return pl.map(p => { const l = Math.hypot(p[0], p[1], p[2]) || 1; return p.map(x => x / l); });
+}
+function sphereIn(pl, c, r) {
+  for (const p of pl) if (p[0] * c[0] + p[1] * c[1] + p[2] * c[2] + p[3] < -r) return false;
+  return true;
+}
+
 export class Renderer {
   static async create(canvas, opts = {}) {
     if (!navigator.gpu) throw new Error('WebGPU unsupported');
@@ -685,15 +697,19 @@ export class Renderer {
     d.queue.writeBuffer(vb, 0, geo.v);
     const ib = d.createBuffer({ size: geo.i.byteLength, usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST });
     d.queue.writeBuffer(ib, 0, geo.i);
-    return { vb, ib, count: geo.i.length };
+    // local bounding sphere (for culling)
+    const v = geo.v, mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+    for (let k = 0; k < v.length; k += 12) for (let q = 0; q < 3; q++) { const x = v[k + q]; if (x < mn[q]) mn[q] = x; if (x > mx[q]) mx[q] = x; }
+    const c = mn.map((x, q) => (x + mx[q]) / 2), r = Math.hypot(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) / 2;
+    return { vb, ib, count: geo.i.length, c, r };
   }
 
   // Drawable object
   object(mesh, tex, opts = {}) {
     const d = this.device;
-    const ub = d.createBuffer({ size: 160, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    if (!this.objBuf || this.nextSlot >= this.maxSlots) this.growSlots();
     const o = {
-      mesh, tex: tex || this.whiteTex, ub, pipe: opts.pipe || 'opaque', visible: true,
+      mesh, tex: tex || this.whiteTex, slot: this.nextSlot++, pipe: opts.pipe || 'opaque', visible: true,
       model: opts.model || new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
       tint: opts.tint || [1, 1, 1, 1], emissive: opts.emissive || [0, 0, 0, 0],
       uvx: opts.uvx || [1, 1, 0, 0], flags: opts.flags || [0, 0, 1, 0], extra: opts.extra || [0, 0, 0, 0], tex2: opts.tex2 || this.whiteTex,
@@ -702,14 +718,23 @@ export class Renderer {
       pbr: [opts.nrm ? 1 : 0, opts.mr ? (opts.mrAO ? 2 : 1) : 0, opts.rough ?? 1, opts.metal ?? 0],
     };
     this.rebind(o);
-    o._data = new Float32Array(40);
     return o;
+  }
+  // objects live in 256-byte slots of one big uniform buffer
+  growSlots() {
+    const n = (this.maxSlots || 0) + 1024;
+    const buf = this.device.createBuffer({ size: n * 256, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    const data = new Float32Array(n * 64);
+    if (this.objData) data.set(this.objData);
+    this.objBuf = buf; this.objData = data; this.maxSlots = n; this.nextSlot = this.nextSlot || 0;
+    for (const o of this.allObjects || []) this.rebind(o);
   }
 
   // (re)build an object's bind group, e.g. after swapping its texture
   rebind(o) {
+    (this.allObjects = this.allObjects || new Set()).add(o);
     o.bind = this.device.createBindGroup({ layout: this.oLayout, entries: [
-      { binding: 0, resource: { buffer: o.ub } },
+      { binding: 0, resource: { buffer: this.objBuf, offset: o.slot * 256, size: 160 } },
       { binding: 1, resource: o.tex.createView() },
       { binding: 2, resource: o.clamp ? this.samplerClamp : this.samplerRepeat },
       { binding: 3, resource: o.tex2.createView() },
@@ -732,10 +757,11 @@ export class Renderer {
       { binding: 2, resource: this.samplerClamp }] });
   }
 
-  drawScene(pass, bind, objects) {
+  drawScene(pass, bind, objects, planes) {
     pass.setBindGroup(0, bind);
     const rank = { opaque: 0, cutout: 1, blend: 2, ghost: 3, add: 4 };
-    const list = objects.filter(o => o.visible && !(bind === this.gBindCam && o.noCam) && !(bind === this.gBind && o.camOnly)).sort((a, b) => (rank[a.pipe] - rank[b.pipe]) || (a.order - b.order));
+    const list = objects.filter(o => o.visible && !(bind === this.gBindCam && o.noCam) && !(bind === this.gBind && o.camOnly)
+      && (!planes || o.noCull || sphereIn(planes, o._wc, o._wr))).sort((a, b) => (rank[a.pipe] - rank[b.pipe]) || (a.order - b.order));
     let cur = null;
     if (bind === this.gBind) { this.stats.draws = list.length; this.stats.tris = list.reduce((n, o) => n + o.mesh.count / 3, 0); }
     for (const o of list) {
@@ -751,12 +777,19 @@ export class Renderer {
     const d = this.device, q = d.queue;
     q.writeBuffer(this.globals, 0, globals);
     q.writeBuffer(this.postBuf, 0, post);
+    const D = this.objData;
+    let top = 0;
     for (const o of objects) {
       if (!o.visible) continue;
-      const a = o._data;
-      a.set(o.model, 0); a.set(o.tint, 16); a.set(o.emissive, 20); a.set(o.uvx, 24); a.set(o.flags, 28); a.set(o.extra, 32); a.set(o.pbr, 36);
-      q.writeBuffer(o.ub, 0, a);
+      const b = o.slot * 64, m = o.model;
+      D.set(m, b); D.set(o.tint, b + 16); D.set(o.emissive, b + 20); D.set(o.uvx, b + 24); D.set(o.flags, b + 28); D.set(o.extra, b + 32); D.set(o.pbr, b + 36);
+      if (o.slot + 1 > top) top = o.slot + 1;
+      // world bounding sphere for culling
+      const c = o.mesh.c, sc = Math.max(Math.hypot(m[0], m[1], m[2]), Math.hypot(m[4], m[5], m[6]), Math.hypot(m[8], m[9], m[10]));
+      o._wc = [m[0] * c[0] + m[4] * c[1] + m[8] * c[2] + m[12], m[1] * c[0] + m[5] * c[1] + m[9] * c[2] + m[13], m[2] * c[0] + m[6] * c[1] + m[10] * c[2] + m[14]];
+      o._wr = o.mesh.r * sc * 1.1 + 0.02;
     }
+    q.writeBuffer(this.objBuf, 0, D.buffer, 0, top * 256);
     const enc = d.createCommandEncoder();
     this.frameNo++;
     const T = this.ts && !this.ts.busy && this.frameNo % 15 === 0 ? this.ts : null;   // measure every 15th frame
@@ -765,15 +798,17 @@ export class Renderer {
     if (lightPos) {
       const proj = persp90(SH_NEAR, SH_FAR);
       const casters = objects.filter(o => o.visible && o.castShadow);
-      this.stats.shadowDraws = casters.length * 6; this.stats.shadowTris = casters.reduce((n, o) => n + o.mesh.count / 3, 0) * 6;
       FACES.forEach(([r, u, f], i) => {
         const view = viewM(lightPos, r, u, [-f[0], -f[1], -f[2]]);
-        const m = new Float32Array(20); m.set(mul(proj, view), 0); m.set([...lightPos, 1], 16);
+        const vp = mul(proj, view), fp = frustum(vp);
+        const m = new Float32Array(20); m.set(vp, 0); m.set([...lightPos, 1], 16);
+        const faceCasters = casters.filter(o => o.noCull || sphereIn(fp, o._wc, o._wr));   // only what this face can see
+        this.stats.shadowDraws += faceCasters.length; this.stats.shadowTris += faceCasters.reduce((n, o) => n + o.mesh.count / 3, 0);
         q.writeBuffer(this.sBufs[i], 0, m);
         const sp = enc.beginRenderPass({ colorAttachments: [], depthStencilAttachment: { view: this.shadowFaces[i], depthLoadOp: 'clear', depthStoreOp: 'store', depthClearValue: 1 },
           ...(T && (i === 0 || i === 5) ? { timestampWrites: { querySet: T.qs, ...(i === 0 ? { beginningOfPassWriteIndex: 0 } : { endOfPassWriteIndex: 1 }) } } : {}) });
         sp.setPipeline(this.shadowPipe); sp.setBindGroup(0, this.sBinds[i]);
-        for (const o of casters) {
+        for (const o of faceCasters) {
           sp.setBindGroup(1, o.bind); sp.setVertexBuffer(0, o.mesh.vb); sp.setIndexBuffer(o.mesh.ib, 'uint32'); sp.drawIndexed(o.mesh.count);
         }
         sp.end();
@@ -785,14 +820,14 @@ export class Renderer {
         colorAttachments: [{ view: this.camMsaa.createView(), resolveTarget: this.camTex.createView(), loadOp: 'clear', storeOp: 'discard', clearValue: [0, 0, 0, 1] }],
         depthStencilAttachment: { view: this.camDepth.createView(), depthLoadOp: 'clear', depthStoreOp: 'discard', depthClearValue: 1 }, ...tw(2, 3),
       });
-      this.drawScene(cp, this.gBindCam, objects);
+      this.drawScene(cp, this.gBindCam, objects, frustum(camGlobals.subarray(0, 16)));
       cp.end();
     }
     const pass = enc.beginRenderPass({
       colorAttachments: [{ view: this.msaa.createView(), resolveTarget: this.hdr.createView(), loadOp: 'clear', storeOp: 'discard', clearValue: [0, 0, 0, 1] }],
       depthStencilAttachment: { view: this.depth.createView(), depthLoadOp: 'clear', depthStoreOp: 'discard', depthClearValue: 1 }, ...tw(4, 5),
     });
-    this.drawScene(pass, this.gBind, objects);
+    this.drawScene(pass, this.gBind, objects, frustum(globals.subarray(0, 16)));
     pass.end();
     const pp = enc.beginRenderPass({ colorAttachments: [{ view: this.ctx.getCurrentTexture().createView(), loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 1] }], ...tw(6, 7) });
     pp.setPipeline(this.postPipe); pp.setBindGroup(0, this.postBind); pp.draw(3); pp.end();
