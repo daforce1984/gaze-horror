@@ -471,8 +471,28 @@ function wakeUp() {
   setTimeout(() => { L.style.setProperty('--lid-t', '1.6s'); L.classList.add('open'); }, 2900);
   setTimeout(() => { L.className = ''; }, 4700);
 }
+// at first you are just lounging in her beanbag watching TV; once you have found her, you blink and are
+// tied to the wooden chair instead (the chair, its ropes, chain and padlock appear; your eyes sit higher)
+const CHAIR_NODES = ['chair', 'rope_R', 'rope_L', 'chain', 'padlock'];
+const BEANBAG_EYE = 0.86;
+function seatBeanbag(on) {
+  for (const n of CHAIR_NODES) setVisible(O.nodes[n] || [], !on);
+  setVisible(O.nodes.bb_beanbag || [], on);
+  EYE[1] = on ? BEANBAG_EYE : SEAT[1];
+}
+function toChair(then) {
+  const L = $('#lids'); L.style.setProperty('--lid-t', '0.35s'); L.className = 'show open'; void L.offsetWidth; L.classList.remove('open');   // a slow blink
+  hsAfter(0.5, () => {
+    S.flags.chair = 1; seatBeanbag(false); S.shake = Math.max(S.shake, 0.3);
+    snd.play('creak', v3.add(EYE, [0, -0.6, 0])); hsSay('…눈을 떠 보니, 딱딱한 나무 의자. 손목이 묶여 있다.', 3.4);
+    log('seat_swap', {});
+  });
+  hsAfter(1.1, () => { L.style.setProperty('--lid-t', '0.9s'); L.classList.add('open'); });
+  hsAfter(2.0, () => { L.className = ''; then?.(); });
+}
 function hsStart() {
   HS.on = true; ui.hud.classList.add('hs');
+  seatBeanbag(!S.flags.chair);
   S.tv.on = true; S.tv.ch = 3; tvScreen.channel = 3;   // you wake to her TV already playing
   S.yaw = 0; S.pitch = -0.08;   // waking up: the TV is the first thing in front of you
   wakeUp();
@@ -604,8 +624,10 @@ function hsFound() {
   const fl = HS.round === 1 ? ['hs_found1', '히히, 들켰다!'] : HS.round === 3 ? ['c_found', '히히히힛! 찾았다.'] : HS.round >= 4 ? ['hs_found3', '찾았다… 찾았어!! 히..히히히힛!!'] : ['hs_found2', '와, 엄마 잘 찾는다! 히히.'];
   voice(fl[0], h.c, 2.2); hsSay(`“${fl[1]}”`, 2.4);
   if (HS.round === 1) {   // the reward floats to your lap while you can still look around
-    hsAfter(0.9, () => { S.job = { w: W.remote, t: 0, phase: 'lift', carry: false, from: W.remote.c.slice(), pos: W.remote.c.slice(), spin: 0, free: true }; });
-    hsAfterVoice(() => anStart(1));
+    hsAfter(1.6, () => toChair(() => {
+      S.job = { w: W.remote, t: 0, phase: 'lift', carry: false, from: W.remote.c.slice(), pos: W.remote.c.slice(), spin: 0, free: true };
+      hsAfter(1.2, () => anStart(1));
+    }));
   } else if (HS.round === 2) {   // one-line story fragment, 3 seconds
     hsAfter(1.6, () => { S.tape = Math.max(S.tape, 1); hsSay('📼 …책상 위 자동응답기에 빨간 불이 켜졌다. “수아야~ 엄마야…”', 3); snd.play('beep', [1.81, 0.8, 0.12]); });
     hsAfter(3.6, () => hsRound(3));
@@ -880,6 +902,7 @@ const LATE = [['p_crate', 0.25], ['p_boombox', 0.25], ['p_phone', 0.25], ['p_sid
   // the child's things were never in her studio: they come with the other world
   ['deco_teddy', 0.2], ['deco_backpack', 0.2], ['deco_shoes', 0.2], ['deco_musicbox', 0.2], ['item_doll', 0.12], ['deco_duck', 0.3], ['deco_basket', 0.3], ['deco_cake', 0.3]];
 function setupLate() {
+  setVisible(O.nodes.bb_beanbag || [], false);   // only while you lounge in it at the very start (seatBeanbag)
   for (const [n, at] of LATE) { const l = O.nodes[n] || []; if (!l.length) continue; for (const o of l) o.visible = false; const b = l[0].base;
     MODERN.push({ mod: [], old: l, pos: [b[12], b[13], b[14]], oldNames: [n], modern: true, at }); }
   for (const o of O.nodes.p_rat || []) o.visible = false;   // only there while it is an anomaly

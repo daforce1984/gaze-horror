@@ -695,6 +695,28 @@ def fix_bed_pillows(bed):
     return ob
 
 
+def beanbag(name, c, R=0.5):
+    """a big fabric beanbag you sink into: flat on the floor, the back (engine +z, behind you) standing up,
+    a dent where you sit, soft wrinkles; c = engine floor centre"""
+    import bmesh
+    bm = bmesh.new()
+    bmesh.ops.create_uvsphere(bm, u_segments=48, v_segments=28, radius=1.0)
+    for v in bm.verts:
+        x, y, z = v.co   # blender: y = -engine z, so the back is -y
+        z01 = (z + 1) / 2
+        back = max(0.0, min(1.0, (-y + 0.2) * 1.1))
+        top = 0.3 + 0.28 * back * back - 0.1 * math.exp(-((x / 0.45) ** 2 + ((y - 0.1) / 0.4) ** 2))
+        bulge = 1 + 0.07 * math.sin(math.pi * z01)
+        wr = 0.035 * noise.noise(Vector((x * 3.1, y * 3.1, z * 3.1))) * math.sin(math.pi * z01)
+        v.co = Vector((x * R * bulge * (1 + wr), y * R * bulge * (1 + wr) * 0.95, max(0.0, z01 ** 0.75 * top + wr * 0.3)))
+    FAB = mat('M_mod_beanbag', (0.5, 0.46, 0.42), 0.95)
+    ob = from_bm(name, bm, FAB, E(*c))
+    add_mod(ob, 'SUBSURF', levels=1, render_levels=1)
+    for p in ob.data.polygons: p.use_smooth = True
+    apply_mods(ob); item_origin(ob)
+    return ob
+
+
 def globe_floor_lamp(name, pt, height=1.45, globe=0.36):
     """a modern globe floor lamp: Poly Haven's modern_ceiling_lamp_01 shade (opal globe + metal cap, the cord,
     canopy and bulb cut away; the glass made opaque opal) on a slim black pole with a round weighted base"""
@@ -779,6 +801,7 @@ def add_young_woman():
     hy('mod_monstera', 'yw_monstera', 0.95, (-1.35, 0, -1.75), faces=4000)
     hy('mod_bag', 'yw_bag', 0.28, (1.35, 0, 0.45), rotz=-PI / 2 + 0.3, faces=2500)
     candle_set('yw_candle', (-0.8, 0.34 + 0.0125, -0.95))
+    beanbag('bb_beanbag', (0.0, 0.0, 0.45))   # where you sit at first (the engine swaps it for the chair)
     # her shelf (behind you): real things, sized to each board; fronts face the room (-z)
     sb = ph_bounds(bpy.data.objects['mod_shelf']) if bpy.data.objects.get('mod_shelf') else None
     if sb:
