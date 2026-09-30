@@ -24,6 +24,26 @@ JOBS = {
    'At the end everything returns exactly to the starting pose. '
    'overall_soundscape: warped slow children\'s song, faint hiss. non_diegetic_music: the provided song, slowed and warped.'),
 }
+# the modern shows on her flat TV (16:9, muted in the game: the audio guide is only room tone)
+TV = '/mnt/d/_AI_GENERATED/______2026/horror/design/tv/'
+MOD = dict(w=640, h=352, tone=True)
+JOBS.update({
+ 'mod_cook': dict(img=TV + 'cook.png', **MOD, prompt=ALIGN +
+   'integrated_multimodal_description: A bright modern Korean cooking programme. The young woman chef stirs the steaming stew with the wooden spoon in slow circles, '
+   'glances at the camera and smiles, steam rises gently from the pot, the vegetables stay on the board. At the end she is back exactly in the starting pose. '
+   'overall_soundscape: quiet kitchen studio, soft simmering.'),
+ 'mod_music': dict(img=TV + 'music.png', **MOD, prompt=ALIGN +
+   'integrated_multimodal_description: A Korean music show stage. The five girls dance a light synchronized choreography in place, arms and hips on the beat, '
+   'the colored light beams sweep and the LED screens pulse, audience light sticks sway in the foreground. At the end they are back exactly in the starting pose. '
+   'overall_soundscape: stage, cheering far away.'),
+ 'mod_nature': dict(img=TV + 'nature.png', **MOD, prompt=ALIGN +
+   'integrated_multimodal_description: A calm underwater documentary shot. The whale shark glides slowly, its tail sweeping gently side to side, small fish dart around it, '
+   'sun rays shimmer from the surface. At the end everything is exactly as in the starting frame. overall_soundscape: underwater, quiet.'),
+ 'mod_weather': dict(img=TV + 'weather.png', **MOD, prompt=ALIGN +
+   'integrated_multimodal_description: A weather forecast. The smiling presenter talks to the camera, gestures once toward the map with an open hand and brings it back, '
+   'small natural nods, the sun icon glows softly and the cloud icon drifts a little. At the end she is back exactly in the starting pose. '
+   'overall_soundscape: quiet studio, a calm female voice.'),
+})
 FRAMES, W, H = 192, 512, 352
 
 def up(path, kind):
@@ -38,13 +58,17 @@ def main(key):
     tmp = os.path.join(ROOT, 'design', 'h3')
     # still -> exact canvas; audio -> exact duration cut of the song
     img = os.path.join(tmp, key + '_frame.png')
-    subprocess.run([FF, '-y', '-loglevel', 'error', '-i', j['img'], '-vf', f'scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}', img], check=True)
+    w, h = j.get('w', W), j.get('h', H)
+    subprocess.run([FF, '-y', '-loglevel', 'error', '-i', j['img'], '-vf', f'scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}', img], check=True)
     wav = os.path.join(tmp, key + '_guide.wav')
     af = 'atempo=0.8,asetrate=44100*0.9,aresample=44100' if key.endswith('bad') else 'anull'
-    subprocess.run([FF, '-y', '-loglevel', 'error', '-ss', str(j['start']), '-i', os.path.join(ROOT, 'assets', 'audio', 'song.mp3'), '-af', af, '-t', str(FRAMES / 24), '-ac', '1', '-ar', '44100', wav], check=True)
+    if j.get('tone'):   # quiet room tone (pink noise, -40 dB)
+        subprocess.run([FF, '-y', '-loglevel', 'error', '-f', 'lavfi', '-i', f'anoisesrc=color=pink:amplitude=0.01:duration={FRAMES / 24}', '-ac', '1', '-ar', '44100', wav], check=True)
+    else:
+        subprocess.run([FF, '-y', '-loglevel', 'error', '-ss', str(j['start']), '-i', os.path.join(ROOT, 'assets', 'audio', 'song.mp3'), '-af', af, '-t', str(FRAMES / 24), '-ac', '1', '-ar', '44100', wav], check=True)
     iname, aname = up(img, 'image'), up(wav, 'audio')
     wf = bw.build_workflow(prompt=j['prompt'], first_name=iname, last_name=iname, audio_name=aname, frame_count=FRAMES, seed=1234,
-                           filename_prefix='horror/h3_' + key, width=W, height=H, steps=20, adult=False)
+                           filename_prefix='horror/h3_' + key, width=w, height=h, steps=20, adult=False)
     pid = json.load(urllib.request.urlopen(urllib.request.Request(HOST + '/prompt', data=json.dumps({'prompt': wf, 'client_id': 'horror-h3'}).encode(), headers={'Content-Type': 'application/json'})))['prompt_id']
     open(os.path.join(tmp, key + '.pid'), 'w').write(pid)
     print('submitted', key, pid, flush=True)

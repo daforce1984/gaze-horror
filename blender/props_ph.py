@@ -631,12 +631,66 @@ def candle_set(name, pt):
     parts.append(cyl('cs_wick', (cx, ty + 0.072, z), 0.0012, 0.009, WICK, seg=6))
     bxp = x + 0.04
     parts.append(lathe('cs_bottle', [(0, 0), (0.027, 0), (0.029, 0.004), (0.029, 0.062), (0.022, 0.076), (0.009, 0.082), (0.009, 0.094), (0.011, 0.096), (0, 0.097)], AMB, (bxp, ty, z)))
-    for k in range(6):
-        a = k / 6 * 2 * PI; tilt = 0.13 + 0.05 * (k % 2)
-        rd = cyl('cs_reed', (bxp + math.cos(a) * 0.012, ty + 0.09 + 0.1, z + math.sin(a) * 0.012), 0.0017, 0.2, REED, seg=5)
-        rd.rotation_euler = (math.sin(a) * tilt, -math.cos(a) * tilt, 0)
+    for k in range(6):   # each reed passes through the neck opening, its foot down in the oil, fanning out above
+        a = k / 6 * 2 * PI + 0.3; t = 0.12 + 0.06 * (k % 2)
+        d = (math.sin(t) * math.cos(a), math.cos(t), math.sin(t) * math.sin(a))          # engine direction
+        neck = (bxp + math.cos(a) * 0.004, ty + 0.095, z + math.sin(a) * 0.004)
+        L, below = 0.25, 0.06
+        c = tuple(neck[i] + d[i] * (L / 2 - below) for i in range(3))
+        rd = cyl('cs_reed', c, 0.0017, L, REED, seg=5)
+        bx_, by_, bz_ = d[0], -d[2], d[1]                                                 # blender axes
+        rd.rotation_euler = (math.asin(-by_), math.atan2(bx_, bz_), 0)
         parts.append(rd)
     ob = join(name, parts)
+    item_origin(ob)
+    return ob
+
+
+def pillow(name, c, w, d, t, tilt, material, seed=1):
+    """a soft pillow: a subdivided box, full in the middle and pinched flat at the seams, a few shallow wrinkles;
+    c = engine centre, w along engine x, d along engine z, t thickness; tilt leans it back (rad, about engine x)"""
+    import bmesh
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=2.0)
+    bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=14, use_grid_fill=True)
+    for v in bm.verts:
+        x, y, z = v.co   # blender: x = engine x, y = -engine z, z = up (thickness before the lean)
+        x, y, z = max(-1, min(1, x)), max(-1, min(1, y)), max(-1, min(1, z))
+        full = ((1 - x * x) * (1 - y * y)) ** 0.55   # a dome: full in the middle, falling to the seams
+        wr = 0.05 * noise.noise(Vector((x * 2.3 + seed, y * 2.3, z)))
+        top = (z + 1) / 2   # 0 = the side it lies on (almost flat), 1 = the domed top
+        h = top * (0.1 + 0.9 * full) * t + (wr * full * t if top > 0.5 else 0) + (1 - top) * full * 0.012
+        v.co = Vector((x * w / 2 * (1 - 0.06 * full), y * d / 2 * (1 - 0.06 * full), h))
+    ob = from_bm(name, bm, material, E(*c))
+    add_mod(ob, 'SUBSURF', levels=1, render_levels=1)
+    for p in ob.data.polygons: p.use_smooth = True
+    ob.rotation_euler = (tilt, 0, 0)   # the edge towards the headboard (engine -z = blender +y) rises
+    return ob
+
+
+def fix_bed_pillows(bed):
+    """the generated bed's pillows came out blocky: cut them away (above the duvet, in front of the headboard)
+    and lay two modelled pillows there instead"""
+    import bmesh
+    apply_mods(bed)   # the remesh/decimate would rebuild the cut surface otherwise
+    bpy.context.view_layer.update()   # (its matrix is stale right after placing)
+    me = bed.data; mw = bed.matrix_world.copy()
+    bm = bmesh.new(); bm.from_mesh(me)
+    def eng(co): w = mw @ co; return (w.x, w.z, -w.y)
+    kill = [f for f in bm.faces if (lambda e: 0.565 < e[2] < 1.02 and e[1] > 0.47)(eng(f.calc_center_median()))]
+    bmesh.ops.delete(bm, geom=kill, context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(me); bm.free()
+    PIL = mat('M_mod_pillow', (0.9, 0.89, 0.86), 0.9)
+    # rebuilt head end: a fitted sheet over the mattress, the duvet's turned-down edge rolled over the cut,
+    # and two pillows lying on the sheet
+    sheet = box('bp_sheet', (1.72, 0.465, 0.795), (1.17, 0.05, 0.47), PIL, 0.018)
+    fold = pillow('bp_fold', (1.72, 0.485, 1.02), 1.2, 0.16, 0.075, 0.0, PIL, 3)   # soft, not a tube
+    pl = [sheet, fold,
+          pillow('bp_pillow_a', (1.44, 0.488, 0.76), 0.54, 0.36, 0.17, 0.12, PIL, 1),   # c = where its underside lies
+          pillow('bp_pillow_b', (2.0, 0.488, 0.765), 0.54, 0.36, 0.17, 0.1, PIL, 7)]
+    name = bed.name
+    ob = join(name, [bed] + pl); ob.name = name; ob.data.name = name
     item_origin(ob)
     return ob
 
@@ -717,7 +771,8 @@ def add_young_woman():
     ph('ceramic_vase_01', 'yw_vase1', 0.6, (-0.55, top('mod_tvstand'), -2.25), faces=1500)
     ph('ceramic_vase_03', 'yw_vase2', 0.6, (-0.42, top('mod_tvstand'), -2.2), faces=1500)
     ph('standing_picture_frame_02', 'yw_frame', 0.9, (1.95, 0.74 + 0.013, -0.62), rotz=PI + 0.3, faces=1000)
-    hy('mod_bed', 'yw_bed', 0.8, (1.72, 0, 1.45), rotz=-PI / 2, faces=4000)
+    bed = hy('mod_bed', 'yw_bed', 0.8, (1.72, 0, 1.45), rotz=-PI / 2, faces=4000)
+    if bed: fix_bed_pillows(bed)
     hy('mod_mirror', 'yw_mirror', 1.6, (-2.05, 0, 0.72), rotz=PI / 2, faces=2500)
     hy('mod_rack', 'yw_rack', 1.45, (-0.35, 0, 2.28), rotz=PI, faces=4000)
     globe_floor_lamp('yw_lamp', (-1.5, 0, -2.2))

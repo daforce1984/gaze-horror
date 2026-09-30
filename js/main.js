@@ -193,6 +193,9 @@ function buildScene() {
   // the kids' show as video (tools/h3_tv.py): muted, looping; the song itself is played by the audio engine
   const mkVid = (src) => { const v = document.createElement('video'); v.src = src; v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto'; v.setAttribute('playsinline', ''); return v; };
   tvScreen.kidsVid = mkVid('assets/kids_show.mp4'); tvScreen.kidsBadVid = mkVid('assets/kids_show_bad.mp4');
+  // her flat TV's programmes (16:9 H3 loops): cooking, a music show, a nature film, the weather
+  MODTV.vids = MODTV.names.map(n => mkVid(`assets/tv/${n}.mp4`));
+  MODTV.c = TX.canvas(640, 360); MODTV.g = MODTV.c.getContext('2d'); O.modTex = R.texture(MODTV.c, { mips: false });
   O.tvTex = R.texture(tvScreen.draw(0, 1), { mips: false });
   clockCanvas = TX.canvas(256, 256);
   TX.clockFaceTex(clockCanvas, S.clock.h, S.clock.m);
@@ -258,8 +261,8 @@ function buildScene() {
     for (const o of O.nodes.mod_tv || []) for (let q = 0; q < 3; q++) { mn[q] = Math.min(mn[q], o.base[12 + q] + o.min[q]); mx[q] = Math.max(mx[q], o.base[12 + q] + o.max[q]); }
     let zf = -1e9;   // the panel's glass (the neck below sticks out further forward)
     for (const pr of GLB.room.mod_tv?.prims || []) { const v = pr.geo.v; for (let o = 0; o < v.length; o += 12) if (v[o + 1] > mx[1] - 0.3) zf = Math.max(zf, v[o + 2]); }
-    const M = m4.trs([(mn[0] + mx[0]) / 2, mx[1] - 0.33, (zf > -1e8 ? zf : mx[2]) + 0.003], 0, [0.78, 0.585, 1]);
-    O.modScreen = add(R.object(quad, O.tvTex, { model: M, flags: [0, 1, 0, 1], tint: [0.15, 0.15, 0.15, 1], clamp: true }));
+    const M = m4.trs([(mn[0] + mx[0]) / 2, mx[1] - 0.32, (zf > -1e8 ? zf : mx[2]) + 0.003], 0, [1.07, 0.602, 1]);   // 16:9, a thin bezel left on the 1.1 x 0.64 panel
+    O.modScreen = add(R.object(quad, O.modTex, { model: M, flags: [0, 1, 0, 1], tint: [0.15, 0.15, 0.15, 1], clamp: true }));
     O.modCctv = add(R.object(quad, R.camTex, { model: M.slice(), flags: [0, 1, 0, 1], tint: [0.05, 0.05, 0.05, 1], emissive: [1.4, 1.5, 1.4, 1], clamp: true }));
     O.modScreen.visible = O.modCctv.visible = false; O.modCctv.noCam = true;
   }
@@ -886,6 +889,25 @@ function setupLate() {
   }
 }
 const isModern = (node) => MODERN.some(p => p.modern && p.oldNames.includes(node));
+// ---- her flat TV: a clean modern picture (no scanlines), a channel number when you switch
+const MODTV = { names: ['mod_cook', 'mod_music', 'mod_nature', 'mod_weather'], vids: [], ch: -1, osd: 0, t: 0 };
+function modTvDraw() {
+  const now = performance.now() / 1000, dt = Math.min(0.1, now - (MODTV.t || now)); MODTV.t = now;
+  if (S.tv.ch !== MODTV.ch) { MODTV.ch = S.tv.ch; MODTV.osd = 2.2; MODTV.cut = 0.25; }
+  MODTV.osd = Math.max(0, MODTV.osd - dt); MODTV.cut = Math.max(0, (MODTV.cut || 0) - dt);
+  if ((MODTV.tick = (MODTV.tick || 0) + 1) % 2 && !MODTV.osd) return;   // 30 Hz is plenty
+  const c = MODTV.c, g = MODTV.g, W = c.width, H = c.height;
+  const v = MODTV.vids[(Math.max(1, S.tv.ch) - 1) % MODTV.vids.length];
+  g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+  if (!MODTV.cut && v && v.readyState >= 2) g.drawImage(v, 0, 0, W, H);
+  if (MODTV.osd > 0) {
+    g.globalAlpha = Math.min(1, MODTV.osd * 2);
+    g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(W - 112, 16, 96, 40);
+    g.fillStyle = '#fff'; g.font = '600 26px system-ui, sans-serif'; g.textAlign = 'center'; g.fillText(String(S.tv.ch).padStart(2, '0'), W - 64, 46);
+    g.globalAlpha = 1;
+  }
+  R.updateTexture(O.modTex, c);
+}
 function modernUpdate() {
   for (const p of MODERN) {
     const turned = levelAt(p.pos) >= (p.at || 0.12);
@@ -897,7 +919,10 @@ function modernUpdate() {
   if (modern) { O.screen.visible = false; O.cctvScreen.visible = false; }
   O.modScreen.visible = !!tc && tc.mode !== 'cctv';
   O.modCctv.visible = !!tc && tc.mode === 'cctv';
-  if (tc) { O.modScreen.emissive = O.screen.emissive; O.modCctv.emissive = O.cctvScreen.emissive; }
+  if (tc) {
+    O.modScreen.emissive = [0.95, 0.95, 0.97, 1]; O.modCctv.emissive = O.cctvScreen.emissive;
+    if (O.modScreen.visible) modTvDraw();
+  }
 }
 
 // ================================================================ 이상현상 (the room turns wrong)
@@ -3062,7 +3087,7 @@ async function main() {
   ui.start.disabled = false;
   ui.start.addEventListener('click', () => {
     snd.lite = matchMedia('(pointer: coarse)').matches; snd.init(); snd.decodeAll();
-    for (const v of [tvScreen.kidsVid, tvScreen.kidsBadVid]) v.play().catch(() => { });   // (a user gesture: allowed everywhere)
+    for (const v of [tvScreen.kidsVid, tvScreen.kidsBadVid, ...MODTV.vids]) v.play().catch(() => { });   // (a user gesture: allowed everywhere)
     snd.setPos(snd.tvPan, O.tvCenter);   // the set's sound comes from where the set is
     let pref = null; try { pref = localStorage.getItem(GYRO_KEY); } catch { }
     if (document.documentElement.classList.contains('has-gyro') && pref === '1') setGyro(true);
