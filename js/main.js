@@ -739,8 +739,9 @@ function startShift(to) {
   if (S.ghost && S.ghost.alpha > 0.3 && !S.ghost.camOnly) o = [S.ghost.p[0], 1.1, S.ghost.p[2]];
   Object.assign(SHIFT, { on: true, o, r: 0, from, to, big, t: 0, speed: big ? 1.0 : 0.7, burn: 0, cr: 0 });
   log('shift', { from: +from.toFixed(2), to: +to.toFixed(2), big });
-  if (big) { snd.play('siren'); snd.duck(0.35, 7); after(1.2, () => line('shift_start', null, { quiet: false })); }
-  snd.play('crackle', o);
+  SHIFT.snds = [];
+  if (big) { SHIFT.snds.push(snd.playTracked('siren', null, 0.75)); snd.duck(0.35, 7); after(1.2, () => line('shift_start', null, { quiet: false })); }
+  SHIFT.snds.push(snd.playTracked('crackle', o, 1.1));
 }
 function shiftUpdate(dt) {
   if (!SHIFT.on) {
@@ -756,9 +757,9 @@ function shiftUpdate(dt) {
   if (SHIFT.cr <= 0 && SHIFT.r < 8.5) {
     SHIFT.cr = rnd(1.4, 2.6);
     const d = v3.norm(v3.sub(EYE, SHIFT.o)), q = v3.add(SHIFT.o, v3.scale(d, Math.min(SHIFT.r, v3.len(v3.sub(EYE, SHIFT.o)) - 0.3)));
-    snd.play('crackle', q);
+    SHIFT.snds.push(snd.playTracked('crackle', q, 1.1));
   }
-  if (SHIFT.r > 9.5) { SHIFT.on = false; S.decay = SHIFT.to; log('shift_end', {}); }
+  if (SHIFT.r > 9.5) { for (const h of SHIFT.snds || []) h.stop(1.5); SHIFT.snds = []; SHIFT.on = false; S.decay = SHIFT.to; log('shift_end', {}); }
 }
 // same fire front as the shader (frontDist in gpu.js), so furniture and trash catch when the walls round them do
 const _h31 = (x, y, z) => { const v = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return v - Math.floor(v); };

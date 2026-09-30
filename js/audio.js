@@ -276,6 +276,15 @@ export class Sound {
     const g = this.musicBus.gain, t = this.ctx.currentTime;
     g.cancelScheduledValues(t); g.setTargetAtTime(this.vol.music * amount, t, 0.03); g.setTargetAtTime(this.vol.music, t + sec, 0.8);
   }
+  // a recorded sample that can be faded out later (returns { stop(fadeSeconds) })
+  playTracked(name, pos, gain = 1) {
+    if (!this.ctx || !this.buf[name]) return { stop() { } };
+    const ctx = this.ctx, g = ctx.createGain(); g.gain.value = gain;
+    const dest = pos ? (() => { const p = this.panner(pos); p.connect(this.master); return p; })() : this.master;
+    g.connect(dest);
+    const s = ctx.createBufferSource(); s.buffer = this.buf[name]; s.connect(g); s.start();
+    return { stop: (fade = 1) => { const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + fade); try { s.stop(t + fade + 0.05); } catch { } } };
+  }
   sample(name, dest, { gain = 1, rate = 1 } = {}) {
     const b = this.buf[name]; if (!b) return false;
     const s = this.ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = rate * (0.96 + Math.random() * 0.08);
