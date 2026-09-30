@@ -105,9 +105,20 @@
   an_lamp | GIRL | [crazy][giggles] 빨개졌다~ 히..히히히힛!!
   crawl_near | GIRL | [whispers][crazy][breathing heavily] 엄마… 거의 다 왔어… 히..히히.
   crawl_hurt | GIRL | [screaming][crying] 아파!! 왜 밀어내!!
-  shift_start | GIRL | [crazy][crying] 싫어… 싫어!! 방이… 방이 썩어!!
+  shift_start | GIRL | [crazy][crying] 싫어… 싫어!! 방이… 방이 변해!!
   hs_found3 | GIRL | [crazy][crying] 찾았다… 찾았어!! 히..히히히힛!!
   amb1 | GIRL | [whispers][crying] 엄마… 어디 있어…
   amb2 | GIRL | [whispers][crazy] 히히… 여기야… 아니, 여기…
   amb3 | GIRL | [sobbing][whispers] 배고파… 엄마…
   amb4 | GIRL | [crazy][giggles] 하나, 둘, 셋… 히히힛.
+  pz_knock_intro | GIRL | [whispers] 엄마… 우리 암호 기억나? [giggles] 내가 두드리는 대로… 똑같이 두드려 줘.
+  pz_knock_ok | GIRL | [crazy][giggles] 맞아… 맞아! 한 번 더.
+  pz_knock_bad | GIRL | [crazy][screaming] 아니야!! 그거 아니잖아!!
+  pz_knock_done | GIRL | [crying][whispers] 엄마다… 진짜 엄마다…
+  pz_poem_intro | GIRL | [whispers] 엄마, 자장가 불러 줘. [crazy][giggles] 내 친구들… 순서대로 재워 줘야 해.
+  pz_poem_bad | GIRL | [crazy][screaming][crying] 순서가 틀렸잖아!! 다 깼어!!
+  pz_poem_done | GIRL | [softly][sad] 잘 자… 다들, 잘 자.
+  pz_code_intro | GIRL | [whispers] 불 꺼지면 보여… [crazy][giggles] 서랍 비밀번호, 내가 방에 숨겨 놨어.
+  pz_code_bad | GIRL | [crazy][crying] 틀렸어!! 엄마 바보!!
+  pz_code_ok | GIRL | [whispers][trembling] 열렸다… 거기 있지? 우리 사진.
+  pz_hint | GIRL | [whispers][crazy] 히히… 여기야. 여기.
