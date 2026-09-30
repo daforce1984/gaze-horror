@@ -26,7 +26,7 @@ Used under the [Pixabay Content License](https://pixabay.com/service/license-sum
 `music_room`, `music_chase`, `song` (the children's song on TV channel 3) — generated with **MiniMax Music 3** (ComfyUI). Captions, seeds and workflows in `audio-source/music/`. Loop crossfades placed inside the files.
 
 ## Voices
-Generated with **ElevenLabs Eleven v3**. The girl: Voice Library Korean voice "Luna - Soft, Clear, Bright" (pitched up slightly in the engine); the mother: "Park Hyun-mi"; the news anchor: "JasonK" (Korean Voice Library voices). Script in `assets/voice/lines.json`.
+Generated with **ElevenLabs** (Eleven v3; later lines Eleven v4). The girl: Voice Library Korean voice "Luna - Soft, Clear, Bright" (pitched up slightly in the engine); the mother: "Park Hyun-mi"; the news anchor: "JasonK" (Korean Voice Library voices). Script in `assets/voice/lines.json`.
 
 ## Images
 Textures, key art, documents and the jump-scare face: AI image generation. 3D models: Blender scripts in `blender/`.
@@ -67,9 +67,21 @@ mantel_clock_01, wooden_stool_01, vintage_oil_lamp, alarm_clock_01, wicker_baske
 hanging_picture_frame_02, book_encyclopedia_set_01, wooden_candlestick, vintage_flashlight, sungka_board, vintage_pocket_watch.
 
 ### Her studio (the modern room)
-Poly Haven (CC0): modern_arm_chair_01, potted_plant_02, potted_plant_04, ceramic_vase_01, ceramic_vase_03, standing_picture_frame_02.
-Generated: bed, full-length mirror, clothes rail, handbag, skincare tray, floor lamp, monstera, candle + diffuser — Codex product images
-reconstructed with Hunyuan3D 2.1 (ComfyUI), voxel-remeshed and front-projected in blender/props_ph.py.
+Poly Haven (CC0): modern_arm_chair_01, potted_plant_02, potted_plant_04, ceramic_vase_01, ceramic_vase_02, ceramic_vase_03, ceramic_vase_04,
+standing_picture_frame_02, wicker_basket_01, book_encyclopedia_set_01, concrete_cat_statue, carved_wooden_elephant,
+modern_ceiling_lamp_01 (its globe and fitting, turned over onto a modelled stand = the floor lamp).
+
+Sketchfab models via the Objaverse dataset, **CC BY 4.0** (https://creativecommons.org/licenses/by/4.0/). Changes: re-oriented, scaled,
+decimated, textures downsized; the bed narrowed from king to double width; the mirror's glass replaced with a plain glossy material.
+- "Bed For Vr" by **olamii** — https://sketchfab.com/3d-models/bed-for-vr-2bd3fcc82c9f43cfb0c8cf26c7d0107c (her bed)
+- "Leaves 70x180ミラー OAK" by **classe-saga** — https://sketchfab.com/3d-models/leaves-70x180-oak-166680b4e8354d2fbc6d570574da077a (full-length mirror)
+
+Modelled in Blender (blender/props_ph.py): laptop, candle in a ceramic tumbler + reed diffuser on a marble tray, beanbag, desk, TV console,
+coffee table, shelf. Generated with Hunyuan3D 2.1 (see the note on its licence above): clothes rail, handbag, monstera.
+
+### Modern TV programmes
+assets/tv/mod_*.mp4: stills made with **Z-Image Turbo** (Apache-2.0, local ComfyUI, tools/zimage.py), animated into seamless loops with
+MiniMax H3 (tools/h3_tv.py).
 
 ### TV kids' show video
 assets/kids_show.mp4 and kids_show_bad.mp4: MiniMax H3 (ComfyUI, standard FL2VA i2v, not adult) from the kids' show stills with

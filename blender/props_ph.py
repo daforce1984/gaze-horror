@@ -8,10 +8,10 @@ RX, RH = 2.2, 2.6
 _TEMPLATES = {}
 
 
-def ph_import(pid, keep=None, drop_mats=(), res=512, skip=(), faces=None, flat=False):
+def ph_import(pid, keep=None, drop_mats=(), res=512, skip=(), faces=None, flat=False, path=None):
     """import a Poly Haven glTF as one mesh object (parts filtered by name), textures scaled to <= res"""
     before = set(bpy.data.objects)
-    bpy.ops.import_scene.gltf(filepath=glob.glob(os.path.join(PH, pid, '*.gltf'))[0])
+    bpy.ops.import_scene.gltf(filepath=path or glob.glob(os.path.join(PH, pid, '*.gltf'))[0])   # path: any glTF/GLB (Objaverse)
     new = [o for o in bpy.data.objects if o not in before]
     meshes = [o for o in new if o.type == 'MESH' and (keep is None or any(k in o.name for k in keep)) and not any(k in o.name for k in skip)]
     bpy.context.view_layer.update()
@@ -646,6 +646,48 @@ def candle_set(name, pt):
     return ob
 
 
+OBJV = os.path.join(os.path.dirname(HERE), 'design', 'objaverse')
+# Objaverse / Sketchfab models, CC BY 4.0 (credited in README):
+#  bed    "Bed For Vr" by olamii — sketchfab.com/3d-models/bed-for-vr-2bd3fcc82c9f43cfb0c8cf26c7d0107c
+#  mirror "Leaves 70x180 mirror OAK" by classe-saga — sketchfab.com/3d-models/leaves-70x180-oak-166680b4e8354d2fbc6d570574da077a
+
+
+def objaverse_bed(name):
+    """her bed along the right wall: headboard towards the desk (engine -z), foot towards the door wall"""
+    import bmesh
+    ob = ph_import('objv_bed', path=os.path.join(OBJV, '2bd3fcc82c9f43cfb0c8cf26c7d0107c.glb'), res=1024, faces=40000)
+    me = ob.data
+    mn, mx = ph_bounds(ob)
+    if mx.x - mn.x > mx.y - mn.y:   # long side along blender y (= engine z)
+        me.transform(Matrix.Rotation(PI / 2, 4, 'Z')); mn, mx = ph_bounds(ob)
+    cy, L = (mn.y + mx.y) / 2, mx.y - mn.y
+    top = lambda sgn: max([v.co.z for v in me.vertices if (v.co.y - cy) * sgn > 0.3 * L] or [0])
+    if top(-1) > top(1):            # headboard must be at blender +y (engine -z, the desk side)
+        me.transform(Matrix.Rotation(PI, 4, 'Z')); mn, mx = ph_bounds(ob)
+    s = 2.0 / (mx.y - mn.y)
+    w = 1.45                          # it is a king; a double fits her studio (narrowed a little, length kept)
+    me.transform(Matrix.Diagonal((w / ((mx.x - mn.x) * s), 1, 1, 1))); mn, mx = ph_bounds(ob)
+    ph_place(ob, s, (2.17 - w / 2, 0, 2.44 - 1.0), rotz=0)
+    ob.name = name; ob.data.name = name; item_origin(ob)
+    print('OBJV bed', round(w, 2), 'm wide', len(ob.data.polygons), 'faces')
+    return ob
+
+
+def objaverse_mirror(name):
+    """a full-length oak standing mirror against the left wall, facing the room (+x); the glass is a glossy grey
+    (the engine has no reflections)"""
+    ob = ph_import('objv_mirror', path=os.path.join(OBJV, '166680b4e8354d2fbc6d570574da077a.glb'), res=1024, faces=20000)
+    GLASS = mat('M_mod_mirrorglass', (0.26, 0.29, 0.32), 0.05)
+    for i, m in enumerate(ob.data.materials):
+        if m and m.name.lower().startswith('material'): ob.data.materials[i] = GLASS
+    mn, mx = ph_bounds(ob)
+    ph_place(ob, 1.8 / (mx.z - mn.z), (-2.1, 0, 0.72), rotz=PI / 2)
+    ob.name = name; ob.data.name = name; item_origin(ob)
+    mn, mx = ph_bounds(ob)
+    print('OBJV mirror', [round(v, 2) for v in mn], [round(v, 2) for v in mx], [m.name for m in ob.data.materials])
+    return ob
+
+
 def pillow(name, c, w, d, t, tilt, material, seed=1):
     """a soft pillow: a subdivided box, full in the middle and pinched flat at the seams, a few shallow wrinkles;
     c = engine centre, w along engine x, d along engine z, t thickness; tilt leans it back (rad, about engine x)"""
@@ -793,9 +835,8 @@ def add_young_woman():
     ph('ceramic_vase_01', 'yw_vase1', 0.6, (-0.55, top('mod_tvstand'), -2.25), faces=1500)
     ph('ceramic_vase_03', 'yw_vase2', 0.6, (-0.42, top('mod_tvstand'), -2.2), faces=1500)
     ph('standing_picture_frame_02', 'yw_frame', 0.9, (1.95, 0.74 + 0.013, -0.62), rotz=PI + 0.3, faces=1000)
-    bed = hy('mod_bed', 'yw_bed', 0.8, (1.72, 0, 1.45), rotz=-PI / 2, faces=4000)
-    if bed: fix_bed_pillows(bed)
-    hy('mod_mirror', 'yw_mirror', 1.6, (-2.05, 0, 0.72), rotz=PI / 2, faces=2500)
+    objaverse_bed('yw_bed')
+    objaverse_mirror('yw_mirror')
     hy('mod_rack', 'yw_rack', 1.45, (-0.35, 0, 2.28), rotz=PI, faces=4000)
     globe_floor_lamp('yw_lamp', (-1.5, 0, -2.2))
     hy('mod_monstera', 'yw_monstera', 0.95, (-1.35, 0, -1.75), faces=4000)
