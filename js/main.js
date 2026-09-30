@@ -921,14 +921,15 @@ function anHud() {
   $('#anHud').classList.toggle('show', AN.on); ui.hud.classList.toggle('annight', AN.on);
   $('#anHud').classList.toggle('danger', AN.danger > 0);
   document.querySelectorAll('#anHud .pips i').forEach((el, i) => el.classList.toggle('on', i < n));
-  $('#anCount').innerHTML = `${Math.min(AN.fixed, AN.goal)} / ${AN.goal}` + (AN.fails ? ` <span class="fails">${'✕'.repeat(AN.fails)}</span>` : '');
+  $('#anCount').innerHTML = `${Math.min(AN.fixed, AN.goal)} / ${AN.goal}` + (AN.fails ? ` <span class="fails">${'✕'.repeat(AN.fails)}</span>` : '') + pzHudText();
 }
 function anStart(phase) {
   hsNewBeat();
-  AN.on = true; AN.phase = phase; AN.fixed = 0; AN.act = {}; AN.danger = 0; AN.lock = 0;
+  AN.on = true; AN.phase = phase; AN.fixed = 0; AN.act = {}; AN.danger = 0; AN.lock = 0; AN.ending = false;
   AN.used = new Set(); AN.everUsed = AN.everUsed || new Set();
   const left = Object.keys(ANOM).filter(k => !AN.everUsed.has(k) && (k !== 'crawl' || phase >= 2)).length;
-  AN.goal = Math.min([0, 5, 6, 7][phase], left);   // 18 puzzles, each once
+  AN.goal = Math.min([0, 3, 3, 3][phase], left);   // her changes (18 kinds, each once in a game) + one real puzzle a night
+  pzReset(phase); AN.t0 = S.time;
   AN.baseDim = phase === 3 ? 0.72 : 0; AN.streak = 0; AN.crawlShown = AN.crawlShown || false;
   HS.phase = 'anom'; HS.spot = null; S.ghost = null;
   ui.hud.classList.add('turnon');
@@ -957,6 +958,7 @@ function anSpawn(k, force = false) {
   if (AN.act[k]) return false;
   if (a.node && isModern(a.node)) return false;   // still the modern piece: wait until the 1999 one has formed
   if (AN.everUsed?.has(k)) return false;           // no puzzle ever twice in a game
+  if (PZ.kind === 'poem' && !PZ.done && Object.values(POEM).some(p => p.node === a.node)) return false;   // her sleepers are the lullaby's, not hers to move
   if (a.node && !a.hidden && !(O.nodes[a.node]?.[0]?.visible)) return false;   // not in the room yet (forms in with the fire)
   if (a.ghost && (AN.act.curtain || AN.act.crawl)) return false;   // one of her at a time
   if (!force && k !== 'crawl' && inView(anBox(k).c, 1.15).visible) return false;    // never change what you are watching (she picks an unseen corner herself)
@@ -1018,8 +1020,12 @@ function anFix(k) {
   AN.streak++;
   if (!Object.keys(AN.act).length) AN.next = Math.min(AN.next, AN.script.length ? 1.2 : rnd(2, 3.5));
   if (AN.streak >= 2 && !AN.script.length) { AN.next = Math.max(AN.next, rnd(2.5, 3.5)); AN.streak = 0; }   // two in a row: a breath
-  if (AN.fixed >= AN.goal && !Object.keys(AN.act).length) hsAfter(1.2, () => anEnd());
+  anMaybeEnd();
   anHud();
+}
+// the night is over when her changes are all put right and the puzzle is solved
+function anMaybeEnd() {
+  if (AN.on && !AN.ending && AN.fixed >= AN.goal && !Object.keys(AN.act).length && PZ.done) { AN.ending = true; hsAfter(1.2, () => anEnd()); }
 }
 function anFail(why) {
   hsNewBeat();
@@ -1039,7 +1045,7 @@ function anFail(why) {
 }
 function anEnd() {
   if (!AN.on) return;
-  AN.on = false; AN.act = {}; hsTip(''); anHud(); $('#anMark').className = '';
+  AN.on = false; AN.act = {}; hsTip(''); pzClear(); anHud(); $('#anMark').className = '';
   log('anom_end', { phase: AN.phase, fails: AN.fails, t: +S.time.toFixed(1) });
   voice('an_done', null, 2.0); hsSay('“와~ 다 찾았다! 엄마 최고!”', 2.4);
   if (AN.phase === 1) hsAfterVoice(() => { voice('hs_again', null, 2.0); hsSay('“이번엔 진짜 숨을게. 못 찾을걸?”', 2.2); hsAfterVoice(() => hsRound(3)); });
@@ -1074,6 +1080,7 @@ function tapFx(ok, px, py, text) {
 function anTap(px, py, dir) {
   if (AN.lock > 0) return true;
   if (!HS.firstInput) { HS.firstInput = true; log('first_input', { kind: 'tap' }); }
+  if (pzTap(px, py, dir)) return true;
   const cands = Object.keys(ANOM).filter(k => AN.act[k] || (!ANOM[k].ghost && !ANOM[k].hidden && (k !== 'tv' || !S.tv.on) && (!ANOM[k].node || O.nodes[ANOM[k].node]?.[0]?.visible)));
   const rect = ui.canvas.getBoundingClientRect();
   let best = null, bd = 1e9;
@@ -1112,6 +1119,7 @@ function anTap(px, py, dir) {
 function anUpdate(dt) {
   if (!AN.on || S.paused) return;
   AN.lock = Math.max(0, AN.lock - dt);
+  pzUpdate(dt);
   AN.ambT = (AN.ambT ?? rnd(18, 30)) - dt;
   if (AN.ambT <= 0) { AN.ambT = rnd(22, 40); const a = [rnd(-2, 2), 1.2, rnd(-2.3, 2.3)]; if (!inView(a, 1.2).visible) line(pick(['amb1', 'amb2', 'amb3', 'amb4']), a); }
   const keys = Object.keys(AN.act), n = keys.length;
@@ -1181,9 +1189,9 @@ function anUpdate(dt) {
     hsTip(`이상한 곳이 <b>3개</b>! 하나라도 고쳐요 · ${Math.ceil(AN.danger)}`);
     if (AN.danger <= 0) { anFail('three'); return; }
   }
-  // what to change next
-  if (AN.fixed + n >= AN.goal) return;
-  AN.next -= dt;
+  // what to change next (nothing while she knocks: that needs your ears and your fingers)
+  if (AN.fixed + n >= AN.goal || PZ.hold) return;
+  AN.next -= dt * (PZ.on ? 0.6 : 1);
   if (AN.next <= 0) {
     if (AN.script.length) {
       const k = AN.script[0];
@@ -1196,7 +1204,7 @@ function anUpdate(dt) {
     }
     AN.recent = AN.recent || [];
     const pool = Object.keys(ANOM).filter(k => !AN.act[k] && !AN.everUsed.has(k) && (k !== 'crawl' || AN.phase >= 2));   // never twice in a game
-    if (!pool.length) { if (!Object.keys(AN.act).length) anEnd(); return; }
+    if (!pool.length) { anMaybeEnd(); return; }
     // things she has not changed for a while first
     const order = pool.sort(() => Math.random() - 0.5).sort((x, y) => AN.recent.indexOf(x) - AN.recent.indexOf(y));
     let ok = false;
@@ -1268,6 +1276,318 @@ function anApply(dt, time) {
     if (!X) continue;
     const M = m4.mul(m4.mul(m4.trs(piv), X), m4.trs(v3.scale(piv, -1)));
     for (const o of list) o.model = m4.mul(M, o.base);
+  }
+  pzApply(dt, time);
+}
+
+// ================================================================ 퍼즐 (one real puzzle each night)
+// Besides her changes, every night has one puzzle with its own verb, after the horror classics:
+//  1 노크 암호  — she knocks a rhythm, you knock it back on the armrest (P.T. / Visage knocking)
+//  2 자장가     — a riddle lullaby tells the order to put her friends to sleep (Silent Hill's piano poem)
+//  3 야광 숫자  — the lights die; the torch finds four glowing digits, then the drawer's dial (Outlast + RE)
+// Wrong answers hurt; each has a fallback hint so nobody is stuck for long.
+const PZ = { kind: null, on: false, done: true };
+const toScreen = (p) => {
+  const { f, r, u } = camBasis(), d = v3.sub(p, EYE), z = v3.dot(d, f), rect = ui.canvas.getBoundingClientRect();
+  if (z < 0.1) return null;
+  const th = tanHalfY(), a = rect.width / rect.height;
+  return [rect.left + (v3.dot(d, r) / z / (th * a) * 0.5 + 0.5) * rect.width, rect.top + (0.5 - v3.dot(d, u) / z / th * 0.5) * rect.height];
+};
+const screenMid = () => { const r = ui.canvas.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height * 0.42]; };
+function pzReset(phase) {
+  pzClear();
+  Object.assign(PZ, { kind: [null, 'knock', 'poem', 'code'][phase], on: false, done: !phase, step: 0, fails: 0, idle: 0, hints: 0 });
+}
+function pzClear() {
+  for (const d of PZ.digits || []) d.o.visible = false;
+  PZ.digits = null; PZ.on = false; PZ.hold = false;
+  document.querySelectorAll('.knockRipple').forEach(e => e.remove());
+}
+// when each night's puzzle begins (called every frame of the night)
+function pzMaybeStart() {
+  if (PZ.on || PZ.done || !PZ.kind || HS.phase !== 'anom') return;
+  if (PZ.kind === 'knock' && AN.fixed >= 3 && !Object.keys(AN.act).length) { PZ.on = true; hsAfter(1.6, pzKnockStart); }
+  if (PZ.kind === 'poem' && AN.fixed >= 1 && !AN.act.crawl) { PZ.on = true; hsAfter(1.4, pzPoemStart); }
+  if (PZ.kind === 'code' && S.time - AN.t0 > 7) { PZ.on = true; pzCodeStart(); }
+}
+function pzSolved() {
+  PZ.done = true; PZ.on = false; PZ.hold = false;
+  log('puzzle_solved', { kind: PZ.kind, fails: PZ.fails, hints: PZ.hints });
+  anHud(); anMaybeEnd();
+}
+function pzWrong(px, py, text, dmg) {
+  PZ.fails++; PZ.idle = 0;
+  tapFx(false, px, py, text); snd.play('wrong');
+  S.flash = 0.4; S.flashCol = [0.55, 0.03, 0.03]; S.shake = Math.max(S.shake, 0.5); S.glitch = Math.max(S.glitch, 0.6);
+  touch(dmg, 'puzzle_' + PZ.kind);
+  ui.hud.classList.add('hurt'); setTimeout(() => ui.hud.classList.remove('hurt'), 700);
+  log('puzzle_wrong', { kind: PZ.kind, fails: PZ.fails });
+}
+function pzTap(px, py, dir) {
+  if (!PZ.on) return false;
+  if (PZ.kind === 'knock') return pzKnockTap(px, py);
+  if (PZ.kind === 'poem') return pzPoemTap(px, py, dir);
+  if (PZ.kind === 'code') return pzCodeTap(px, py, dir);
+  return false;
+}
+function pzUpdate(dt) {
+  pzMaybeStart();
+  if (!PZ.on) return;
+  PZ.idle += dt;
+  if (PZ.kind === 'knock') pzKnockUpdate(dt);
+  if (PZ.kind === 'poem') pzPoemUpdate(dt);
+  if (PZ.kind === 'code') pzCodeUpdate(dt);
+}
+function pzHudText() {
+  if (!PZ.kind) return '';
+  if (PZ.done) return ' <span class="pz ok">✓ 퍼즐</span>';
+  if (!PZ.on) return ' <span class="pz">퍼즐 ···</span>';
+  if (PZ.kind === 'knock') return ` <span class="pz">🔔 암호 ${PZ.step}/3</span>`;
+  if (PZ.kind === 'poem') return ` <span class="pz">🌙 ${PZ.step}/${PZ.order.length}</span>`;
+  return ` <span class="pz">🔦 ${PZ.digits.map(d => d.found ? d.v : '_').join(' ')}</span>`;
+}
+
+// ---- 1. 노크 암호: listen, then knock it back (the gaps are short or long; tempo is yours)
+const KNOCKS = [['L', 'S'], ['S', 'L', 'S', 'S'], ['L', 'S', 'S', 'L', 'S']];
+const DOOR_KNOCK = [0.7, 1.1, 2.45], UNDER_CHAIR = [0.05, 0.25, 0.9], ARMREST = () => v3.add(EYE, [0.28, -0.5, 0.05]);
+function pzKnockStart() {
+  PZ.step = 0; anHud();
+  const d = voice('pz_knock_intro', DOOR_KNOCK, 2.0); hsSay('“엄마… 우리 암호 기억나? 내가 두드리는 대로… 똑같이 두드려 줘.”', Math.max(4, d + 0.4));
+  log('puzzle_start', { kind: 'knock' });
+  hsAfterVoice(() => pzKnockPlay(), 0.6);
+}
+const knockGlyphs = (pat, n = pat.length + 1) => { let s = '쿵'; for (let j = 1; j < n; j++) s += (pat[j - 1] === 'S' ? ' ' : '  ─  ') + '쿵'; return s; };
+function pzKnockPlay() {
+  const pat = KNOCKS[PZ.step], from = PZ.step < 2 ? DOOR_KNOCK : UNDER_CHAIR;
+  PZ.stage = 'listen'; PZ.hold = true; PZ.taps = []; PZ.idle = 0;
+  hsTip('🎧 <b>잘 들어요…</b>');
+  if (PZ.step === 2) hsSay('…이번엔, 의자 밑에서.', 2.4);
+  let t = PZ.step === 2 ? 1.6 : 0.5; const times = [t];
+  for (const g of pat) { t += g === 'S' ? 0.3 : 0.85; times.push(t); }
+  times.forEach((tt, j) => hsAfter(tt, () => { snd.play('knock1', from); if (from === DOOR_KNOCK) S.doorKnock = 1; hsTip(`🎧 ${knockGlyphs(pat, j + 1)}`); }));
+  hsAfter(t + 1.0, () => {
+    PZ.stage = 'answer'; PZ.taps = []; PZ.idle = 0;
+    hsTip(PZ.fails >= 2 ? `<b>화면을 두드려</b> 따라 해요 · ${knockGlyphs(pat)}` : '<b>화면을 두드려</b> 똑같이 따라 해요');
+  });
+}
+function pzKnockTap(px, py) {
+  if (PZ.stage !== 'answer') return true;   // listening: taps do nothing
+  const now = performance.now() / 1000;
+  PZ.taps.push(now); PZ.idle = 0; snd.play('tap1', ARMREST());
+  const el = document.createElement('div'); el.className = 'knockRipple'; el.style.left = px + 'px'; el.style.top = py + 'px';
+  document.body.appendChild(el); setTimeout(() => el.remove(), 650);
+  if (PZ.taps.length >= KNOCKS[PZ.step].length + 1) { PZ.stage = 'judge'; hsAfter(0.45, pzKnockJudge); }
+  return true;
+}
+function pzKnockUpdate(dt) {
+  if (PZ.stage !== 'answer') return;
+  const last = PZ.taps[PZ.taps.length - 1];
+  if (last && performance.now() / 1000 - last > 2.4) { PZ.stage = 'judge'; pzKnockJudge(); }   // stopped short
+  else if (!last && PZ.idle > 12) { hsSay('…다시 두드린다.', 1.8); pzKnockPlay(); }             // never answered: hear it again
+}
+function pzKnockJudge() {
+  const pat = KNOCKS[PZ.step], T = PZ.taps, gaps = T.slice(1).map((t, i) => t - T[i]);
+  const m = Math.min(...gaps), got = gaps.map(g => g / m > 1.7 ? 'L' : 'S');
+  const ok = T.length === pat.length + 1 && gaps.every(g => g < 2.2) && got.join('') === pat.join('');
+  const [mx, my] = screenMid();
+  log('knock_answer', { step: PZ.step, want: pat.join(''), got: got.join(''), n: T.length, ok });
+  if (ok) {
+    PZ.step++; anHud(); snd.play('right'); tapFx(true, mx, my, `암호 ${PZ.step}/3`);
+    if (PZ.step >= 3) {
+      hsTip(''); PZ.hold = false;
+      const d = voice('pz_knock_done', UNDER_CHAIR, 2.0); hsSay('“엄마다… 진짜 엄마다…”', Math.max(2.6, d + 0.3));
+      hsAfter(0.8, pzSolved);
+      return;
+    }
+    voice('pz_knock_ok', PZ.step === 2 ? UNDER_CHAIR : DOOR_KNOCK, 2.0); hsSay('“맞아… 맞아! 한 번 더.”', 2);
+    hsTip(''); hsAfter(2.4, pzKnockPlay);
+  } else {
+    pzWrong(mx, my, T.length !== pat.length + 1 ? `${T.length}번? …${pat.length + 1}번이었다` : '박자가 틀렸다', 8);
+    snd.play('bang', PZ.step < 2 ? DOOR_KNOCK : UNDER_CHAIR); if (PZ.step < 2) S.doorKnock = 3;
+    voice('pz_knock_bad', PZ.step < 2 ? DOOR_KNOCK : UNDER_CHAIR, 2.2); hsSay('“아니야!! 그거 아니잖아!!”', 2.2);
+    hsTip(''); hsAfter(3.0, pzKnockPlay);
+  }
+}
+
+// ---- 2. 자장가: tap her friends in the order the riddle lullaby names them
+const POEM = {
+  teddy: { node: 'deco_teddy', riddle: '복슬복슬한 내 친구가', midi: 72 },
+  shoes: { node: 'deco_shoes', riddle: '문 쪽만 보던 빨간 두 짝이', midi: 74 },
+  clock: { node: 'clock_body', nodes: ['clock_body', 'clock_face'], riddle: '일곱 시 오십오 분에 멈춘 애가', midi: 76 },
+  doll: { node: 'item_doll', riddle: '배 속에 비밀을 삼킨 애가', midi: 79 },
+  musicbox: { node: 'deco_musicbox', riddle: '노래하는 작은 상자가', midi: 77 },
+  backpack: { node: 'deco_backpack', riddle: '학교에 못 간 가방이', midi: 71 },
+};
+const POEM_ORD = ['제일 먼저', '그다음엔', '그리고', '마지막으로'];
+function pzPoemStart() {
+  const avail = Object.keys(POEM).filter(k => O.nodes[POEM[k].node]?.[0]?.visible);
+  PZ.order = avail.sort(() => Math.random() - 0.5).slice(0, 4);
+  PZ.step = 0; PZ.slept = {}; PZ.idle = 0;
+  PZ.lines = PZ.order.map((k, i) => `${POEM_ORD[i]}|${POEM[k].riddle} 잠들고…`);
+  PZ.lines[PZ.lines.length - 1] = PZ.lines[PZ.lines.length - 1].replace('잠들고…', '잠들면 — 끝.');
+  PZ.poemCanvas = TX.poemTex(PZ.lines);
+  addMemo('<b>수아의 자장가</b> — ' + PZ.lines.map(l => l.replace('|', ' ')).join(' / '));
+  log('puzzle_start', { kind: 'poem', order: PZ.order });
+  const d = voice('pz_poem_intro', null, 2.0); hsSay('“엄마, 자장가 불러 줘. 내 친구들… 순서대로 재워 줘야 해.”', Math.max(4, d + 0.4));
+  anHud();
+  hsAfterVoice(() => {
+    showDoc('수아의 자장가', PZ.poemCanvas, '가사대로, 친구들을 <b>순서대로 눌러</b> 재운다. 순서가 틀리면 다 깬다. (메모에서 다시 볼 수 있다)');
+    hsTip('<b>자장가</b> 순서대로 친구들을 눌러 재워요');
+  }, 0.3);
+}
+function pzPoemBox(k) { return nodeBox(POEM[k].node, 0.12); }
+function pzPoemTap(px, py, dir) {
+  const rect = ui.canvas.getBoundingClientRect();
+  let best = null, bd = 1e9;
+  for (const k of PZ.order) {
+    const b = pzPoemBox(k), t = rayAABB(EYE, dir, b.min, b.max), sp = toScreen(b.c);
+    const sd = sp ? Math.hypot(px - sp[0], py - sp[1]) : 1e9;
+    const score = t >= 0 ? t : sd < Math.max(50, rect.width * 0.05) ? 3 + sd / 100 : 1e9;
+    if (score < bd) { bd = score; best = k; }
+  }
+  if (!best || bd >= 1e8) return false;   // not one of hers: the usual rules
+  if (PZ.slept[best]) { hsSay('…이미 잠들었다.', 1.4); return true; }
+  const want = PZ.order[PZ.step], c = pzPoemBox(best).c;
+  if (best === want) {
+    PZ.slept[best] = S.time; PZ.step++; PZ.idle = 0; PZ.hintShown = false; anHud();
+    snd.note(POEM[best].midi, c, 1.2); snd.play('right');
+    tapFx(true, px, py, `${PZ.step}/${PZ.order.length} — 잠들었다`);
+    log('poem_step', { k: best, step: PZ.step });
+    if (PZ.step >= PZ.order.length) {
+      hsTip('');
+      hsAfter(0.8, () => { snd.musicBox(c, 9); const d = voice('pz_poem_done', null, 1.8); hsSay('“잘 자… 다들, 잘 자.”', Math.max(3, d + 0.4)); });
+      hsAfter(1.6, pzSolved);
+    }
+    return true;
+  }
+  // out of order: everyone wakes — and looks at you
+  pzWrong(px, py, `순서가 틀렸다 — 다 깼다`, 10);
+  for (const k of Object.keys(PZ.slept)) PZ.woke = { ...(PZ.woke || {}), [k]: S.time };
+  PZ.slept = {}; PZ.step = 0; anHud();
+  snd.play('giggle', c);
+  voice('pz_poem_bad', c, 2.2); hsSay('“순서가 틀렸잖아!! 다 깼어!!”', 2.4);
+  return true;
+}
+function pzPoemUpdate() {
+  if (PZ.idle > 45 && PZ.step < PZ.order.length) {   // stuck: the next one hums a note, then the lullaby line shows
+    PZ.idle = 20; PZ.hints++;
+    const k = PZ.order[PZ.step], c = pzPoemBox(k).c;
+    snd.note(POEM[k].midi, c, 0.9); hsAfter(0.5, () => snd.note(POEM[k].midi + 3, c, 0.7));
+    if (PZ.hints >= 2) hsTip(`자장가: <b>${PZ.lines[PZ.step].replace('|', ' ')}</b>`);
+    else { voice('pz_hint', c, 1.8); hsSay('“히히… 여기야. 여기.”', 2); }
+    log('hint_used', { hint: 'poem_' + k });
+  }
+}
+
+// ---- 3. 야광 숫자: four digits in glow crayon, only the torch shows them; then the drawer dial
+const GLOW_SPOTS = [
+  { p: [-1.75, 0.32, -2.482], yaw: 0, pitch: 0 },          // low on the front wall, by the TV
+  { p: [-2.182, 2.15, 0.95], yaw: PI / 2, pitch: 0 },      // high on the left wall
+  { p: [0.4, 2.59, -0.75], yaw: 0, pitch: PI / 2 },        // on the ceiling, in front
+  { p: [-1.25, 1.3, 2.482], yaw: PI, pitch: 0 },           // behind you, left of the door
+  { p: [2.182, 0.95, -1.45], yaw: -PI / 2, pitch: 0 },     // right wall, low
+  { p: [1.55, 2.2, 2.482], yaw: PI, pitch: 0 },            // behind you, high right of the door
+];
+function pzCodeStart() {
+  const spots = GLOW_SPOTS.slice().sort(() => Math.random() - 0.5).slice(0, 4);
+  PZ.code = [1 + Math.floor(Math.random() * 9), ...[0, 0, 0].map(() => Math.floor(Math.random() * 10))];
+  PZ.digits = spots.map((sp, i) => {
+    const o = add(R.object(O.quad, R.texture(TX.glowDigitTex(PZ.code[i], i, 7 + i * 13)), { pipe: 'add', model: m4.trs(sp.p, sp.yaw, [0.34, 0.34, 1], sp.pitch), flags: [0, 1, 0, 0], tint: [0.75, 1, 0.6, 0], clamp: true }));
+    o.noCam = false;
+    return { o, p: sp.p, v: PZ.code[i], i, lit: 0, seen: 0, found: false };
+  });
+  PZ.step = 0; PZ.idle = 0;
+  log('puzzle_start', { kind: 'code', code: PZ.code.join('') });
+  const d = voice('pz_code_intro', null, 2.0); hsSay('“불 꺼지면 보여… 서랍 비밀번호, 내가 방에 숨겨 놨어.”', Math.max(4, d + 0.4));
+  hsAfterVoice(() => {
+    hsTip('<b>🔦 손전등</b>으로 방을 비춰 숨은 숫자 4개를 찾고, <b>책상 서랍</b>을 눌러 열어요');
+    if (!TORCH.on) ui.torchBtn.classList.add('nudge');
+  }, 0.3);
+  anHud();
+}
+function pzCodeUpdate(dt) {
+  const f = camBasis().f;
+  for (const d of PZ.digits) {
+    const to = v3.sub(d.p, EYE), dist = v3.len(to), c = v3.dot(v3.scale(to, 1 / dist), f);
+    const beam = TORCH.on ? smooth(0.955, 0.99, c) * (1 - smooth(3.6, 4.6, dist)) : 0;
+    d.lit = damp(d.lit, beam, 10, dt);
+    d.o.tint[3] = Math.max(d.lit * (0.85 + Math.random() * 0.15), d.found ? 0.12 : 0);
+    if (!d.found) {
+      d.seen = d.lit > 0.6 ? d.seen + dt : Math.max(0, d.seen - dt);
+      if (d.seen > 0.45) {
+        d.found = true; PZ.step++; PZ.idle = 0; anHud();
+        const sp = toScreen(d.p) || screenMid();
+        tapFx(true, sp[0], sp[1], `${['첫', '둘', '셋', '넷'][d.i]}째 숫자 = ${d.v}`); snd.play('right');
+        addMemo(`<b>야광 숫자</b> — ${['첫', '둘', '셋', '넷'][d.i]}째 자리는 <b>${d.v}</b>`);
+        log('glow_found', { i: d.i, v: d.v });
+        if (PZ.step === 4) hsTip('숫자 4개를 다 찾았다 — <b>책상 서랍</b> 자물쇠를 눌러요');
+      }
+    }
+  }
+  if (PZ.idle > 50 && PZ.step < 4) {   // stuck: she giggles from where one still hides
+    PZ.idle = 25; PZ.hints++;
+    const d = PZ.digits.find(x => !x.found);
+    voice('pz_hint', d.p, 2.0); hsSay(d.p[1] > 2.4 ? '“히히… 여기야. 여기.” …위쪽에서.' : d.p[2] > 1 ? '“히히… 여기야. 여기.” …등 뒤에서.' : '“히히… 여기야. 여기.”', 2.4);
+    if (!TORCH.on) ui.torchBtn.classList.add('nudge');
+    log('hint_used', { hint: 'glow_' + d.i });
+  }
+}
+function pzCodeTap(px, py, dir) {
+  const b = nodeBox('drawer', 0.14), b2 = nodeBox('drawer_lock', 0.12);
+  const sp = toScreen(b2.c), near = sp && Math.hypot(px - sp[0], py - sp[1]) < 70;
+  if (rayAABB(EYE, dir, b.min, b.max) < 0 && rayAABB(EYE, dir, b2.min, b2.max) < 0 && !near) return false;
+  pzDial(px, py); return true;
+}
+// the dial: four wheels you roll with a finger (or the arrows)
+function pzDial(px, py) {
+  const d = [0, 0, 0, 0];
+  openModal(`<h2>서랍 자물쇠</h2><div class="dials wheel">${d.map((_, i) => `<div data-w="${i}"><button data-u="${i}">▲</button><b id="dl${i}"><i>9</i><em>0</em><i>1</i></b><button data-dn="${i}">▼</button></div>`).join('')}</div>
+    <p class="hint">숫자를 위아래로 굴려 맞춘다 · 아래 점이 자리 순서</p><div class="row"><button class="ghostbtn" data-close>닫기</button><button class="primary" id="dialOk">열기</button></div>`, 'keypadCard');
+  const draw = () => d.forEach((v, i) => { const el = $('#dl' + i); el.innerHTML = `<i>${(v + 9) % 10}</i><em>${v}</em><i>${(v + 1) % 10}</i>`; });
+  const roll = (i, s) => { d[i] = (d[i] + s + 10) % 10; snd.play('tick'); draw(); };
+  ui.card.querySelectorAll('[data-u]').forEach(b => b.addEventListener('click', () => roll(+b.dataset.u, 1)));
+  ui.card.querySelectorAll('[data-dn]').forEach(b => b.addEventListener('click', () => roll(+b.dataset.dn, -1)));
+  ui.card.querySelectorAll('[data-w] b').forEach((el, i) => {
+    let y0 = null;
+    el.addEventListener('pointerdown', e => { y0 = e.clientY; el.setPointerCapture(e.pointerId); e.preventDefault(); });
+    el.addEventListener('pointermove', e => { if (y0 == null) return; const dy = e.clientY - y0; if (Math.abs(dy) > 22) { roll(i, dy < 0 ? 1 : -1); y0 = e.clientY; } });
+    el.addEventListener('pointerup', () => { y0 = null; }); el.addEventListener('pointercancel', () => { y0 = null; });
+  });
+  draw();
+  $('#dialOk').addEventListener('click', () => {
+    if (d.join('') === PZ.code.join('')) {
+      closeModal(); snd.play('unlock', nodeBox('drawer_lock').c); PZ.drawerOpen = S.time;
+      tapFx(true, px, py, '딸깍 — 열렸다'); snd.play('right');
+      hsTip(''); const dv = voice('pz_code_ok', null, 2.0); hsSay('“열렸다… 거기 있지? 우리 사진.”', Math.max(3, dv + 0.4));
+      addMemo('<b>책상 서랍</b> — 열렸다. 안에는 사진을 뺀 빈 액자 뒤판.');
+      hsAfter(0.6, pzSolved);
+    } else {
+      snd.play('wrong'); ui.card.classList.remove('shake'); void ui.card.offsetWidth; ui.card.classList.add('shake');
+      PZ.fails++; touch(10, 'puzzle_code'); log('puzzle_wrong', { kind: 'code', tried: d.join('') });
+      $('.keypadCard .hint').textContent = PZ.step < 4 ? `틀렸다. (몸이 차가워진다) …아직 못 찾은 숫자가 ${4 - PZ.step}개.` : '틀렸다. (몸이 차가워진다) …자리 순서는 숫자 밑의 점.';
+      voice('pz_code_bad', null, 2.2);
+    }
+  });
+}
+// how her things look while a puzzle runs (after anApply)
+function pzApply(dt, time) {
+  if (PZ.kind === 'poem' && PZ.order) {
+    for (const k of PZ.order) {
+      const list = (POEM[k].nodes || [POEM[k].node]).flatMap(n => O.nodes[n] || []); if (!list.length) continue;
+      const st = PZ.slept?.[k], wk = PZ.woke?.[k];
+      const e = st ? smooth(0, 0.8, time - st) : 0, w = wk ? Math.max(0, 1 - (time - wk) / 1.2) : 0;
+      if (!e && !w) { if (PZ.moved?.[k]) { for (const o of list) o.model = o.base.slice(); PZ.moved[k] = 0; } continue; }
+      const b = pzPoemBox(k), piv = [b.c[0], b.min[1], b.c[2]];
+      // asleep: nods forward and sinks a little; woken: a violent shudder
+      const X = m4.trs([Math.sin(time * 60) * 0.02 * w, -0.02 * e, 0], Math.sin(time * 47) * 0.2 * w, [1, 1, 1], 0.35 * e, 0);
+      const M = m4.mul(m4.mul(m4.trs(piv), X), m4.trs(v3.scale(piv, -1)));
+      for (const o of list) o.model = m4.mul(M, o.base);
+      PZ.moved = { ...(PZ.moved || {}), [k]: 1 };
+    }
+  }
+  if (PZ.drawerOpen) {   // the drawer slides out towards the room
+    const e = smooth(0, 1, (time - PZ.drawerOpen) / 0.8);
+    for (const n of ['drawer', 'drawer_lock']) for (const o of O.nodes[n] || []) o.model = m4.mul(m4.trs([-0.28 * e, 0, 0]), o.base);
   }
 }
 
@@ -2343,7 +2663,8 @@ function frame(dt) {
   // music box lid (in hand)
   if (O.led) { const on = S.tape < 4 && Math.sin(time * 5) > 0; O.led.emissive = on ? [3, 0.15, 0.08, 0] : [0.05, 0, 0, 0]; }
   if (O.scratchObj) O.scratchObj.visible = !(S.doorOpen > 0.02);
-  { const b0 = O.nodes.door[0].base; setModel(O.nodes.door, m4.trs([b0[12], b0[13], b0[14]], -smooth(0, 1, S.doorOpen) * 1.3)); }
+  { const b0 = O.nodes.door[0].base; S.doorKnock = Math.max(0, (S.doorKnock || 0) - dt * 6);   // a knock rattles it in its frame
+    setModel(O.nodes.door, m4.trs([b0[12], b0[13], b0[14]], -smooth(0, 1, S.doorOpen) * 1.3 + Math.sin(time * 70) * 0.006 * S.doorKnock)); }
   const dl = Math.max(S.doorLight, S.act >= 3 ? 0.35 : 0);
   for (const o of O.nodes.corridor) o.emissive = [dl * 0.9, dl * 0.86, dl * 0.78, 0];
   // the doll turns its head towards you once the room has rotted
@@ -2720,6 +3041,6 @@ async function main() {
   requestAnimationFrame(loop);
   // test hook: advance the game by hand (the automation tab may be in a hidden window where rAF does not run)
   window.__step = (n = 1, dt = 1 / 60) => { for (let k = 0; k < n; k++) { update(dt); frame(dt); } return R.stats; };
-  window.__game = { tvScreen, CLOTH, anTouch, SHIFT, applyGfx, PERF, hsStory, AN, ANOM, anSpawn, anFix, anTap, anBox, anStart, tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
+  window.__game = { PZ, POEM, pzTap, pzDial, TORCH, setTorch, tvScreen, CLOTH, anTouch, SHIFT, applyGfx, PERF, hsStory, AN, ANOM, anSpawn, anFix, anTap, anBox, anStart, tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
 }
 main();

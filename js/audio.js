@@ -6,6 +6,7 @@ const VOICES = ['c_intro', 'c_first', 'c_bring1', 'c_bring2', 'c_bring3', 'c_hea
   'c_wait', 'c_why', 'c_rope', 'c_turn', 'c_look', 'c_stay', 'c_found', 'c_clock', 'c_door', 'c_take', 'c_bye', 'c_end',
   'm_tape0', 'm_tape1', 'm_tape2', 'm_tape3', 'n_news',
   'hs_start', 'hs_count', 'hs_ready', 'hs_found1', 'hs_found2', 'hs_again', 'hs_hint', 'hs_wrong', 'hs_fail', 'hs_behind', 'hs_cheat', 'hs_closer', 'hs_under', 'hs_eyes', 'hs_song',
+  'pz_knock_intro', 'pz_knock_ok', 'pz_knock_bad', 'pz_knock_done', 'pz_poem_intro', 'pz_poem_bad', 'pz_poem_done', 'pz_code_intro', 'pz_code_bad', 'pz_code_ok', 'pz_hint',
   'an_intro', 'an_more', 'an_fix1', 'an_fix2', 'an_done', 'an_fail', 'an_last',
   'an_spawn1', 'an_spawn2', 'an_spawn3', 'an_spawn4', 'an_danger', 'an_rescue', 'an_doll', 'an_lamp', 'crawl_near', 'crawl_hurt', 'shift_start', 'hs_found3', 'amb1', 'amb2', 'amb3', 'amb4'];
 
@@ -270,6 +271,17 @@ export class Sound {
     this.duck(0.3, sec);
     return sec;
   }
+  // one plucked music-box note (midi), for puzzles that play the lullaby a note at a time
+  note(midi, pos, v = 1) {
+    if (!this.ctx) return;
+    const dest = pos ? this.panner(pos) : this.master; if (pos) dest.connect(this.master);
+    const t = this.ctx.currentTime + 0.02, f = 440 * Math.pow(2, (midi - 69) / 12);
+    for (const [mul, a] of [[1, 0.3], [4.0, 0.06], [2.01, 0.08]]) {
+      const o = this.ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f * mul;
+      const g = this.ctx.createGain(); this.env(g, t, 0.003, a * v, 1.6 / mul);
+      o.connect(g).connect(dest); o.start(t); o.stop(t + 1.8);
+    }
+  }
   stopMusic(fade = 2) { this.wantMusic = null; if (this.ctx) this.playMusic(null, fade); }
   duck(amount = 0.25, sec = 2) {
     if (!this.ctx) return;
@@ -460,6 +472,8 @@ export class Sound {
         break;
       }
       case 'knock': for (let i = 0; i < 3; i++) { this.noiseHit(t + i * 0.32 + Math.random() * 0.04, { freq: 180, q: 2, v: 1.3, d: 0.12, dest }); this.thump(t + i * 0.32, 0.25, dest); } break;
+      case 'knock1': this.noiseHit(t, { freq: 170, q: 2, v: 1.5, d: 0.12, dest }); this.thump(t, 0.35, dest); break;   // one knuckle on the door
+      case 'tap1': this.noiseHit(t, { freq: 950, q: 3, v: 0.9, d: 0.05, dest }); this.thump(t, 0.12, dest); break;      // your knuckle on the armrest
       case 'bang': this.noiseHit(t, { freq: 120, q: 1, v: 2, d: 0.4, dest }); this.thump(t, 0.9, dest); break;
       case 'click': this.noiseHit(t, { freq: 3500, q: 4, v: 0.35, d: 0.03, dest }); break;
       case 'beep': { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = 660; const g = ctx.createGain(); this.env(g, t, 0.005, 0.05, 0.08); o.connect(g).connect(dest); o.start(t); o.stop(t + 0.1); break; }

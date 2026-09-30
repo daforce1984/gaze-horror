@@ -389,6 +389,72 @@
    "voice": "GIRL",
    "stability": 0.0,
    "text": "[crazy][giggles] 하나, 둘, 셋… 히히힛."
+  },
+  {
+   "id": "pz_knock_intro",
+   "voice": "GIRL",
+   "stability": 0.0,
+   "text": "[whispers] 엄마… 우리 암호 기억나? [giggles] 내가 두드리는 대로… 똑같이 두드려 줘."
+  },
+  {
+   "id": "pz_knock_ok",
+   "voice": "GIRL",
+   "stability": 0.0,
+   "text": "[crazy][giggles] 맞아… 맞아! 한 번 더."
+  },
+  {
+   "id": "pz_knock_bad",
+   "voice": "GIRL",
+   "stability": 0.0,
+   "text": "[crazy][screaming] 아니야!! 그거 아니잖아!!"
+  },
+  {
+   "id": "pz_knock_done",
+   "voice": "GIRL",
+   "stability": 0.0,
+   "text": "[crying][whispers] 엄마다… 진짜 엄마다…"
+  },
+  {
+   "id": "pz_poem_intro",
+   "voice": "GIRL",
+   "stability": 0.0,
+   "text": "[whispers] 엄마, 자장가 불러 줘. [crazy][giggles] 내 친구들… 순서대로 재워 줘야 해."
+  },
+  {
+   "id": "pz_poem_bad",
+   "voice": "GIRL",
+   "stability": 0.0,
+   "text": "[crazy][screaming][crying] 순서가 틀렸잖아!! 다 깼어!!"
+  },
+  {
+   "id": "pz_poem_done",
+   "voice": "GIRL",
+   "stability": 0.0,
+   "text": "[softly][sad] 잘 자… 다들, 잘 자."
+  },
+  {
+   "id": "pz_code_intro",
+   "voice": "GIRL",
+   "stability": 0.0,
+   "text": "[whispers] 불 꺼지면 보여… [crazy][giggles] 서랍 비밀번호, 내가 방에 숨겨 놨어."
+  },
+  {
+   "id": "pz_code_bad",
+   "voice": "GIRL",
+   "stability": 0.0,
+   "text": "[crazy][crying] 틀렸어!! 엄마 바보!!"
+  },
+  {
+   "id": "pz_code_ok",
+   "voice": "GIRL",
+   "stability": 0.0,
+   "text": "[whispers][trembling] 열렸다… 거기 있지? 우리 사진."
+  },
+  {
+   "id": "pz_hint",
+   "voice": "GIRL",
+   "stability": 0.0,
+   "text": "[whispers][crazy] 히히… 여기야. 여기."
   }
  ]
 }

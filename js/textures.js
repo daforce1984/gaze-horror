@@ -449,3 +449,44 @@ export function bloodCircleTex(seed = 13) {
   roughen(g, S, S, seed);
   return c;
 }
+
+// her lullaby, crayon on notebook paper: the order to put her friends to sleep (night 2 puzzle)
+export function poemTex(lines) {
+  const W = 640, H = 720, c = canvas(W, H), g = c.getContext('2d'), r = rnd(31);
+  paperBg(g, W, H, [238, 232, 214], 17);
+  g.strokeStyle = 'rgba(80,110,170,0.22)'; g.lineWidth = 1;
+  for (let y = 120; y < H; y += 62) { g.beginPath(); g.moveTo(24, y); g.lineTo(W - 24, y); g.stroke(); }
+  g.fillStyle = 'rgba(120,30,140,0.9)'; g.font = `58px ${CRAYON}`; g.textAlign = 'center';
+  g.save(); g.translate(W / 2, 86); g.rotate(-0.03); g.fillText('수아의 자장가', 0, 0); g.restore();
+  const cols = ['rgba(30,40,150,0.9)', 'rgba(170,25,25,0.9)', 'rgba(20,110,50,0.9)', 'rgba(150,80,10,0.92)', 'rgba(60,60,60,0.9)'];
+  g.textAlign = 'left';
+  lines.forEach((l, i) => {
+    g.fillStyle = cols[i % cols.length]; g.font = `${l.length > 17 ? 36 : 40}px ${CRAYON}`;
+    g.save(); g.translate(34 + r() * 10, 170 + i * 124); g.rotate((r() - 0.5) * 0.04);
+    const [a, b] = l.split('|'); g.fillText(a, 0, 0); if (b) g.fillText(b, 26, 58); g.restore();
+  });
+  g.fillStyle = 'rgba(40,40,40,0.75)'; g.font = `30px ${CRAYON}`; g.textAlign = 'right';
+  g.fillText('순서 틀리면 다 깨! — 수아', W - 34, H - 26);
+  return c;
+}
+
+// a digit in glow-in-the-dark crayon with four order dots under it (the filled one says which place it takes);
+// transparent, drawn to be added on top of the wall and seen only in the torch beam
+export function glowDigitTex(digit, pos, seed = 1) {
+  const c = canvas(256, 256), g = c.getContext('2d'), r = rnd(seed);
+  g.fillStyle = 'rgba(200,255,170,0.95)'; g.strokeStyle = 'rgba(200,255,170,0.95)';
+  g.save(); g.translate(128, 112); g.rotate((r() - 0.5) * 0.25);
+  g.font = `bold 170px ${CRAYON}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let k = 0; k < 4; k++) { g.globalAlpha = 0.35 + r() * 0.4; g.fillText(String(digit), (r() - 0.5) * 5, (r() - 0.5) * 5); }
+  g.restore(); g.globalAlpha = 1;
+  for (let i = 0; i < 4; i++) {
+    const x = 68 + i * 40, y = 226;
+    g.lineWidth = 5; g.beginPath(); g.arc(x + (r() - 0.5) * 3, y + (r() - 0.5) * 3, 12, 0, Math.PI * 2);
+    if (i === pos) g.fill(); else g.stroke();
+  }
+  // crayon grain
+  g.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < 1800; i++) { g.fillStyle = `rgba(0,0,0,${0.2 + r() * 0.6})`; g.fillRect(r() * 256, r() * 256, 1 + r() * 2, 1 + r() * 2); }
+  g.globalCompositeOperation = 'source-over';
+  return c;
+}

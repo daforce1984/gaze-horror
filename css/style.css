@@ -319,3 +319,13 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
 #hud.hurt .warmbox { animation: hurtShake .35s 2; }
 #hud.hurt .warm i { background: #ff4a3a !important; }
 @keyframes hurtShake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+
+/* puzzles: your knock on the armrest, the night's puzzle in the counter, the rolling dial */
+.knockRipple { position: fixed; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; border: 3px solid rgba(255,230,200,.85);
+  pointer-events: none; z-index: 30; animation: knockRipple .6s ease-out forwards; }
+@keyframes knockRipple { to { transform: scale(5); opacity: 0; border-width: 1px; } }
+#anCount .pz { margin-left: 8px; padding: 1px 7px; border-radius: 9px; background: rgba(255,255,255,.08); color: #ffd79a; font-size: .9em; white-space: nowrap; }
+#anCount .pz.ok { color: #9dffbe; }
+.dials.wheel b { height: 108px; flex-direction: column; overflow: hidden; touch-action: none; cursor: ns-resize; display: flex; justify-content: center; line-height: 1.05; }
+.dials.wheel b i { font-style: normal; font-size: 20px; opacity: .35; }
+.dials.wheel b em { font-style: normal; font-size: 38px; color: #ffe2b0; text-shadow: 0 0 8px rgba(255,190,110,.5); }
