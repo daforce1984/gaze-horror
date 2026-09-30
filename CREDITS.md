@@ -70,3 +70,7 @@ hanging_picture_frame_02, book_encyclopedia_set_01, wooden_candlestick, vintage_
 Poly Haven (CC0): modern_arm_chair_01, potted_plant_02, potted_plant_04, ceramic_vase_01, ceramic_vase_03, standing_picture_frame_02.
 Generated: bed, full-length mirror, clothes rail, handbag, skincare tray, floor lamp, monstera, candle + diffuser — Codex product images
 reconstructed with Hunyuan3D 2.1 (ComfyUI), voxel-remeshed and front-projected in blender/props_ph.py.
+
+### TV kids' show video
+assets/kids_show.mp4 and kids_show_bad.mp4: MiniMax H3 (ComfyUI, standard FL2VA i2v, not adult) from the kids' show stills with
+the kids' song as audio guide; first frame = last frame for a seamless loop (tools/h3_tv.py), the tail cross-faded into the head.

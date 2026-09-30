@@ -179,7 +179,9 @@ export class TVScreen {
     for (let i = 0; i < u.length; i++) { const v = (Math.random() * 255 * intensity) | 0; u[i] = 0xff000000 | (v << 16) | (v << 8) | v; }
     this.ng.putImageData(this.nd, 0, 0);
     if (this.mode === 'kids') {
-      const img = this.bad ? this.kidsBad : this.kids;
+      // MiniMax H3 seamless loops when loaded (a <video> whose last frame is its first), the stills otherwise
+      const vid = this.bad ? this.kidsBadVid : this.kidsVid;
+      const img = vid && vid.readyState >= 2 ? vid : this.bad ? this.kidsBad : this.kids;
       g.imageSmoothingEnabled = true;
       const jit = (Math.random() < (this.bad ? 0.25 : 0.04)) ? (Math.random() - 0.5) * 14 : 0;
       if (img) g.drawImage(img, jit, 0, W, H); else { g.fillStyle = '#6a8'; g.fillRect(0, 0, W, H); }

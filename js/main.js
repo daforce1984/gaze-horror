@@ -185,6 +185,9 @@ function buildScene() {
   O.quad = quad;
   tvScreen = new TX.TVScreen(IMG.face);
   tvScreen.kids = IMG.kids; tvScreen.kidsBad = IMG.kidsBad;
+  // the kids' show as video (tools/h3_tv.py): muted, looping; the song itself is played by the audio engine
+  const mkVid = (src) => { const v = document.createElement('video'); v.src = src; v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto'; v.setAttribute('playsinline', ''); return v; };
+  tvScreen.kidsVid = mkVid('assets/kids_show.mp4'); tvScreen.kidsBadVid = mkVid('assets/kids_show_bad.mp4');
   O.tvTex = R.texture(tvScreen.draw(0, 1), { mips: false });
   clockCanvas = TX.canvas(256, 256);
   TX.clockFaceTex(clockCanvas, S.clock.h, S.clock.m);
@@ -2652,6 +2655,7 @@ async function main() {
   ui.start.disabled = false;
   ui.start.addEventListener('click', () => {
     snd.lite = matchMedia('(pointer: coarse)').matches; snd.init(); snd.decodeAll();
+    for (const v of [tvScreen.kidsVid, tvScreen.kidsBadVid]) v.play().catch(() => { });   // (a user gesture: allowed everywhere)
     snd.setPos(snd.tvPan, O.tvCenter);   // the set's sound comes from where the set is
     let pref = null; try { pref = localStorage.getItem(GYRO_KEY); } catch { }
     if (document.documentElement.classList.contains('has-gyro') && pref === '1') setGyro(true);
@@ -2687,6 +2691,6 @@ async function main() {
   requestAnimationFrame(loop);
   // test hook: advance the game by hand (the automation tab may be in a hidden window where rAF does not run)
   window.__step = (n = 1, dt = 1 / 60) => { for (let k = 0; k < n; k++) { update(dt); frame(dt); } return R.stats; };
-  window.__game = { CLOTH, anTouch, SHIFT, applyGfx, PERF, hsStory, AN, ANOM, anSpawn, anFix, anTap, anBox, anStart, tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
+  window.__game = { tvScreen, CLOTH, anTouch, SHIFT, applyGfx, PERF, hsStory, AN, ANOM, anSpawn, anFix, anTap, anBox, anStart, tanHalfY, O, R, objects, HS, HIDE, hsTap, hsPick, turnAround, LOG, S, SOL, CODE, W, ITEMS, EYE, STORY, snd, O, CCTV, cctvBasis, openInspect, closeInspect, combine, applyUse, useTarget, padPress, startFetch, giveTo, fetchTarget, camBasis, HOT, trayTap, USE_TARGETS };
 }
 main();
