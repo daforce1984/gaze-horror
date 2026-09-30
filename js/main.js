@@ -253,6 +253,16 @@ function buildScene() {
   // the same screen showing the live CCTV texture
   O.cctvScreen = add(R.object(O.screen.mesh, R.camTex, { model: O.screen.model.slice(), flags: [0, 1, 0, 1], tint: [0.05, 0.05, 0.05, 1], emissive: [1.4, 1.5, 1.4, 1] }));
   O.cctvScreen.noCam = true; O.cctvScreen.visible = false;
+  {   // the studio's flat TV: a 4:3 picture centred on its panel, just in front of the glass
+    const mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+    for (const o of O.nodes.mod_tv || []) for (let q = 0; q < 3; q++) { mn[q] = Math.min(mn[q], o.base[12 + q] + o.min[q]); mx[q] = Math.max(mx[q], o.base[12 + q] + o.max[q]); }
+    let zf = -1e9;   // the panel's glass (the neck below sticks out further forward)
+    for (const pr of GLB.room.mod_tv?.prims || []) { const v = pr.geo.v; for (let o = 0; o < v.length; o += 12) if (v[o + 1] > mx[1] - 0.3) zf = Math.max(zf, v[o + 2]); }
+    const M = m4.trs([(mn[0] + mx[0]) / 2, mx[1] - 0.33, (zf > -1e8 ? zf : mx[2]) + 0.003], 0, [0.78, 0.585, 1]);
+    O.modScreen = add(R.object(quad, O.tvTex, { model: M, flags: [0, 1, 0, 1], tint: [0.15, 0.15, 0.15, 1], clamp: true }));
+    O.modCctv = add(R.object(quad, R.camTex, { model: M.slice(), flags: [0, 1, 0, 1], tint: [0.05, 0.05, 0.05, 1], emissive: [1.4, 1.5, 1.4, 1], clamp: true }));
+    O.modScreen.visible = O.modCctv.visible = false; O.modCctv.noCam = true;
+  }
   O.tvHalo = add(R.object(quad, T.tvHalo, { pipe: 'add', model: m4.trs([O.tvCenter[0], O.tvCenter[1], -1.9], 0, [1.1, 0.9, 1]), flags: [0, 1, 0, 0], tint: [0.4, 0.5, 0.7, 0.12], clamp: true }));
   O.halo = add(R.object(quad, T.halo, { pipe: 'add', model: m4.ident(), flags: [0, 1, 0, 0], tint: [1, 0.8, 0.6, 0], clamp: true }));
   O.ghostShadow = add(R.object(quadB, T.blob, { pipe: 'blend', model: m4.ident(), tint: [1, 1, 1, 0], clamp: true, order: -1 }));
@@ -460,6 +470,7 @@ function wakeUp() {
 }
 function hsStart() {
   HS.on = true; ui.hud.classList.add('hs');
+  S.tv.on = true; S.tv.ch = 3; tvScreen.channel = 3;   // you wake to her TV already playing
   S.yaw = 0; S.pitch = -0.08;   // waking up: the TV is the first thing in front of you
   wakeUp();
   log('chapter_start', { ch: 1 });
@@ -472,7 +483,11 @@ function hsRound(n, retry = false) {
   ui.hud.classList.toggle('turnon', n >= 3);
   S.lampDim = 0;
   const pickSpot = (pool) => { const c = pool.filter(k => k !== HS.lastSpot); return c[Math.floor(Math.random() * c.length)]; };
-  if (n === 1) { hsHide('curtain', []); HS.phase = 'seek'; hsTip('<b>수아</b>를 찾아 눌러요'); log('round_start', { n, spot: 'curtain' }); return; }
+  if (n === 1) {   // at first the room is just her studio with the TV on; half a minute later someone is behind the curtain
+    const go = () => { hsHide('curtain', []); HS.phase = 'seek'; hsTip('<b>수아</b>를 찾아 눌러요'); log('round_start', { n, spot: 'curtain' }); };
+    if (retry) go(); else { HS.phase = 'wait'; hsAfter(30, go); }
+    return;
+  }
   let spot, decoys;
   if (n === 2) { spot = pickSpot(['shelf', 'desk']); decoys = ['curtain', spot === 'shelf' ? 'desk' : 'shelf']; }
   else if (n === 3) { spot = 'behind'; decoys = ['curtain']; }
@@ -533,6 +548,7 @@ function hsTap(px, py, dir) {
     log('false_tap', { where: HS.phase }); return true;
   }
   if (HS.phase === 'anom') return AN.on ? anTap(px, py, dir) : true;
+  if (HS.phase === 'wait') return true;
   if (HS.phase !== 'seek') return false;
   if (!HS.firstInput) { HS.firstInput = true; log('first_input', { kind: 'tap' }); }
   if (HS.round === 4 && !HS.cctv) {
@@ -876,10 +892,12 @@ function modernUpdate() {
     if (turned && p.modern) { p.modern = false; formOut(p.mod); formIn(p.old); if (SHIFT.on && (p.mod.length || p.old.length)) snd.playTracked('crackle', p.pos, 0.9).stop(2.4); }
     else if (!turned && !p.modern) { p.modern = true; for (const x of p.old) x.visible = false; for (const x of p.mod) { x.visible = true; x.extra[2] = 0; } }
   }
-  if (isModern('tv_screen')) {
-    O.screen.visible = false; O.cctvScreen.visible = false; O.tvHalo.tint[3] = S.tv.on ? 0.08 : 0;
-    const panel = (O.nodes.mod_tv || [])[0]; if (panel) panel.emissive = S.tv.on ? [0.25 + Math.random() * 0.05, 0.3, 0.42, 0] : [0, 0, 0, 0];
-  }
+  // the studio's flat TV shows the same picture on its own panel (the CRT's screen and glow belong to the CRT)
+  const modern = isModern('tv_screen'), tc = modern && S.tv.on ? tvContent() : null;
+  if (modern) { O.screen.visible = false; O.cctvScreen.visible = false; }
+  O.modScreen.visible = !!tc && tc.mode !== 'cctv';
+  O.modCctv.visible = !!tc && tc.mode === 'cctv';
+  if (tc) { O.modScreen.emissive = O.screen.emissive; O.modCctv.emissive = O.cctvScreen.emissive; }
 }
 
 // ================================================================ 이상현상 (the room turns wrong)
@@ -949,6 +967,7 @@ function anStart(phase) {
   const bigShift = S.decayTarget - S.decay > 0.35;
   log('anom_start', { phase });
   if (phase === 1) {
+    if (S.tv.on) { S.tv.on = false; snd.play('pop', O.tvCenter); }   // the TV clicks off by itself
     AN.script = ['tv', 'doll'];   // taught in order after the table: in front, then behind you
     voice('an_intro', null, 2.0); hsSay('“이번엔 내가 방을 이상하게 바꿔 놓을게! 엄마가 원래대로 돌려놔~”', 3.6);
     AN.script = ['table', ...AN.script]; AN.next = 1.2;
@@ -2687,7 +2706,7 @@ function frame(dt) {
   modernUpdate();
   O.screen.emissive = [0.9 * tvI, 0.95 * tvI, 1.15 * tvI, 1];
   O.cctvScreen.emissive = [0.9, 1.05, 0.95, 1].map((v, k) => k < 3 ? v * (0.85 + Math.random() * 0.15) : v);
-  O.tvHalo.tint[3] = 0.08 * tvI;
+  O.tvHalo.tint[3] = isModern('tv_screen') ? 0 : 0.08 * tvI;
   snd.tvSong(S.tv.on && tc.mode === 'kids' && !S.paused, tc.bad ? 0.82 : 1);
 
   // curtains

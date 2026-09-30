@@ -510,7 +510,6 @@ def add_modern():
     tb = [cyl('mt_top', (-0.95, 0.34, -1.0), 0.36, 0.025, W, seg=40)]
     for a in (0.3, 2.4, 4.5):
         tb.append(cyl('mt_leg', (-0.95 + math.cos(a) * 0.22, 0.165, -1.0 + math.sin(a) * 0.22), 0.014, 0.33, OAK, seg=10))
-    tb.append(cyl('mt_mug', (-0.85, 0.395, -0.95), 0.035, 0.085, Wm, seg=18))
     group('mod_table', tb)
     # white open shelf, as tall as the old bookshelf (the doll sits on top)
     bx, bz = -1.55, 2.33
@@ -518,10 +517,6 @@ def add_modern():
     sh = [box('ms_side1', (bx - 0.33, top / 2, bz), (0.02, top, 0.3), W), box('ms_side2', (bx + 0.33, top / 2, bz), (0.02, top, 0.3), W)]
     for y in (0.02, top * 0.34, top * 0.67, top - 0.01):
         sh.append(box('ms_board', (bx, y, bz), (0.66, 0.02, 0.3), W))
-    for k, (x, w, h, c) in enumerate(((-0.2, 0.18, 0.2, Wm), (0.05, 0.12, 0.16, OAK), (0.18, 0.16, 0.12, Wm))):
-        sh.append(box('ms_box%d' % k, (bx + x, top * 0.34 + 0.01 + h / 2, bz), (w, h, 0.22), c, 0.004))
-    sh.append(cyl('ms_pot', (bx - 0.15, top * 0.67 + 0.07, bz), 0.06, 0.12, Wm, seg=20))
-    sh.append(sphere('ms_plant', (bx - 0.15, top * 0.67 + 0.2, bz), 0.1, GRN, scale=(1, 1, 1.2)))
     group('mod_shelf', sh)
     # white desk with slim legs, laptop, smart speaker
     dx, dz, dt = 1.86, -0.3, 0.74
@@ -597,6 +592,53 @@ def add_props2():
     put('vintage_flashlight', 'p_flashlight', 1.0, (0.55, 0, -0.1), rotz=1.1, faces=1200)
     put('sungka_board', 'p_sungka', 1.0, (-0.7, 0, 0.35), faces=1500)
     put('vintage_pocket_watch', 'p_watch', 1.0, (-1.15, top('lowtable'), -0.8), rotx=-PI / 2, faces=1000)
+
+
+def lathe(name, profile, material, pt, seg=32):
+    """a round thing turned from an (r, h) profile (engine metres, bottom-centre at engine point pt)"""
+    import bmesh
+    bm = bmesh.new()
+    vs = [bm.verts.new((r, 0, h)) for r, h in profile]
+    for a, b in zip(vs, vs[1:]): bm.edges.new((a, b))
+    bmesh.ops.spin(bm, geom=bm.verts[:] + bm.edges[:], cent=(0, 0, 0), axis=(0, 0, 1), angle=2 * PI, steps=seg, use_merge=True)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
+    # one closed profile spun: every face winds the same way; flip them all if the outermost wall faces in
+    bm.normal_update()
+    far = max(bm.faces, key=lambda f: f.calc_center_median().xy.length)
+    c = far.calc_center_median()
+    if far.normal.dot(Vector((c.x, c.y, 0))) < 0: bmesh.ops.reverse_faces(bm, faces=bm.faces[:])
+    ob = from_bm(name, bm, material, E(*pt))
+    for p in ob.data.polygons: p.use_smooth = True
+    ob.data.set_sharp_from_angle(angle=math.radians(40))   # round sides smooth, rims and bottoms crisp
+    return ob
+
+
+def candle_set(name, pt):
+    """a candle in a ceramic tumbler (the wax sits inside, below the rim, with a wick), a reed diffuser in an
+    amber bottle, both on a round marble tray — modelled so every piece sits where it should"""
+    x, y, z = pt
+    MARB = mat('M_mod_marble', (0.82, 0.8, 0.76), 0.35)
+    CER = mat('M_mod_ceramic', (0.9, 0.88, 0.84), 0.5)
+    WAX = mat('M_mod_wax', (0.93, 0.89, 0.8), 0.7)
+    AMB = mat('M_mod_amber', (0.3, 0.1, 0.03), 0.15)
+    REED = mat('M_mod_reed', (0.62, 0.5, 0.36), 0.8)
+    WICK = mat('M_mod_wick', (0.05, 0.04, 0.035), 0.9)
+    parts = [lathe('cs_tray', [(0, 0), (0.086, 0), (0.089, 0.004), (0.087, 0.009), (0, 0.009)], MARB, (x, y, z))]
+    ty = y + 0.009
+    cx = x - 0.032
+    parts.append(lathe('cs_tumbler', [(0, 0), (0.036, 0), (0.037, 0.004), (0.036, 0.078), (0.033, 0.078), (0.033, 0.066), (0, 0.066)], CER, (cx, ty, z)))
+    parts.append(lathe('cs_wax', [(0, 0), (0.0325, 0), (0.0325, 0.003), (0, 0.0035)], WAX, (cx, ty + 0.064, z)))   # the wax surface inside
+    parts.append(cyl('cs_wick', (cx, ty + 0.072, z), 0.0012, 0.009, WICK, seg=6))
+    bxp = x + 0.04
+    parts.append(lathe('cs_bottle', [(0, 0), (0.027, 0), (0.029, 0.004), (0.029, 0.062), (0.022, 0.076), (0.009, 0.082), (0.009, 0.094), (0.011, 0.096), (0, 0.097)], AMB, (bxp, ty, z)))
+    for k in range(6):
+        a = k / 6 * 2 * PI; tilt = 0.13 + 0.05 * (k % 2)
+        rd = cyl('cs_reed', (bxp + math.cos(a) * 0.012, ty + 0.09 + 0.1, z + math.sin(a) * 0.012), 0.0017, 0.2, REED, seg=5)
+        rd.rotation_euler = (math.sin(a) * tilt, -math.cos(a) * tilt, 0)
+        parts.append(rd)
+    ob = join(name, parts)
+    item_origin(ob)
+    return ob
 
 
 def globe_floor_lamp(name, pt, height=1.45, globe=0.36):
@@ -681,4 +723,20 @@ def add_young_woman():
     globe_floor_lamp('yw_lamp', (-1.5, 0, -2.2))
     hy('mod_monstera', 'yw_monstera', 0.95, (-1.35, 0, -1.75), faces=4000)
     hy('mod_bag', 'yw_bag', 0.28, (1.35, 0, 0.45), rotz=-PI / 2 + 0.3, faces=2500)
-    hy('mod_candle', 'yw_candle', 0.2, (-0.8, 0.34 + 0.012, -0.95), faces=2000)
+    candle_set('yw_candle', (-0.8, 0.34 + 0.0125, -0.95))
+    # her shelf (behind you): real things, sized to each board; fronts face the room (-z)
+    sb = ph_bounds(bpy.data.objects['mod_shelf']) if bpy.data.objects.get('mod_shelf') else None
+    if sb:
+        top_y = sb[1].z; bx, bz = -1.55, 2.33
+        boards = [0.02 + 0.01, top_y * 0.34 + 0.01, top_y * 0.67 + 0.01]
+        def fit(pid, name, pt, h=None, w=None, rotz=PI, faces=2000):
+            ob = ph_import(pid, res=1024, faces=faces)
+            mn, mx = ph_bounds(ob)
+            sc = min(h / (mx.z - mn.z) if h else 9, w / max(mx.x - mn.x, mx.y - mn.y) if w else 9)
+            ph_place(ob, sc, pt, rotz=rotz); ob.name = name; ob.data.name = name; item_origin(ob); return ob
+        fit('wicker_basket_01', 'yw_sh_basket', (bx - 0.13, boards[0], bz), w=0.34, faces=2500)
+        fit('ceramic_vase_02', 'yw_sh_vase2', (bx + 0.2, boards[0], bz), h=0.2)
+        fit('book_encyclopedia_set_01', 'yw_sh_books', (bx - 0.09, boards[1], bz + 0.02), w=0.42, faces=3000)
+        fit('concrete_cat_statue', 'yw_sh_cat', (bx + 0.22, boards[1], bz), h=0.16, rotz=PI + 0.35)
+        fit('ceramic_vase_04', 'yw_sh_vase4', (bx - 0.17, boards[2], bz), h=0.25)
+        fit('carved_wooden_elephant', 'yw_sh_elephant', (bx + 0.13, boards[2], bz), w=0.2, rotz=PI + 0.5)
