@@ -33,7 +33,7 @@
 ## 개발
 ```bash
 python3 -m http.server 8797
-blender -b --python blender/build.py -- all      # 3D 에셋 (Blender 5.x)
+blender -b --python blender/build.py -- room     # 방 3D 에셋 (Blender 5.x; `all`은 리깅된 ghost.glb를 덮어쓰니 주의 — 유령은 ghost_hy.py)
 uv run --with pillow python tools/convert.py      # 이미지 → WebP
 uv run --with soundfile --with numpy python tools/audio_build.py   # 오디오
 ```

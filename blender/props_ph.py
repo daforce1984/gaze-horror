@@ -530,10 +530,37 @@ def add_modern():
         for lz in (-0.52, 0.52):
             dk.append(box('md_leg', (dx + lx, (dt - 0.012) / 2, dz + lz), (0.025, dt - 0.012, 0.025), SIL))
     group('mod_desk', dk)
-    lp = [box('ml_base', (dx - 0.02, dt + 0.02, dz - 0.05), (0.24, 0.012, 0.33), SIL, 0.004)]
-    scr = box('ml_lid', (dx + 0.1, dt + 0.13, dz - 0.05), (0.012, 0.22, 0.33), SIL, 0.004)
-    scr.rotation_euler = (0, 0, -0.18)
-    lp.append(scr)
+    # a proper thin laptop facing the room (-x): bevelled aluminium base, keyboard well with keys, trackpad,
+    # hinge barrel, and a lid tilted back 20 degrees with a bezel round a dark glossy screen
+    KEY = mat('M_mod_key', (0.03, 0.03, 0.035), 0.55)
+    PAD = mat('M_mod_pad', (0.5, 0.51, 0.53), 0.22, 0.8)
+    bxc, bzc, D, Wd, T = dx - 0.1, dz - 0.08, 0.215, 0.31, 0.013    # base centre (forward: the tilted lid clears the frames by the wall), depth (x), width (z), thickness
+    by = dt + 0.0125 + T / 2
+    lp = [box('ml_base', (bxc, by, bzc), (D, T, Wd), SIL, 0.003)]
+    ytop = by + T / 2
+    lp.append(box('ml_well', (bxc + 0.035, ytop + 0.0002, bzc), (0.105, 0.0006, 0.27), KEY))   # keyboard well
+    rows = [(14, 0.0165), (14, 0.0165), (13, 0.0165), (13, 0.0165), (12, 0.0165)]
+    for r, (n, kw) in enumerate(rows):
+        xk = bxc + 0.075 - r * 0.0195
+        span = n * (kw + 0.0025)
+        for c in range(n):
+            w = kw * (3.2 if (r == 4 and c == n // 2) else 1)
+            if r == 4 and c > n // 2 and c <= n // 2 + 2: continue            # the space bar takes three places
+            zk = bzc - span / 2 + (c + 0.5) * (kw + 0.0025) + (w - kw) / 2
+            lp.append(box('ml_key', (xk, ytop + 0.0012, zk), (0.0155, 0.0014, w), KEY))
+    lp.append(box('ml_pad', (bxc - 0.068, ytop + 0.0002, bzc), (0.068, 0.0006, 0.115), PAD, 0.001))   # trackpad
+    hx = bxc + D / 2 - 0.004
+    lp.append(cyl('ml_hinge', (hx, ytop + 0.002, bzc), 0.0055, Wd * 0.8, SIL, seg=12, axis='z'))
+    a, H, L = 0.35, 0.205, 0.006                                   # lid tilt back from vertical, height, thickness
+    cx, cy = hx + math.sin(a) * H / 2, ytop + 0.002 + math.cos(a) * H / 2
+    lid = box('ml_lid', (cx, cy, bzc), (L, H, Wd), SIL, 0.002)
+    fx = -L / 2 - 0.0006                                           # the screen side faces -x
+    bez = box('ml_bezel', (cx + fx * math.cos(a), cy - fx * math.sin(a), bzc), (0.0012, H - 0.006, Wd - 0.006), BLK)
+    scr_m = mat('M_mod_screen', (0.012, 0.014, 0.02), 0.08)
+    fx2 = fx - 0.0008
+    scr = box('ml_screen', (cx + fx2 * math.cos(a) - 0.004 * math.sin(a), cy - fx2 * math.sin(a) - 0.004 * math.cos(a), bzc), (0.0008, H - 0.026, Wd - 0.02), scr_m)
+    for ob in (lid, bez, scr): ob.rotation_euler = (0, a, 0)
+    lp += [lid, bez, scr]
     group('mod_laptop', lp)
     group('mod_speaker', [cyl('mk_body', (dx - 0.05, dt + 0.07, dz + 0.42), 0.05, 0.13, Wm, seg=24),
                           cyl('mk_top', (dx - 0.05, dt + 0.138, dz + 0.42), 0.048, 0.006, SIL, seg=24)])
@@ -594,6 +621,5 @@ def add_young_woman():
     hy('mod_rack', 'yw_rack', 1.45, (-0.35, 0, 2.28), rotz=PI, faces=4000)
     hy('mod_lamp', 'yw_lamp', 1.5, (-1.5, 0, -2.2), faces=2500)
     hy('mod_monstera', 'yw_monstera', 0.95, (-1.35, 0, -1.75), faces=4000)
-    hy('mod_skincare', 'yw_skincare', 0.2, (1.95, 0.74 + 0.013, -0.95), rotz=-PI / 2, faces=2500)
     hy('mod_bag', 'yw_bag', 0.28, (1.35, 0, 0.45), rotz=-PI / 2 + 0.3, faces=2500)
     hy('mod_candle', 'yw_candle', 0.2, (-0.8, 0.34 + 0.012, -0.95), faces=2000)
