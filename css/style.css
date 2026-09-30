@@ -262,6 +262,21 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
   transform: rotate(var(--rot)); filter: drop-shadow(0 0 8px rgba(255,150,50,.8)); animation: markNudge .9s ease-in-out infinite; }
 #anMark span { position: absolute; left: 50%; top: 44px; transform: translateX(-50%); white-space: nowrap; font-size: 13px; color: #ffcf8a; text-shadow: 0 1px 3px #000; }
 #anMark.arrow span { top: 22px; }
+/* right / wrong answer at the tap point */
+#tapFx { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 30; display: none; transform: translate(-50%, -50%); text-align: center; }
+#tapFx.show { display: block; animation: tapFx 1.3s ease-out forwards; }
+#tapFx b { display: block; margin: 0 auto; width: 84px; height: 84px; line-height: 80px; border-radius: 50%; font-size: 54px; font-weight: 900; }
+#tapFx span { display: block; margin-top: 6px; white-space: nowrap; font-size: 16px; font-weight: 700; text-shadow: 0 1px 4px #000, 0 0 10px #000; }
+#tapFx.ok b { color: #eafff0; border: 3px solid #7dffb0; background: rgba(40,160,90,.35); box-shadow: 0 0 22px rgba(90,255,150,.7); }
+#tapFx.ok span { color: #b9ffd2; }
+#tapFx.no b { color: #ffd6d6; border: 3px solid #ff4a4a; background: rgba(170,10,10,.45); box-shadow: 0 0 26px rgba(255,40,40,.8); }
+#tapFx.no span { color: #ff9a9a; }
+#tapFx.no.show { animation: tapFxNo 1.3s ease-out forwards; }
+@keyframes tapFx { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.5); } 12% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+  22% { transform: translate(-50%, -50%) scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -62%) scale(1); } }
+@keyframes tapFxNo { 0% { opacity: 0; transform: translate(-50%, -50%) scale(1.4); } 10% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  16% { transform: translate(-58%, -50%); } 24% { transform: translate(-42%, -50%); } 32% { transform: translate(-54%, -50%); } 40% { transform: translate(-50%, -50%); }
+  75% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes markPulse { 50% { transform: scale(1.18); opacity: .55; } }
 @keyframes markNudge { 50% { opacity: .5; } }
 
@@ -297,3 +312,10 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
 #hotbar .slot.on { border-color: #ffd48a; box-shadow: 0 0 14px rgba(255,210,140,.5); }
 #hotbar .slot.on small { color: #ffe2a8; }
 #hud.choosing #hotbar { display: none; }
+
+/* during the anomaly nights the warmth meter is back: wrong taps cost warmth */
+#hud.hs.annight .meters { display: flex; }
+#hud.hs.annight .fearbox { display: none; }
+#hud.hurt .warmbox { animation: hurtShake .35s 2; }
+#hud.hurt .warm i { background: #ff4a3a !important; }
+@keyframes hurtShake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }

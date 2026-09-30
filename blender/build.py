@@ -336,10 +336,11 @@ def build_room():
     # uv: viewer (inside, facing -x engine) sees engine +z on the left
     me = wp.data
     uvd = me.uv_layers.active.data
+    cy, cz = (sum(v.co.y for v in me.vertices) / len(me.vertices), sum(v.co.z for v in me.vertices) / len(me.vertices))
     for li, loop in enumerate(me.loops):
         co = me.vertices[loop.vertex_index].co
-        u = 0.5 + (co.y / (Z1 - Z0 + 0.02))  # blender y = -engine z
-        v = 0.5 + co.z / (Y1 - Y0 + 0.02)
+        u = 0.5 + (co.y - cy) / (Z1 - Z0 + 0.02)  # blender y = -engine z
+        v = 0.5 + (co.z - cz) / (Y1 - Y0 + 0.02)
         uvd[li].uv = (u, v)
     rod = cyl('rod', (-RX + 0.22, Y1 + 0.18, zc), 0.012, Z1 - Z0 + 0.7, M['metal'], axis='z')
     fin1 = sphere('fin1', (-RX + 0.22, Y1 + 0.18, Z0 - 0.35), 0.025, M['metal'])

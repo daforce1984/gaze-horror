@@ -17,7 +17,7 @@ import json, os, sys, time, socket, subprocess, base64, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 STATE = os.path.join(HERE, '.el_tab.json')
-DEBUG_PORT, RELAY_PORT = 9201, 9202
+DEBUG_PORT, RELAY_PORT = int(os.environ.get('EL_DEBUG_PORT', 9201)), 9202   # the profile may already be open on another port
 PROJECT_HINT = 'elevenlabs.io'
 WIN_PY = '/mnt/c/Users/dafor/AppData/Local/Python/bin/python.exe'
 

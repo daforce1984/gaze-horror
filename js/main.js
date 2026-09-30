@@ -152,6 +152,11 @@ async function loadAll() {
   }));
   const [room, ghost] = await Promise.all([loadGLB('assets/room.glb'), loadGLB('assets/ghost.glb'), snd.prefetch().then(() => snd.predecode())]);
   GLB.room = room; GLB.ghost = ghost;
+  // the window picture spans the glass exactly (older builds exported it half a tile off, halves swapped)
+  for (const pr of room.window_glass?.prims || []) {
+    const v = pr.geo.v, [, y0, z0] = pr.min, [, y1, z1] = pr.max;
+    for (let o = 0; o < v.length; o += 12) { v[o + 6] = (z1 - v[o + 2]) / (z1 - z0); v[o + 7] = (y1 - v[o + 1]) / (y1 - y0); }
+  }
   try { await document.fonts.load('bold 60px "Nanum Pen Script"'); } catch { }
 }
 const FALLBACK = {
@@ -434,7 +439,7 @@ const LINES = {
   an_spawn1: '히히… 이것 좀 봐~', an_spawn2: '또 바꿨다~ 히히.', an_spawn3: '엄마, 이상하지? 이상하지?!', an_spawn4: '뭐가~ 달라졌게~',
   an_danger: '빨리! 빨리 찾아!! 히..히히히히힛!!', an_rescue: '에이… 히..히히, 아깝다.', an_doll: '내 인형이… 엄마 보고 싶대. 히히힛.',
   an_lamp: '빨개졌다~ 히..히히히힛!!', crawl_near: '엄마… 거의 다 왔어… 히..히히.', crawl_hurt: '아파!! 왜 밀어내!!',
-  shift_start: '싫어… 싫어!! 방이… 방이 썩어!!', hs_found3: '찾았다… 찾았어!! 히..히히히힛!!',
+  shift_start: '싫어… 싫어!! 방이… 방이 변해!!', hs_found3: '찾았다… 찾았어!! 히..히히히힛!!',
   amb1: '엄마… 어디 있어…', amb2: '히히… 여기야… 아니, 여기…', amb3: '배고파… 엄마…', amb4: '하나, 둘, 셋… 히히힛.',
 };
 function line(id, pos, { quiet = true, gain = 2.0 } = {}) {
@@ -540,21 +545,23 @@ function hsTap(px, py, dir) {
     const d = v3.sub(h.c, CCTV.pos), z = v3.dot(d, cam.f);
     const sx = (v3.dot(d, cam.r) / z / (CCTV.tanHalf * (R.width / R.height)) * 0.5 + 0.5) * rect.width;
     const sy = (0.5 - v3.dot(d, cam.u) / z / CCTV.tanHalf * 0.5) * rect.height;
-    if (Math.hypot(px - rect.left - sx, py - rect.top - sy) < Math.max(90, rect.width * 0.12)) { hsFound(); return true; }
+    if (Math.hypot(px - rect.left - sx, py - rect.top - sy) < Math.max(90, rect.width * 0.12)) { tapFx(true, px, py, '찾았다!'); snd.play('right'); hsFound(); return true; }
     log('false_tap', { where: 'cctv' }); hsCctvView(false); return true;
   }
   const k = hsPick(px, py, dir);
   if (!k) { log('false_tap', { where: 'nothing' }); return true; }
-  if (k === HS.spot) { hsFound(); return true; }
+  if (k === HS.spot) { tapFx(true, px, py, '찾았다!'); snd.play('right'); hsFound(); return true; }
   // a decoy
   log('false_tap', { where: k });
   if (HS.round === 3 && k === 'curtain' && !HS.cheatDone) {
     HS.cheatDone = true;
+    tapFx(false, px, py, '비어 있다');
     S.curtainTarget = 1; snd.play('curtain', HIDE.curtain.c);
     hsAfter(0.9, () => { voice('hs_cheat', HIDE.behind.c, 2.2); hsSay('“속았지? 커튼엔 아무도 없었어!”', 3); });
     hsAfter(3.2, () => { S.curtainTarget = 0; snd.play('creak', HIDE.behind.c); voice('hs_behind', HIDE.behind.c, 2.4); hsSay('…등 뒤에서, 의자가 삐걱.', 3); $('#turnBtn').classList.add('pulse'); log('hint_used', { hint: 'behind' }); });
     return true;
   }
+  tapFx(false, px, py, '여기 없다'); snd.play('wrong');
   voice('hs_wrong', HIDE[HS.spot].c, 1.8); hsSay('“거기 아니야~”', 2);
   HS.t += 3; HS.penalty += 3;   // a wrong guess moves the warnings closer
   return true;
@@ -715,7 +722,7 @@ function hsCues(time) {
     if (h.cue === 'desk') { const b = O.nodes.drawer[0].base; setModel(O.nodes.drawer, m4.trs([b[12] - pulse * 0.03, b[13], b[14]])); }
     if (h.cue === 'tv' && pulse > 0.3) { S.glitch = Math.max(S.glitch, 0.4 * amp); }
     if (h.cue === 'door') { const b = O.nodes.door[0].base; setModel(O.nodes.door, m4.trs([b[12], b[13], b[14]], (Math.random() - 0.5) * 0.012 * pulse)); }
-    if (Math.random() < 0.012 * amp) snd.play(h.cue === 'shelf' ? 'bang' : h.cue === 'desk' ? 'drawer' : h.cue === 'door' ? 'knock' : h.cue === 'chair' ? 'creak' : 'giggle', h.c);
+    if (Math.random() < 0.012 * amp) snd.play(h.cue === 'shelf' ? 'bang' : h.cue === 'desk' ? 'drawer' : h.cue === 'door' ? 'knock' : h.cue === 'chair' ? 'whisper' : 'giggle', h.c);   // (no door creak near her: it read as her neck)
   }
 }
 function turnAround() {
@@ -788,22 +795,23 @@ function formUpdate(dt) {
 const MODERN = [];
 function setupModern() {
   const N = (n) => O.nodes[n] || [];
-  const pair = (mod, old) => {
+  const pair = (mod, old, at = 0.3) => {
     const m = mod.flatMap(N), o = old.flatMap(N);
     if (!m.length) return;
     const b = m[0].base, pos = [b[12], b[13], b[14]];
-    MODERN.push({ mod: m, old: o, pos, oldNames: old, modern: true });
+    MODERN.push({ mod: m, old: o, pos, oldNames: old, modern: true, at });
     for (const x of o) x.visible = false;
   };
-  pair(['mod_tvstand', 'mod_tv'], ['tv_cabinet', 'tv', 'tv_screen']);
-  pair(['mod_table'], ['lowtable']);
+  // the first night only turns what its puzzles need (TV, table, the doll); the rest waits for a real shift
+  pair(['mod_tvstand', 'mod_tv'], ['tv_cabinet', 'tv', 'tv_screen'], 0.12);
+  pair(['mod_table'], ['lowtable'], 0.12);
   pair(['mod_shelf'], ['bookshelf']);
   pair(['mod_desk', 'mod_laptop', 'mod_speaker'], ['desk', 'drawer', 'drawer_lock', 'desk_clutter', 'answering_machine', 'am_led', 'deco_desklamp', 'deco_pencils']);
   pair([], ['deco_suitcase']);
   // her own things in the modern studio: each goes when the fire reaches it
   for (const n of Object.keys(O.nodes).filter(n => n.startsWith('yw_'))) pair([n], []);
   for (const x of N('deco_suitcase')) x.visible = false;
-  MODERN.push({ mod: [], old: N('deco_suitcase'), pos: [1.95, 0.3, 1.35], oldNames: ['deco_suitcase'], modern: true });
+  MODERN.push({ mod: [], old: N('deco_suitcase'), pos: [1.95, 0.3, 1.35], oldNames: ['deco_suitcase'], modern: true, at: 0.3 });
 }
 // ---- the curtains are simulated cloth (js/cloth.js); the modelled panels only lend their size and material
 const CLOTH = [];
@@ -826,7 +834,7 @@ function clothUpdate(dt, time) {
     bodies.push({ x: g.p[0], z: g.p[2], y0: 0.2, y1: crouch ? 0.5 : 1.12, r: crouch ? 0.26 : 0.22 });   // her body
     bodies.push({ x: g.p[0], z: g.p[2], y0: crouch ? 0.45 : 1.16, y1: crouch ? 0.62 : 1.3, r: 0.14 });   // her head
   }
-  const gather = smooth(0, 1, S.curtainOpen);
+  const gather = S.curtainOpen;   // the hand position (the motion itself is eased where it is driven)
   for (const c of CLOTH) {
     c.cl.step(dt, time, { gather, gatherTo: c.gatherTo, bodies, pokes: c.pokes });
     c.pokes.length = 0;
@@ -839,7 +847,7 @@ const LATE = [['p_crate', 0.25], ['p_boombox', 0.25], ['p_phone', 0.25], ['p_sid
   ['p_camera', 0.25], ['p_chalk', 0.25], ['p_stool', 0.25], ['p_alarm', 0.25], ['p_basket2', 0.5], ['p_bowl', 0.6],
   ['p_teaset', 0.25], ['p_frame2', 0.25], ['p_books', 0.5], ['p_flashlight', 0.9], ['p_sungka', 0.6], ['p_watch', 0.25],
   // the child's things were never in her studio: they come with the other world
-  ['deco_teddy', 0.2], ['deco_backpack', 0.2], ['deco_shoes', 0.2], ['deco_musicbox', 0.2], ['item_doll', 0.2], ['deco_duck', 0.3], ['deco_basket', 0.3], ['deco_cake', 0.3]];
+  ['deco_teddy', 0.2], ['deco_backpack', 0.2], ['deco_shoes', 0.2], ['deco_musicbox', 0.2], ['item_doll', 0.12], ['deco_duck', 0.3], ['deco_basket', 0.3], ['deco_cake', 0.3]];
 function setupLate() {
   for (const [n, at] of LATE) { const l = O.nodes[n] || []; if (!l.length) continue; for (const o of l) o.visible = false; const b = l[0].base;
     MODERN.push({ mod: [], old: l, pos: [b[12], b[13], b[14]], oldNames: [n], modern: true, at }); }
@@ -870,7 +878,7 @@ const ANOM = {
   table: { node: 'lowtable', name: '탁자', sfx: 'bang', cue: '…무언가 둥실 떠오르는 소리.', lift: 0.45 },
   tv: { node: 'tv', name: 'TV', sfx: 'static', cue: '…TV가 저절로 켜졌다.', verb: 'TV를 누르고… 화면을 봐요' },
   doll: { node: 'item_doll', name: '인형', sfx: 'bang', cue: '…등 뒤에서, 작은 발소리.', to: [-0.7, 0, 2.2], verb: '안 볼 때마다 다가와요. 눌러서 돌려놔요' },   // climbs down, grows, and stands behind you (clear of the chair back) facing you
-  frame: { node: 'item_frame', name: '가족사진', sfx: 'creak', cue: '…액자가 삐걱삐걱 흔들리는 소리.', loopSfx: 3.5, verb: '흔들림이 한가운데를 지날 때 잡아요' },
+  frame: { node: 'item_frame', name: '가족사진', sfx: 'creak', cue: '…액자가 삐걱삐걱 흔들리는 소리.', loopSfx: 3.5 },
   cushion: { node: 'cushion', name: '방석', sfx: 'whisper', cue: '…누가 속삭인다.', lift: 1.0, verb: '도망치는 방석을 한 번 더 잡아요' },
   lamp: { node: 'lamp', name: '전등', sfx: 'whisper', cue: '…방 안이 붉게 물들었다. 천장의 전등.' },   // the ceiling light turns deep red
   curtain: { name: '커튼', sfx: 'giggle', cue: '…커튼 쪽에서 킥킥.', ghost: true },
@@ -910,7 +918,7 @@ function anBox(k) {
 }
 function anHud() {
   const n = Object.keys(AN.act).length;
-  $('#anHud').classList.toggle('show', AN.on);
+  $('#anHud').classList.toggle('show', AN.on); ui.hud.classList.toggle('annight', AN.on);
   $('#anHud').classList.toggle('danger', AN.danger > 0);
   document.querySelectorAll('#anHud .pips i').forEach((el, i) => el.classList.toggle('on', i < n));
   $('#anCount').innerHTML = `${Math.min(AN.fixed, AN.goal)} / ${AN.goal}` + (AN.fails ? ` <span class="fails">${'✕'.repeat(AN.fails)}</span>` : '');
@@ -924,7 +932,7 @@ function anStart(phase) {
   AN.baseDim = phase === 3 ? 0.72 : 0; AN.streak = 0; AN.crawlShown = AN.crawlShown || false;
   HS.phase = 'anom'; HS.spot = null; S.ghost = null;
   ui.hud.classList.add('turnon');
-  S.decayTarget = [0, 0.3, 0.8, 1.0][phase];   // each shift is a real change: by the last night the room is the other world
+  S.decayTarget = [0, 0.15, 0.8, 1.0][phase];   // the first night only a touch; then a real change; by the last night the room is the other world
   const bigShift = S.decayTarget - S.decay > 0.35;
   log('anom_start', { phase });
   if (phase === 1) {
@@ -1040,10 +1048,6 @@ function anEnd() {
 }
 function anTouch(k) {
   const s = AN.act[k], c = anBox(k).c;
-  if (k === 'frame') {   // only when it swings through the middle
-    if (Math.abs(AN.frameSwing || 0) < 0.3) return anFix(k);
-    snd.play('creak', c); hsSay('…흔들려서 잡히지 않는다. 가운데를 지나는 순간에.', 2); log('verb_miss', { k }); return;
-  }
   if (k === 'cushion' && !s.fled) {   // it runs away once
     s.fled = true; s.fleeT = 0;
     const spots = [[1.2, 0.9, 1.6], [-1.6, 1.8, -0.4], [1.5, 1.6, -1.6], [-0.3, 2.0, 1.3]].filter(p => !inView(p, 0.9).visible);
@@ -1057,6 +1061,15 @@ function anTouch(k) {
   }
   if (k === 'tv' && s.stage) { hsSay('…뒤를 봐.', 1.4); return; }
   anFix(k);
+}
+// unmistakable answer at the finger: a green check with what you fixed, or a red cross
+function tapFx(ok, px, py, text) {
+  const el = $('#tapFx'); if (!el) return;
+  el.className = ''; void el.offsetWidth;
+  el.style.left = px + 'px'; el.style.top = py + 'px';
+  el.querySelector('b').textContent = ok ? '✓' : '✕'; el.querySelector('span').textContent = text;
+  el.className = (ok ? 'ok' : 'no') + ' show';
+  if (navigator.vibrate) try { navigator.vibrate(ok ? 25 : [60, 40, 90]); } catch { }
 }
 function anTap(px, py, dir) {
   if (AN.lock > 0) return true;
@@ -1079,11 +1092,21 @@ function anTap(px, py, dir) {
     if (score < bd) { bd = score; best = k; }
   }
   if (!best || bd >= 1e8) { log('false_tap', { where: 'nothing' }); return true; }
-  if (AN.act[best]) { anTouch(best); return true; }
-  // reported something that is fine: small, visible cost
+  if (AN.act[best]) {
+    const before = AN.fixed; anTouch(best);
+    if (AN.fixed > before) { tapFx(true, px, py, `${ANOM[best].name} — 원래대로`); snd.play('right'); }
+    else tapFx(true, px, py, '찾았다!');
+    return true;
+  }
+  // reported something that is fine: it costs you — she laughs, the cold bites
   log('false_report', { k: best });
-  AN.lock = 1.0; snd.play('click');
-  hsSay(`…${ANOM[best].name}엔 이상이 없다.`, 1.6);
+  AN.lock = 1.0;
+  S.flash = 0.35; S.flashCol = [0.55, 0.03, 0.03]; S.shake = Math.max(S.shake, 0.35); S.glitch = Math.max(S.glitch, 0.5);
+  touch(12, 'false_report');
+  tapFx(false, px, py, `${ANOM[best].name} — 이상 없음`); snd.play('wrong');
+  ui.hud.classList.add('hurt'); setTimeout(() => ui.hud.classList.remove('hurt'), 700);
+  voice('hs_wrong', anBox(best).c, 2.0);
+  hsSay(`“거기 아니야~” …${ANOM[best].name}엔 이상이 없었다. 몸이 차가워진다.`, 2.2);
   return true;
 }
 function anUpdate(dt) {
@@ -1253,7 +1276,7 @@ const ACT_NAMES = ['1999년 12월, 저녁', '멈춘 시계', '기다림', '문']
 function setAct(a) {
   S.act = a;
   if (a === 1) {
-    S.decayTarget = 0.28; S.rain = 0; snd.playMusic('music_room', 8);
+    S.decayTarget = 0.15; S.rain = 0; snd.playMusic('music_room', 8);
     objective('오르골을 살펴본다');
   }
   if (a === 2) { S.decayTarget = 0.78; snd.playMusic('music_room', 4); }
@@ -1325,7 +1348,7 @@ const STORY = {
     after(15, () => { if (S.ghost?.mode === 'sit') { S.ghost.target = 0; } });
     after(16, () => {
       setAct(2);
-      say('…방이, 썩어 간다.', 3.5);
+      say('…방이, 뒤틀려 간다.', 3.5);
       after(4, () => girl('c_wait', '나 착하게 기다렸어. 소리도 안 냈어.', null));
       after(10, () => { objective('가위로 오른손 밧줄을 끊는다 (가위를 누른 뒤 아래를 본다)'); });
     });
@@ -2038,7 +2061,12 @@ function update(dt) {
 
   S.blackout = damp(S.blackout, S.blackoutTarget, S.blackoutTarget > S.blackout ? 14 : 3, dt);
   S.flash = damp(S.flash, 0, 4, dt); S.shake = damp(S.shake, 0, 3, dt); S.glitch = damp(S.glitch, 0, 2.5, dt);
-  S.curtainOpen = damp(S.curtainOpen, S.curtainTarget, 0.9, dt);
+  {   // a hand drawing the curtain: gets going, travels in a tug or two, slows at the end
+    const d = S.curtainTarget - S.curtainOpen, want = Math.sign(d) * Math.min(0.9 * (0.8 + 0.3 * Math.sin(S.time * 7)), Math.sqrt(2 * 2.2 * Math.abs(d)));
+    S.curtainVel = (S.curtainVel || 0) + clamp(want - (S.curtainVel || 0), -4 * dt, 4 * dt);
+    S.curtainOpen = clamp(S.curtainOpen + S.curtainVel * dt, 0, 1);
+    if (Math.abs(d) < 0.002 && Math.abs(S.curtainVel) < 0.05) { S.curtainOpen = S.curtainTarget; S.curtainVel = 0; }
+  }
   shiftUpdate(dt); formUpdate(dt);
   if (O.ash) O.ash.visible = SHIFT.on;
   S.frost = damp(S.frost, Math.max(0, (45 - S.warmth) / 70), 0.8, dt);
@@ -2526,7 +2554,7 @@ function restore(sv) {
   (sv.inv || []).forEach(invAdd);
   S.act = sv.act;
   if (S.act >= 1) { S.rain = 0; stopClock(); }
-  S.decayTarget = S.decay = [0, 0.28, 0.78, 1][S.act];
+  S.decayTarget = S.decay = [0, 0.15, 0.78, 1][S.act];
   snd.playMusic(S.act >= 1 ? 'music_room' : null, 4);
   S.blackout = 1; S.blackoutTarget = 0;
   say('…다시, 이 방이다.', 3);

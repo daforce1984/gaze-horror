@@ -476,11 +476,17 @@ export class Sound {
         const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = [523, 415, 466, 311][i];
         const g = ctx.createGain(); this.env(g, t + i * 0.7, 0.01, 0.12, 2.2); o.connect(g).connect(dest); o.start(t + i * 0.7); o.stop(t + i * 0.7 + 2.4);
       } break;
+      case 'right': [880, 1319].forEach((f, i) => {   // "found it": a clear, dry rising two-note ding, unlike anything in the room
+        const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
+        const g = ctx.createGain(); this.env(g, t + i * 0.09, 0.004, 0.25, 0.5); o.connect(g).connect(dest); o.start(t + i * 0.09); o.stop(t + i * 0.09 + 0.6);
+      }); break;
       case 'tick': this.noiseHit(t, { freq: 4200, q: 8, v: 0.25, d: 0.02, dest }); break;
       case 'crack': {   // a neck turning too far: a quick run of small bone cracks and a dull pop
-        const n = 4 + Math.floor(Math.random() * 4);
-        for (let i = 0; i < n; i++) this.noiseHit(t + i * (0.018 + Math.random() * 0.03), { freq: 1800 + Math.random() * 2600, q: 5, v: 0.9, a: 0.001, d: 0.02, dest });
-        this.noiseHit(t + 0.02, { freq: 260, q: 3, v: 0.8, a: 0.002, d: 0.06, dest });
+        // knuckle-crack clicks: broadband and very short (no tone, nothing wooden), then a dull wet pop
+        const n = 5 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < n; i++) this.noiseHit(t + i * (0.012 + Math.random() * 0.022), { freq: 900 + Math.random() * 5000, q: 1.2, v: 1.1, a: 0.0005, d: 0.008 + Math.random() * 0.01, dest });
+        this.noiseHit(t + 0.06, { freq: 180, q: 1.5, v: 0.9, a: 0.001, d: 0.05, dest });
+        this.noiseHit(t + 0.08, { freq: 3500, type: 'highpass', v: 0.35, a: 0.001, d: 0.03, dest });
         break;
       }
       case 'steps': for (let i = 0; i < 4; i++) this.noiseHit(t + i * 0.55, { freq: 160, q: 1.5, v: 0.8, d: 0.15, dest }); break;
