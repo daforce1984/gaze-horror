@@ -748,7 +748,24 @@ function startShift(to) {
   log('shift', { from: +from.toFixed(2), to: +to.toFixed(2), big });
   SHIFT.snds = [];
   if (big) { SHIFT.snds.push(snd.playTracked('siren', null, 0.75)); snd.duck(0.35, 7); after(1.2, () => line('shift_start', null, { quiet: false })); }
-  SHIFT.snds.push(snd.playTracked('crackle', o, 1.1));
+  // the sound of it lives where the room is changing: one emitter per patch of wall, floor and ceiling,
+  // loud while the front is peeling that patch, faded out once it is done (volume by how much really turns)
+  SHIFT.amt = clamp((to - from) / 0.45, 0.3, 1);
+  SHIFT.em = SHIFT_SPOTS.map(p => ({ p, h: null }));
+}
+const SHIFT_SPOTS = [];
+for (const y of [0.7, 1.9]) for (const u of [-1.3, 1.3]) {
+  SHIFT_SPOTS.push([-2.1, y, u * 1.1 - 0.2], [2.1, y, u * 1.1], [u, y, -2.4], [u, y, 2.4]);
+}
+for (const [x, z] of [[-1.1, -1.1], [1.1, 1.1], [-1.1, 1.2], [1.1, -1.2]]) SHIFT_SPOTS.push([x, 0.05, z], [x, 2.5, z]);
+function shiftSound() {
+  for (const e of SHIFT.em || []) {
+    const x = SHIFT.r - frontDist(e.p);   // > 0: the front has reached it, and for how long
+    const v = smooth(-0.5, 0.15, x) * (1 - smooth(1.4, 2.8, x)) * SHIFT.amt * (SHIFT.big ? 0.65 : 0.45);   // a dozen can sound at once
+    if (v > 0.01 && !e.h && !e.done) e.h = snd.emitter(e.p);
+    if (e.h) e.h.set(v);
+    if (e.h && x > 2.8) { e.h.stop(0.6); e.h = null; e.done = true; }   // that patch has finished changing
+  }
 }
 function shiftUpdate(dt) {
   if (!SHIFT.on) {
@@ -759,14 +776,8 @@ function shiftUpdate(dt) {
   SHIFT.r += SHIFT.speed * dt * (SHIFT.big && SHIFT.t < 2.5 ? 0.2 : 1);   // the siren first, then it comes
   SHIFT.burn = Math.min(1, SHIFT.t / 1.2) * (SHIFT.big ? 1 : 0.6) * (1 - smooth(8.2, 9.5, SHIFT.r));
   S.decay = lerp(SHIFT.from, SHIFT.to, clamp(SHIFT.r / 8.5, 0, 1));
-  // the crackle follows the front
-  SHIFT.cr -= dt;
-  if (SHIFT.cr <= 0 && SHIFT.r < 8.5) {
-    SHIFT.cr = rnd(1.4, 2.6);
-    const d = v3.norm(v3.sub(EYE, SHIFT.o)), q = v3.add(SHIFT.o, v3.scale(d, Math.min(SHIFT.r, v3.len(v3.sub(EYE, SHIFT.o)) - 0.3)));
-    SHIFT.snds.push(snd.playTracked('crackle', q, 1.1));
-  }
-  if (SHIFT.r > 9.5) { for (const h of SHIFT.snds || []) h.stop(1.5); SHIFT.snds = []; SHIFT.on = false; S.decay = SHIFT.to; log('shift_end', {}); }
+  shiftSound();
+  if (SHIFT.r > 9.5) { for (const h of SHIFT.snds || []) h.stop(1.5); SHIFT.snds = []; for (const e of SHIFT.em || []) e.h?.stop(1.2); SHIFT.em = []; SHIFT.on = false; S.decay = SHIFT.to; log('shift_end', {}); }
 }
 // same fire front as the shader (frontDist in gpu.js), so furniture and trash catch when the walls round them do
 const _h31 = (x, y, z) => { const v = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return v - Math.floor(v); };
@@ -861,7 +872,7 @@ const isModern = (node) => MODERN.some(p => p.modern && p.oldNames.includes(node
 function modernUpdate() {
   for (const p of MODERN) {
     const turned = levelAt(p.pos) >= (p.at || 0.12);
-    if (turned && p.modern) { p.modern = false; formOut(p.mod); formIn(p.old); }
+    if (turned && p.modern) { p.modern = false; formOut(p.mod); formIn(p.old); if (SHIFT.on && (p.mod.length || p.old.length)) snd.playTracked('crackle', p.pos, 0.9).stop(2.4); }
     else if (!turned && !p.modern) { p.modern = true; for (const x of p.old) x.visible = false; for (const x of p.mod) { x.visible = true; x.extra[2] = 0; } }
   }
   if (isModern('tv_screen')) {

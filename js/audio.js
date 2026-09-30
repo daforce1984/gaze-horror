@@ -297,6 +297,24 @@ export class Sound {
     const s = ctx.createBufferSource(); s.buffer = this.buf[name]; s.connect(g); s.start();
     return { stop: (fade = 1) => { const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + fade); try { s.stop(t + fade + 0.05); } catch { } } };
   }
+  // a place in the room that is changing: looped fire crackle plus a tearing, peeling rustle at pos;
+  // silent until set(); the rustle's level wanders so it sounds like strips coming away
+  emitter(pos) {
+    if (!this.ctx) return { set() { }, stop() { } };
+    const ctx = this.ctx, p = this.panner(pos), g = ctx.createGain(); g.gain.value = 0; g.connect(p); p.connect(this.master);
+    const src = [];
+    if (this.buf.crackle) { const s = ctx.createBufferSource(); s.buffer = this.buf.crackle; s.loop = true; s.playbackRate.value = 0.85 + Math.random() * 0.3; s.connect(g); s.start(0, Math.random() * this.buf.crackle.duration); src.push(s); }
+    const n = ctx.createBufferSource(); n.buffer = this.white; n.loop = true;
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1500 + Math.random() * 1800; f.Q.value = 0.9;
+    const ng = ctx.createGain(); ng.gain.value = 0; n.connect(f).connect(ng).connect(g); n.start(0, Math.random()); src.push(n);
+    return {
+      set(v) {
+        const t = ctx.currentTime; g.gain.setTargetAtTime(v, t, 0.12);
+        ng.gain.setTargetAtTime(Math.random() < 0.3 ? 0.5 + Math.random() * 0.5 : 0.04 + Math.random() * 0.12, t, 0.05);   // rips now and then
+      },
+      stop(fade = 1) { const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + fade); for (const s of src) try { s.stop(t + fade + 0.05); } catch { } },
+    };
+  }
   sample(name, dest, { gain = 1, rate = 1, offset = 0 } = {}) {
     const b = this.buf[name]; if (!b) return false;
     const s = this.ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = rate * (0.96 + Math.random() * 0.08);
