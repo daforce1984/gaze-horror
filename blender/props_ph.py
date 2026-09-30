@@ -599,6 +599,65 @@ def add_props2():
     put('vintage_pocket_watch', 'p_watch', 1.0, (-1.15, top('lowtable'), -0.8), rotx=-PI / 2, faces=1000)
 
 
+def globe_floor_lamp(name, pt, height=1.45, globe=0.36):
+    """a modern globe floor lamp: Poly Haven's modern_ceiling_lamp_01 shade (opal globe + metal cap, the cord,
+    canopy and bulb cut away; the glass made opaque opal) on a slim black pole with a round weighted base"""
+    import bmesh
+    ob = ph_import('modern_ceiling_lamp_01', res=1024)
+    me = ob.data
+    names = [m.name for m in me.materials]
+    bm = bmesh.new(); bm.from_mesh(me)
+    zmin = min(v.co.z for v in bm.verts)
+    cut = zmin + 0.38   # just above the globe's metal cap (globe 0.22-0.53, cap to ~0.6 in the source)
+    kill = [f for f in bm.faces if 'globe' in names[f.material_index] and 'glass' not in names[f.material_index]
+            or any(v.co.z > cut for v in f.verts)]
+    bmesh.ops.delete(bm, geom=kill, context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(me); bm.free()
+    OPAL = mat('M_mod_opal', (0.93, 0.92, 0.88), 0.45)
+    for i, n in enumerate(names):
+        if 'glass' in n: me.materials[i] = OPAL
+    # the ceiling globe hangs under its cap: turn it over so the cap is the fitting on top of the pole
+    me.transform(Matrix.Rotation(PI, 4, 'X'))
+    # the pendant's globe is open where the light falls out (now the top): close it with a spherical cap
+    # fitted to the globe (centre at its widest ring, radius = that ring)
+    oi = [i for i, m in enumerate(me.materials) if m and m.name == 'M_mod_opal']
+    gi = {i for p in me.polygons if p.material_index in oi for i in p.vertices}
+    gv = [me.vertices[i].co.copy() for i in gi]
+    if gv:
+        cx = sum(v.x for v in gv) / len(gv); cy = sum(v.y for v in gv) / len(gv)
+        rad = lambda v: math.hypot(v.x - cx, v.y - cy)
+        wide = max(gv, key=rad); R, zc = rad(wide), wide.z
+        ztop = max(v.z for v in gv)
+        bm = bmesh.new()
+        bmesh.ops.create_uvsphere(bm, u_segments=32, v_segments=24, radius=R * 0.995)
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z < ztop - zc - 0.004], context='VERTS')
+        bmesh.ops.translate(bm, verts=bm.verts, vec=Vector((cx, cy, zc)))
+        cap = bpy.data.meshes.new('yl_cap'); bm.to_mesh(cap); bm.free()
+        for p in cap.polygons: p.use_smooth = True
+        cob = bpy.data.objects.new('yl_cap', cap); bpy.context.collection.objects.link(cob); cap.materials.append(OPAL)
+        ob = join(ob.name, [ob, cob]); me = ob.data
+    bb = [ob.matrix_world @ Vector(c) for c in ob.bound_box]
+    w = max(c.x for c in bb) - min(c.x for c in bb)
+    ob.scale = (globe / w,) * 3
+    bpy.context.view_layer.objects.active = ob; ob.select_set(True)
+    bpy.ops.object.transform_apply(scale=True)
+    bb = [Vector(c) for c in ob.bound_box]
+    cz = (min(c.z for c in bb) + max(c.z for c in bb)) / 2
+    cxy = ((min(c.x for c in bb) + max(c.x for c in bb)) / 2, (min(c.y for c in bb) + max(c.y for c in bb)) / 2)
+    top = height - globe / 2
+    ob.location = E(pt[0], top, pt[2]) - Vector((cxy[0], cxy[1], cz))
+    bpy.ops.object.transform_apply(location=True)
+    BLK = mat('M_mod_lampblack', (0.02, 0.02, 0.022), 0.35, 0.6)
+    pole = cyl('yl_pole', (pt[0], (top - globe * 0.45) / 2 + 0.02, pt[2]), 0.011, top - globe * 0.45, BLK, seg=12)
+    base = cyl('yl_base', (pt[0], 0.012, pt[2]), 0.14, 0.024, BLK, seg=32)
+    foot = cyl('yl_collar', (pt[0], 0.03, pt[2]), 0.03, 0.02, BLK, seg=16)
+    lamp = join(name, [ob, pole, base, foot])
+    lamp.name = name; lamp.data.name = name
+    item_origin(lamp)
+    return lamp
+
+
 def add_young_woman():
     """the modern studio's own things: a young woman living alone. Poly Haven pieces + Hunyuan3D meshes
     (Codex product images, remeshed, front-projected). The engine dissolves each when the fire reaches it."""
@@ -619,7 +678,7 @@ def add_young_woman():
     hy('mod_bed', 'yw_bed', 0.8, (1.72, 0, 1.45), rotz=-PI / 2, faces=4000)
     hy('mod_mirror', 'yw_mirror', 1.6, (-2.05, 0, 0.72), rotz=PI / 2, faces=2500)
     hy('mod_rack', 'yw_rack', 1.45, (-0.35, 0, 2.28), rotz=PI, faces=4000)
-    hy('mod_lamp', 'yw_lamp', 1.5, (-1.5, 0, -2.2), faces=2500)
+    globe_floor_lamp('yw_lamp', (-1.5, 0, -2.2))
     hy('mod_monstera', 'yw_monstera', 0.95, (-1.35, 0, -1.75), faces=4000)
     hy('mod_bag', 'yw_bag', 0.28, (1.35, 0, 0.45), rotz=-PI / 2 + 0.3, faces=2500)
     hy('mod_candle', 'yw_candle', 0.2, (-0.8, 0.34 + 0.012, -0.95), faces=2000)
