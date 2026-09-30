@@ -1301,7 +1301,7 @@ function pzReset(phase) {
 function pzClear() {
   for (const d of PZ.digits || []) d.o.visible = false;
   PZ.digits = null; PZ.on = false; PZ.hold = false;
-  document.querySelectorAll('.knockRipple').forEach(e => e.remove());
+  trackHide();
 }
 // when each night's puzzle begins (called every frame of the night)
 function pzMaybeStart() {
@@ -1347,52 +1347,76 @@ function pzHudText() {
   return ` <span class="pz">🔦 ${PZ.digits.map(d => d.found ? d.v : '_').join(' ')}</span>`;
 }
 
-// ---- 1. 노크 암호: listen, then knock it back (the gaps are short or long; tempo is yours)
+// ---- 1. 노크 암호: she pounds a rhythm on the door, then you pound it back in time. A track shows the beats
+// as they sound; when you answer, a playhead sweeps the same track and each knock must land on its beat
+// (the marks are shown, then faint, then gone — by the third you play it from memory).
 const KNOCKS = [['L', 'S'], ['S', 'L', 'S', 'S'], ['L', 'S', 'S', 'L', 'S']];
-const DOOR_KNOCK = [0.7, 1.1, 2.45], UNDER_CHAIR = [0.05, 0.25, 0.9], ARMREST = () => v3.add(EYE, [0.28, -0.5, 0.05]);
+const KN = { S: 0.38, L: 0.85, lead: 0.6, tail: 0.7, win: [0.22, 0.2, 0.18] };
+const DOOR_KNOCK = [0.7, 1.1, 2.45], UNDER_CHAIR = [0.05, 0.25, 0.9];
+const knockTimes = (pat) => { let t = KN.lead; const ts = [t]; for (const g of pat) { t += g === 'S' ? KN.S : KN.L; ts.push(t); } return ts; };
+function knockBang(from, big = 1) {
+  snd.play('doorbang', from);
+  if (from === DOOR_KNOCK) S.doorKnock = 1.6 * big;
+  S.shake = Math.max(S.shake, 0.08 * big);
+}
+function trackSet(ts, span, cls) {   // marks for the beats: cls '', 'dim' or 'hidden'
+  const el = $('#knockTrack'); el.className = 'show ' + cls;
+  el.querySelectorAll('b').forEach(m => m.remove());
+  PZ.marks = ts.map(t => { const m = document.createElement('b'); m.style.left = `${t / span * 100}%`; el.appendChild(m); return m; });
+  trackHead(0);
+}
+function trackHead(x) { $('#knockTrack .head').style.left = `${clamp(x, 0, 1) * 100}%`; }
+function trackDot(x, ok) { const d = document.createElement('b'); d.className = 'you ' + (ok ? 'hit' : 'miss'); d.style.left = `${clamp(x, 0, 1) * 100}%`; $('#knockTrack').appendChild(d); }
+function trackHide() { const el = $('#knockTrack'); if (el) { el.className = ''; el.querySelectorAll('b').forEach(m => m.remove()); } }
 function pzKnockStart() {
   PZ.step = 0; anHud();
   const d = voice('pz_knock_intro', DOOR_KNOCK, 2.0); hsSay('“엄마… 우리 암호 기억나? 내가 두드리는 대로… 똑같이 두드려 줘.”', Math.max(4, d + 0.4));
   log('puzzle_start', { kind: 'knock' });
   hsAfterVoice(() => pzKnockPlay(), 0.6);
 }
-const knockGlyphs = (pat, n = pat.length + 1) => { let s = '쿵'; for (let j = 1; j < n; j++) s += (pat[j - 1] === 'S' ? ' ' : '  ─  ') + '쿵'; return s; };
 function pzKnockPlay() {
-  const pat = KNOCKS[PZ.step], from = PZ.step < 2 ? DOOR_KNOCK : UNDER_CHAIR;
-  PZ.stage = 'listen'; PZ.hold = true; PZ.taps = []; PZ.idle = 0;
-  hsTip('🎧 <b>잘 들어요…</b>');
+  const pat = KNOCKS[PZ.step], from = PZ.step < 2 ? DOOR_KNOCK : UNDER_CHAIR, ts = knockTimes(pat), span = ts[ts.length - 1] + KN.tail;
+  Object.assign(PZ, { stage: 'listen', hold: true, ts, span, t0: S.time + (PZ.step === 2 ? 1.4 : 0.3), idle: 0, from });
+  trackSet(ts, span, '');
+  PZ.marks.forEach(m => m.classList.add('wait'));
+  hsTip('🎧 <b>잘 들어요…</b> 쾅 소리의 박자');
   if (PZ.step === 2) hsSay('…이번엔, 의자 밑에서.', 2.4);
-  let t = PZ.step === 2 ? 1.6 : 0.5; const times = [t];
-  for (const g of pat) { t += g === 'S' ? 0.3 : 0.85; times.push(t); }
-  times.forEach((tt, j) => hsAfter(tt, () => { snd.play('knock1', from); if (from === DOOR_KNOCK) S.doorKnock = 1; hsTip(`🎧 ${knockGlyphs(pat, j + 1)}`); }));
-  hsAfter(t + 1.0, () => {
-    PZ.stage = 'answer'; PZ.taps = []; PZ.idle = 0;
-    hsTip(PZ.fails >= 2 ? `<b>화면을 두드려</b> 따라 해요 · ${knockGlyphs(pat)}` : '<b>화면을 두드려</b> 똑같이 따라 해요');
+  const lead = PZ.t0 - S.time;
+  ts.forEach((t, j) => hsAfter(lead + t, () => { knockBang(from); PZ.marks[j]?.classList.remove('wait'); PZ.marks[j]?.classList.add('lit'); }));
+  // your turn: two counts in the same tempo, then the playhead runs again
+  const beat = 0.5, go = lead + span + 0.7;
+  hsAfter(go, () => { PZ.stage = 'count'; hsTip('<b>당신 차례</b> — 하나…'); snd.play('tick'); trackSet(ts, span, PZ.step === 0 || PZ.fails >= 2 ? '' : PZ.step === 1 ? 'dim' : 'hidden'); });
+  hsAfter(go + beat, () => { hsTip('<b>당신 차례</b> — 둘…'); snd.play('tick'); });
+  hsAfter(go + beat * 2, () => {
+    Object.assign(PZ, { stage: 'answer', a0: S.time, hit: ts.map(() => false), strays: 0, offs: [] });
+    hsTip('선이 <b>표시에 닿을 때</b> 화면을 두드려요 · 쾅!');
   });
 }
 function pzKnockTap(px, py) {
-  if (PZ.stage !== 'answer') return true;   // listening: taps do nothing
-  const now = performance.now() / 1000;
-  PZ.taps.push(now); PZ.idle = 0; snd.play('tap1', ARMREST());
-  const el = document.createElement('div'); el.className = 'knockRipple'; el.style.left = px + 'px'; el.style.top = py + 'px';
-  document.body.appendChild(el); setTimeout(() => el.remove(), 650);
-  if (PZ.taps.length >= KNOCKS[PZ.step].length + 1) { PZ.stage = 'judge'; hsAfter(0.45, pzKnockJudge); }
+  if (PZ.stage !== 'answer') return true;   // listening / counting: taps do nothing
+  const rel = S.time - PZ.a0, win = KN.win[PZ.step];
+  knockBang(DOOR_KNOCK, 0.8); PZ.idle = 0;
+  let best = -1, bd = 1e9;
+  PZ.ts.forEach((t, j) => { const d = Math.abs(rel - t); if (!PZ.hit[j] && d < bd) { bd = d; best = j; } });
+  const ok = best >= 0 && bd <= win;
+  if (ok) { PZ.hit[best] = true; PZ.marks[best]?.classList.add('got'); }
+  else { PZ.strays++; if (best >= 0) PZ.offs.push(rel - PZ.ts[best]); }
+  trackDot(rel / PZ.span, ok);
   return true;
 }
-function pzKnockUpdate(dt) {
+function pzKnockUpdate() {
+  if (PZ.stage === 'listen') trackHead((S.time - PZ.t0) / PZ.span);
   if (PZ.stage !== 'answer') return;
-  const last = PZ.taps[PZ.taps.length - 1];
-  if (last && performance.now() / 1000 - last > 2.4) { PZ.stage = 'judge'; pzKnockJudge(); }   // stopped short
-  else if (!last && PZ.idle > 12) { hsSay('…다시 두드린다.', 1.8); pzKnockPlay(); }             // never answered: hear it again
+  const rel = S.time - PZ.a0;
+  trackHead(rel / PZ.span);
+  if (rel > PZ.span) { PZ.stage = 'judge'; pzKnockJudge(); }
 }
 function pzKnockJudge() {
-  const pat = KNOCKS[PZ.step], T = PZ.taps, gaps = T.slice(1).map((t, i) => t - T[i]);
-  const m = Math.min(...gaps), got = gaps.map(g => g / m > 1.7 ? 'L' : 'S');
-  const ok = T.length === pat.length + 1 && gaps.every(g => g < 2.2) && got.join('') === pat.join('');
-  const [mx, my] = screenMid();
-  log('knock_answer', { step: PZ.step, want: pat.join(''), got: got.join(''), n: T.length, ok });
+  const ok = PZ.hit.every(Boolean) && !PZ.strays, [mx, my] = screenMid(), miss = PZ.hit.filter(h => !h).length;
+  log('knock_answer', { step: PZ.step, hit: PZ.hit.filter(Boolean).length, of: PZ.hit.length, strays: PZ.strays, ok });
   if (ok) {
     PZ.step++; anHud(); snd.play('right'); tapFx(true, mx, my, `암호 ${PZ.step}/3`);
+    hsAfter(0.9, trackHide);
     if (PZ.step >= 3) {
       hsTip(''); PZ.hold = false;
       const d = voice('pz_knock_done', UNDER_CHAIR, 2.0); hsSay('“엄마다… 진짜 엄마다…”', Math.max(2.6, d + 0.3));
@@ -1402,10 +1426,12 @@ function pzKnockJudge() {
     voice('pz_knock_ok', PZ.step === 2 ? UNDER_CHAIR : DOOR_KNOCK, 2.0); hsSay('“맞아… 맞아! 한 번 더.”', 2);
     hsTip(''); hsAfter(2.4, pzKnockPlay);
   } else {
-    pzWrong(mx, my, T.length !== pat.length + 1 ? `${T.length}번? …${pat.length + 1}번이었다` : '박자가 틀렸다', 8);
-    snd.play('bang', PZ.step < 2 ? DOOR_KNOCK : UNDER_CHAIR); if (PZ.step < 2) S.doorKnock = 3;
-    voice('pz_knock_bad', PZ.step < 2 ? DOOR_KNOCK : UNDER_CHAIR, 2.2); hsSay('“아니야!! 그거 아니잖아!!”', 2.2);
-    hsTip(''); hsAfter(3.0, pzKnockPlay);
+    const late = PZ.offs.length ? PZ.offs.reduce((a, b) => a + b, 0) / PZ.offs.length : 0;
+    const why = !PZ.hit.some(Boolean) && !PZ.strays ? '두드리지 않았다' : miss && !PZ.strays ? `${miss}번 놓쳤다` : Math.abs(late) > 0.05 ? (late > 0 ? '박자가 늦었다' : '박자가 빨랐다') : '박자가 틀렸다';
+    pzWrong(mx, my, why, 8);
+    snd.play('bang', PZ.from); knockBang(PZ.from, 2.5); hsAfter(0.15, () => knockBang(PZ.from, 2.5));
+    voice('pz_knock_bad', PZ.from, 2.2); hsSay('“아니야!! 그거 아니잖아!!”', 2.2);
+    hsTip(''); hsAfter(1.2, trackHide); hsAfter(3.0, pzKnockPlay);
   }
 }
 

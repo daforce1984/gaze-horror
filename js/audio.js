@@ -297,11 +297,11 @@ export class Sound {
     const s = ctx.createBufferSource(); s.buffer = this.buf[name]; s.connect(g); s.start();
     return { stop: (fade = 1) => { const t = ctx.currentTime; g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + fade); try { s.stop(t + fade + 0.05); } catch { } } };
   }
-  sample(name, dest, { gain = 1, rate = 1 } = {}) {
+  sample(name, dest, { gain = 1, rate = 1, offset = 0 } = {}) {
     const b = this.buf[name]; if (!b) return false;
     const s = this.ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = rate * (0.96 + Math.random() * 0.08);
     const g = this.ctx.createGain(); g.gain.value = gain;
-    s.connect(g).connect(dest); s.start();
+    s.connect(g).connect(dest); s.start(0, offset);
     return true;
   }
 
@@ -472,6 +472,15 @@ export class Sound {
         break;
       }
       case 'knock': for (let i = 0; i < 3; i++) { this.noiseHit(t + i * 0.32 + Math.random() * 0.04, { freq: 180, q: 2, v: 1.3, d: 0.12, dest }); this.thump(t + i * 0.32, 0.25, dest); } break;
+      case 'doorbang': {   // 쾅: a fist on the door — heavy low pound, wood crack, the door rattling in its frame (instant attack for timing)
+        this.sample('bang', dest, { gain: 1.1, offset: 0.13 });
+        const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(95, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.18);
+        this.env(g, t, 0.002, 1.6, 0.26); o.connect(g).connect(dest); o.start(t); o.stop(t + 0.35);
+        this.noiseHit(t, { freq: 140, q: 0.8, v: 2.4, a: 0.001, d: 0.22, dest });
+        this.noiseHit(t, { freq: 900, q: 1.2, v: 0.8, a: 0.001, d: 0.06, dest });
+        this.noiseHit(t + 0.03, { freq: 3200, q: 3, v: 0.25, a: 0.002, d: 0.12, dest });   // rattle
+        break;
+      }
       case 'knock1': this.noiseHit(t, { freq: 170, q: 2, v: 1.5, d: 0.12, dest }); this.thump(t, 0.35, dest); break;   // one knuckle on the door
       case 'tap1': this.noiseHit(t, { freq: 950, q: 3, v: 0.9, d: 0.05, dest }); this.thump(t, 0.12, dest); break;      // your knuckle on the armrest
       case 'bang': this.noiseHit(t, { freq: 120, q: 1, v: 2, d: 0.4, dest }); this.thump(t, 0.9, dest); break;

@@ -321,9 +321,21 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
 @keyframes hurtShake { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 
 /* puzzles: your knock on the armrest, the night's puzzle in the counter, the rolling dial */
-.knockRipple { position: fixed; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; border: 3px solid rgba(255,230,200,.85);
-  pointer-events: none; z-index: 30; animation: knockRipple .6s ease-out forwards; }
-@keyframes knockRipple { to { transform: scale(5); opacity: 0; border-width: 1px; } }
+/* the knock track: beats as marks, a playhead, your knocks as dots */
+#knockTrack { position: fixed; left: 50%; bottom: 24%; width: min(78vw, 520px); height: 46px; transform: translateX(-50%); display: none; z-index: 25;
+  pointer-events: none; border-radius: 23px; background: rgba(10,6,6,.55); border: 1px solid rgba(255,220,180,.18); }
+#knockTrack.show { display: block; }
+#knockTrack::before { content: ''; position: absolute; left: 14px; right: 14px; top: 50%; height: 2px; background: rgba(255,220,180,.18); }
+#knockTrack .head { position: absolute; top: 5px; bottom: 5px; width: 3px; margin-left: -1.5px; background: #ffd79a; box-shadow: 0 0 10px #ffb85a; border-radius: 2px; }
+#knockTrack b { position: absolute; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; background: rgba(255,120,90,.9); box-shadow: 0 0 12px rgba(255,80,60,.7); transition: opacity .2s, transform .15s; }
+#knockTrack b.wait { opacity: .12; transform: scale(.6); }
+#knockTrack b.lit { animation: knockLit .35s ease-out; }
+#knockTrack.dim b:not(.you):not(.got) { opacity: .28; }
+#knockTrack.hidden b:not(.you):not(.got) { opacity: 0; }
+#knockTrack b.got { background: #7dffb0; box-shadow: 0 0 14px rgba(90,255,150,.8); opacity: 1; }
+#knockTrack b.you { width: 10px; height: 10px; margin: -5px 0 0 -5px; top: 80%; box-shadow: none; }
+#knockTrack b.you.hit { background: #7dffb0; } #knockTrack b.you.miss { background: #ff4a4a; }
+@keyframes knockLit { 0% { transform: scale(1.9); } 100% { transform: scale(1); } }
 #anCount .pz { margin-left: 8px; padding: 1px 7px; border-radius: 9px; background: rgba(255,255,255,.08); color: #ffd79a; font-size: .9em; white-space: nowrap; }
 #anCount .pz.ok { color: #9dffbe; }
 .dials.wheel b { height: 108px; flex-direction: column; overflow: hidden; touch-action: none; cursor: ns-resize; display: flex; justify-content: center; line-height: 1.05; }
