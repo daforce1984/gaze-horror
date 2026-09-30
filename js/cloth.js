@@ -91,7 +91,16 @@ export class Cloth {
         want = Math.max(want, (b.x - this.x + rr) * Math.exp(-d2 / (rr * rr * 0.9)) * 0.9);
       }
       if (this.pokeT > 0) { const d = Math.hypot(zRest - this.pokeZ, y - this.pokeY); want = Math.max(want, this.pokeT * 0.12 * Math.max(0, 1 - d / 0.35)); }
-      this.bulge[i] += (want - this.bulge[i]) * Math.min(1, dt * 4);   // eased
+      // the bulge is physical: a body pushes the cloth out (it cannot pass through her), and when nothing
+      // holds it any more it falls back on its own weight, overshoots a little and sways still; each point is
+      // tied to its neighbours so the release ripples across the panel
+      const nb = ((c > 0 ? this.bulge[i - 1] : this.bulge[i]) + (c < n ? this.bulge[i + 1] : this.bulge[i]) + (r > 0 ? this.bulge[i - cols] : 0) + (r < rows - 1 ? this.bulge[i + cols] : this.bulge[i])) / 4;
+      const bv = this.bv || (this.bv = new Float32Array(cols * rows));
+      for (let s2 = 0; s2 < sub; s2++) {
+        bv[i] += ((0 - this.bulge[i]) * 18 + (nb - this.bulge[i]) * 90 - bv[i] * 1.6) * hs;
+        this.bulge[i] += bv[i] * hs;
+      }
+      if (this.bulge[i] < want) { this.bulge[i] += (want - this.bulge[i]) * Math.min(1, dt * 6); bv[i] = Math.max(bv[i], 0); }   // her shape holds it out
       P[k] = Math.max(x + this.bulge[i], this.wall); P[k + 1] = y - flare * 0.4; P[k + 2] = zRest;
     }
     this.build();

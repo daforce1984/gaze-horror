@@ -573,8 +573,9 @@ function hsFound() {
   log('valid_target', { round: HS.round, spot: HS.spot, realTime: +HS.real.toFixed(1), penalty: HS.penalty });
   if (HS.cctv) hsCctvView(false);
   const h = HIDE[HS.spot];
-  if (HS.spot === 'curtain') { S.curtainTarget = 1; snd.play('curtain', h.c); hsAfter(1.6, () => { S.curtainTarget = 0; }); }
-  if (S.ghost) {
+  // behind the curtain: she simply is not there any more; the cloth she held out falls back by itself
+  if (HS.spot === 'curtain' && S.ghost) { S.ghost.mode = 'found'; S.ghost.soft = true; hsAfter(0.3, () => { if (S.ghost?.mode === 'found') S.ghost.target = 0; }); }
+  else if (S.ghost) {
     S.ghost.mode = 'found';
     const to = v3.norm([EYE[0] - S.ghost.p[0], 0, EYE[2] - S.ghost.p[2]]);
     S.ghost.p = v3.add(S.ghost.p, v3.scale(to, 0.3));
@@ -1019,7 +1020,7 @@ function anFix(k) {
   snd.play(k === 'tv' ? 'pop' : k === 'drawer' ? 'drawer' : k === 'door' ? 'bang' : k === 'curtain' ? 'curtain' : 'chime', pos);
   if (k === 'tv') { S.tv.on = false; }
   if (k === 'door') S.doorOpenT = 0;
-  if (k === 'curtain') { S.curtainTarget = 1; hsAfter(1.4, () => { S.curtainTarget = 0; }); if (S.ghost) S.ghost.target = 0; snd.play('giggle', pos); }
+  if (k === 'curtain') { if (S.ghost) { S.ghost.soft = true; S.ghost.target = 0; } snd.play('giggle', pos); }   // she is gone; the cloth settles on its own
   if (k === 'crawl') { if (S.ghost) { S.ghost.target = 0; S.ghost.twitch = 1; } S.glitch = 0.8; line('crawl_hurt', pos, { quiet: false }); if (s.teach) hsTip(''); }
   // pending restore animation: s.k runs back to 0 in anApply
   AN.back = AN.back || {}; AN.back[k] = s;
