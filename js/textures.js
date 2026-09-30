@@ -1,6 +1,15 @@
 // Canvas-generated textures: blood writing, TV screen, clock, gradients, fallbacks
 const HAND = '"Nanum Pen Script", "Gaegu", cursive';
 
+import { $t } from './i18n.js';
+
+// fillText squeezed horizontally when it would be wider than maxW (English lines run longer than the Korean)
+function fillFit(g, text, x, y, maxW) {
+  const w = g.measureText(text).width;
+  if (w <= maxW) { g.fillText(text, x, y); return; }
+  g.save(); g.translate(x, y); g.scale(maxW / w, 1); g.fillText(text, 0, 0); g.restore();
+}
+
 export function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
 
 function rnd(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
@@ -93,7 +102,7 @@ export function clockHintTex(h, m, which, seed = 5) {
   g.beginPath(); g.moveTo(256, 250); g.lineTo(256 + Math.cos(ang) * len, 250 + Math.sin(ang) * len); g.stroke();
   g.beginPath(); g.arc(256, 250, 16, 0, Math.PI * 2); g.fill();
   g.font = `bold 72px ${HAND}`; g.textAlign = 'center';
-  g.fillText(which === 'hour' ? '짧은' : '긴', 256, 500);
+  g.fillText(which === 'hour' ? $t('짧은', 'short') : $t('긴', 'long'), 256, 500);
   drips(g, 120, 400, 430, 6, r);
   roughen(g, 512, 512, seed);
   return c;
@@ -206,7 +215,7 @@ export class TVScreen {
       }
       g.globalAlpha = 0.35; g.drawImage(this.noise, 0, 0, W, H); g.globalAlpha = 1;
       g.fillStyle = '#e8e8e8'; g.font = `bold 34px ${HAND}`; g.textAlign = 'center';
-      this.lines.forEach((l, i) => g.fillText(l, W / 2 + (Math.random() < 0.05 ? 6 : 0), H / 2 - (this.lines.length - 1) * 22 + i * 44));
+      this.lines.forEach((l, i) => fillFit(g, l, W / 2 + (Math.random() < 0.05 ? 6 : 0), H / 2 - (this.lines.length - 1) * 22 + i * 44, W - 24));
     }
     // OSD channel number
     if (this.osd > 0) {
@@ -374,11 +383,12 @@ export function childNoteTex(dd) {
   paperBg(g, 512, 384, [240, 232, 214], 44);
   g.strokeStyle = 'rgba(0,0,0,0.12)'; for (let x = 128; x < 512; x += 128) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 384); g.stroke(); }
   g.fillStyle = 'rgba(40,40,160,0.9)'; g.font = `44px ${CRAYON}`; g.textAlign = 'left';
-  g.fillText('서랍 비밀번호는', 40, 90);
-  g.fillText('엄마가 오는 날', 40, 150);
-  g.fillStyle = 'rgba(180,20,20,0.9)'; g.fillText('(달력에 동그라미!)', 40, 214);
-  g.fillStyle = 'rgba(40,40,40,0.8)'; g.font = `32px ${CRAYON}`; g.fillText('월 두 자리 + 일 두 자리', 40, 290);
-  g.fillText('— 수아', 330, 350);
+  // (a clue the player has to read: written in the player's language)
+  fillFit(g, $t('서랍 비밀번호는', 'The drawer code is'), 40, 90, 440);
+  fillFit(g, $t('엄마가 오는 날', 'the day Mommy comes!'), 40, 150, 440);
+  g.fillStyle = 'rgba(180,20,20,0.9)'; fillFit(g, $t('(달력에 동그라미!)', '(circled on the calendar!)'), 40, 214, 440);
+  g.fillStyle = 'rgba(40,40,40,0.8)'; g.font = `32px ${CRAYON}`; fillFit(g, $t('월 두 자리 + 일 두 자리', 'month 2 numbers + day 2 numbers'), 40, 290, 440);
+  g.fillText($t('— 수아', '— Sua'), 330, 350);
   return c;
 }
 
@@ -457,16 +467,16 @@ export function poemTex(lines) {
   g.strokeStyle = 'rgba(80,110,170,0.22)'; g.lineWidth = 1;
   for (let y = 120; y < H; y += 62) { g.beginPath(); g.moveTo(24, y); g.lineTo(W - 24, y); g.stroke(); }
   g.fillStyle = 'rgba(120,30,140,0.9)'; g.font = `58px ${CRAYON}`; g.textAlign = 'center';
-  g.save(); g.translate(W / 2, 86); g.rotate(-0.03); g.fillText('수아의 자장가', 0, 0); g.restore();
+  g.save(); g.translate(W / 2, 86); g.rotate(-0.03); g.fillText($t('수아의 자장가', "Sua's Lullaby"), 0, 0); g.restore();
   const cols = ['rgba(30,40,150,0.9)', 'rgba(170,25,25,0.9)', 'rgba(20,110,50,0.9)', 'rgba(150,80,10,0.92)', 'rgba(60,60,60,0.9)'];
   g.textAlign = 'left';
   lines.forEach((l, i) => {
     g.fillStyle = cols[i % cols.length]; g.font = `${l.length > 17 ? 36 : 40}px ${CRAYON}`;
     g.save(); g.translate(34 + r() * 10, 170 + i * 124); g.rotate((r() - 0.5) * 0.04);
-    const [a, b] = l.split('|'); g.fillText(a, 0, 0); if (b) g.fillText(b, 26, 58); g.restore();
+    const [a, b] = l.split('|'); fillFit(g, a, 0, 0, W - 80); if (b) fillFit(g, b, 26, 58, W - 100); g.restore();
   });
   g.fillStyle = 'rgba(40,40,40,0.75)'; g.font = `30px ${CRAYON}`; g.textAlign = 'right';
-  g.fillText('순서 틀리면 다 깨! — 수아', W - 34, H - 26);
+  fillFit(g, $t('순서 틀리면 다 깨! — 수아', 'Wrong order and they ALL wake up! — Sua'), W - 34, H - 26, W - 68);
   return c;
 }
 

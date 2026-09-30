@@ -341,3 +341,15 @@ button.ghostbtn { background: transparent; border: 1px solid var(--line); paddin
 .dials.wheel b { height: 108px; flex-direction: column; overflow: hidden; touch-action: none; cursor: ns-resize; display: flex; justify-content: center; line-height: 1.05; }
 .dials.wheel b i { font-style: normal; font-size: 20px; opacity: .35; }
 .dials.wheel b em { font-style: normal; font-size: 38px; color: #ffe2b0; text-shadow: 0 0 8px rgba(255,190,110,.5); }
+
+/* ---- language: selector (title + pause menu) and English typography */
+.langsel { margin: 20px 0 0; max-width: 260px; }
+@media (max-aspect-ratio: 1/1) { #title .langsel { margin-left: auto; margin-right: auto; } }
+html[lang=en] { --serif: "Crimson Pro", "Nanum Myeongjo", Georgia, "Times New Roman", serif; }
+html[lang=en] #title h1 { font-size: clamp(44px, 7vw, 92px); letter-spacing: .04em; white-space: nowrap; }
+html[lang=en] #title .lead, html[lang=en] #subtitle { font-size: clamp(16px, 2.3vw, 20px); }
+html[lang=en] #title .lead { font-size: 17px; }
+html[lang=en] #hsTip, html[lang=en] #hint { white-space: normal; width: max-content; max-width: min(92vw, 640px); text-align: center; line-height: 1.45; }
+html[lang=en] .card .hint, html[lang=en] .memo li { font-size: 15px; }
+html[lang=en] #hotbar .slot small, html[lang=en] #turnBtn small { letter-spacing: -.01em; }
+html[lang=en] .endtext h1 { font-size: clamp(40px, 11vw, 64px); letter-spacing: .06em; }

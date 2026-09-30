@@ -6,6 +6,7 @@ import { m4, v3, clamp, lerp, smooth, damp, rayAABB } from './math.js';
 import { Telemetry } from './telemetry.js';
 import { Sound } from './audio.js';
 import * as TX from './textures.js';
+import { $t, LANG, setLang } from './i18n.js';
 
 /* 응시 — THE GAZE
    You are tied to a chair. Stare at something long enough and "she" brings it to you — but every
@@ -148,7 +149,7 @@ async function loadAll() {
   const keys = Object.keys(ASSETS); let n = 0;
   await Promise.all(keys.map(async k => {
     IMG[k] = await loadImage(ASSETS[k]);
-    n++; ui.load.textContent = `불러오는 중… ${Math.round(n / keys.length * 100)}%`;
+    n++; ui.load.textContent = $t('불러오는 중… ', 'Loading… ') + `${Math.round(n / keys.length * 100)}%`;
   }));
   const [room, ghost] = await Promise.all([loadGLB('assets/room.glb'), loadGLB('assets/ghost.glb'), snd.prefetch().then(() => snd.predecode())]);
   GLB.room = room; GLB.ghost = ghost;
@@ -367,18 +368,18 @@ function buildScene() {
     const box = cfg.objs ? docBox(cfg.objs[0]) : nodeBox(cfg.nodes);
     W[id] = { id, objs, ...box, ...cfg };
   };
-  def('remote', { name: '리모컨', nodes: ['item_remote'], cost: 8, act: 0, item: 'remote' });
-  def('musicbox', { name: '오르골', nodes: ['item_musicbox', 'item_musicbox_lid'], cost: 10, act: 0, item: 'musicbox', hidden: true });
-  def('curtain', { name: '커튼', nodes: ['curtain_L', 'curtain_R'], cost: 6, act: 1, action: true });
-  def('calendar', { name: '창문의 달력', objs: [O.calendarObj], cost: 5, act: 1, item: 'calendar', needs: () => S.curtainOpen > 0.6 });
-  def('drawer', { name: '책상 서랍', nodes: ['drawer', 'drawer_lock'], cost: 16, act: 1, item: 'drawer', heavy: true });
-  def('machine', { name: '자동응답기', nodes: ['answering_machine', 'am_led'], cost: 12, act: 1, item: 'machine' });
-  def('note', { name: '쪽지', objs: [O.noteObj], cost: 4, act: 1, item: 'note' });
-  def('drawing', { name: '크레용 그림', objs: [O.drawingObj], cost: 5, act: 1, item: 'drawing' });
-  def('news', { name: '신문 조각', objs: [O.newsObj], cost: 4, act: 2, item: 'news', needs: () => O.newsObj.visible });
-  def('frame', { name: '가족사진', nodes: ['item_frame'], objs2: [O.photoObj], cost: 9, act: 1, item: 'photo' });
-  def('knife', { name: '부엌칼', nodes: ['item_knife'], cost: 30, act: 1, item: 'knife', knife: true });
-  def('doll', { name: '인형', nodes: ['item_doll'], cost: 25, act: 2, item: 'doll', angry: true });
+  def('remote', { name: $t('리모컨', 'Remote'), nodes: ['item_remote'], cost: 8, act: 0, item: 'remote' });
+  def('musicbox', { name: $t('오르골', 'Music box'), nodes: ['item_musicbox', 'item_musicbox_lid'], cost: 10, act: 0, item: 'musicbox', hidden: true });
+  def('curtain', { name: $t('커튼', 'Curtain'), nodes: ['curtain_L', 'curtain_R'], cost: 6, act: 1, action: true });
+  def('calendar', { name: $t('창문의 달력', 'Calendar on the window'), objs: [O.calendarObj], cost: 5, act: 1, item: 'calendar', needs: () => S.curtainOpen > 0.6 });
+  def('drawer', { name: $t('책상 서랍', 'Desk drawer'), nodes: ['drawer', 'drawer_lock'], cost: 16, act: 1, item: 'drawer', heavy: true });
+  def('machine', { name: $t('자동응답기', 'Answering machine'), nodes: ['answering_machine', 'am_led'], cost: 12, act: 1, item: 'machine' });
+  def('note', { name: $t('쪽지', 'Note'), objs: [O.noteObj], cost: 4, act: 1, item: 'note' });
+  def('drawing', { name: $t('크레용 그림', 'Crayon drawing'), objs: [O.drawingObj], cost: 5, act: 1, item: 'drawing' });
+  def('news', { name: $t('신문 조각', 'Newspaper clipping'), objs: [O.newsObj], cost: 4, act: 2, item: 'news', needs: () => O.newsObj.visible });
+  def('frame', { name: $t('가족사진', 'Family photo'), nodes: ['item_frame'], objs2: [O.photoObj], cost: 9, act: 1, item: 'photo' });
+  def('knife', { name: $t('부엌칼', 'Kitchen knife'), nodes: ['item_knife'], cost: 30, act: 1, item: 'knife', knife: true });
+  def('doll', { name: $t('인형', 'Doll'), nodes: ['item_doll'], cost: 25, act: 2, item: 'doll', angry: true });
   W.frame.objs = [...W.frame.objs, O.photoObj];
   // items that only exist inside other things
   for (const n of ['item_scissors', 'item_crank']) setVisible(O.nodes[n], false);
@@ -389,20 +390,20 @@ function buildScene() {
 
 // ---------------------------------------------------------------- items in the lap
 const ITEMS = {
-  remote: { name: '리모컨', icon: '📺' },
-  musicbox: { name: '오르골', icon: '🎵', obj: 'musicbox', desc: '작은 나무 오르골. 태엽 구멍이 비어 있다.' },
-  calendar: { name: '달력', icon: '📅', doc: 'calendar' },
-  drawer: { name: '잠긴 서랍', icon: '🗄', obj: 'drawer', desc: '서랍째 뽑혀 왔다. 숫자 네 자리 자물쇠가 걸려 있다.' },
-  scissors: { name: '가위', icon: '✂', nodes: ['item_scissors'], desc: '녹슨 가위. 날은 아직 선다.' },
-  crank: { name: '태엽 열쇠', icon: '🗝', nodes: ['item_crank'], desc: '오르골 태엽을 감는 작은 열쇠.' },
-  machine: { name: '자동응답기', icon: '📼', obj: 'machine', desc: '빨간 불이 깜빡인다. 메시지가 남아 있다.' },
-  note: { name: '쪽지', icon: '📝', doc: 'note' },
-  drawing: { name: '크레용 그림', icon: '🖍', doc: 'drawing' },
-  news: { name: '신문 조각', icon: '📰', doc: 'news' },
-  photo: { name: '가족사진', icon: '🖼', doc: 'photo' },
-  knife: { name: '부엌칼', icon: '🔪', obj: 'knife', desc: '날 쪽을 쥐여 줬다. 손바닥이 베였다.' },
-  doll: { name: '수아 인형', icon: '🧸', obj: 'doll', desc: '헝겊 인형. 배가 불룩하고, 서툴게 꿰매져 있다.' },
-  anklekey: { name: '작은 열쇠', icon: '🔑', desc: '인형 배 속에 있던 열쇠. 젖니 하나가 같이 나왔다.' },
+  remote: { name: $t('리모컨', 'Remote'), icon: '📺' },
+  musicbox: { name: $t('오르골', 'Music box'), icon: '🎵', obj: 'musicbox', desc: $t('작은 나무 오르골. 태엽 구멍이 비어 있다.', 'A little wooden music box. The winding hole is empty.') },
+  calendar: { name: $t('달력', 'Calendar'), icon: '📅', doc: 'calendar' },
+  drawer: { name: $t('잠긴 서랍', 'Locked drawer'), icon: '🗄', obj: 'drawer', desc: $t('서랍째 뽑혀 왔다. 숫자 네 자리 자물쇠가 걸려 있다.', 'She pulled the whole drawer out for you. A four-digit padlock hangs on it.') },
+  scissors: { name: $t('가위', 'Scissors'), icon: '✂', nodes: ['item_scissors'], desc: $t('녹슨 가위. 날은 아직 선다.', 'Rusty scissors. Still sharp.') },
+  crank: { name: $t('태엽 열쇠', 'Winding key'), icon: '🗝', nodes: ['item_crank'], desc: $t('오르골 태엽을 감는 작은 열쇠.', 'A tiny key for winding a music box.') },
+  machine: { name: $t('자동응답기', 'Answering machine'), icon: '📼', obj: 'machine', desc: $t('빨간 불이 깜빡인다. 메시지가 남아 있다.', 'A red light is blinking. There are messages.') },
+  note: { name: $t('쪽지', 'Note'), icon: '📝', doc: 'note' },
+  drawing: { name: $t('크레용 그림', 'Crayon drawing'), icon: '🖍', doc: 'drawing' },
+  news: { name: $t('신문 조각', 'Newspaper clipping'), icon: '📰', doc: 'news' },
+  photo: { name: $t('가족사진', 'Family photo'), icon: '🖼', doc: 'photo' },
+  knife: { name: $t('부엌칼', 'Kitchen knife'), icon: '🔪', obj: 'knife', desc: $t('날 쪽을 쥐여 줬다. 손바닥이 베였다.', 'She pressed it into your hand blade-first. Your palm is cut.') },
+  doll: { name: $t('수아 인형', 'Sua\'s doll'), icon: '🧸', obj: 'doll', desc: $t('헝겊 인형. 배가 불룩하고, 서툴게 꿰매져 있다.', 'A rag doll. Its belly bulges, clumsily stitched shut.') },
+  anklekey: { name: $t('작은 열쇠', 'Small key'), icon: '🔑', desc: $t('인형 배 속에 있던 열쇠. 젖니 하나가 같이 나왔다.', 'The key from inside the doll\'s belly. A baby tooth came out with it.') },
 };
 function invAdd(id) {
   if (S.inv.includes(id)) return;
@@ -428,13 +429,13 @@ function trayTap(id) {
 const LOG = []; window.__log = LOG;
 function log(ev, data = {}) { LOG.push({ t: +S.time.toFixed(2), ev, ...data }); TEL?.event('game', { ev, gt: +S.time.toFixed(1), ...data }); }
 const HIDE = {
-  curtain: { ghost: [-2.1, 0, -1.02], kind: 'stand', min: [-2.35, 0, -1.55], max: [-1.9, 2.2, 0.25], c: [-2.08, 0.9, -0.7], cue: 'curtain', name: '커튼 뒤' },
-  desk: { ghost: [1.95, 0, 0.06], kind: 'crouch', min: [1.45, 0, -0.35], max: [2.2, 0.85, 0.4], c: [1.85, 0.4, 0.05], cue: 'desk', name: '책상 밑' },
-  shelf: { ghost: [-2.0, 0, 1.92], kind: 'stand', min: [-2.2, 0, 1.55], max: [-1.15, 1.7, 2.5], c: [-1.8, 0.9, 2.0], cue: 'shelf', name: '책장 옆' },
-  tvside: { ghost: [-0.84, 0, -2.18], kind: 'crouch', min: [-1.25, 0, -2.5], max: [-0.45, 0.95, -1.85], c: [-0.82, 0.45, -2.2], cue: 'tv', name: 'TV 옆' },
-  door: { ghost: [0.7, 0, 2.22], kind: 'stand', min: [0.05, 0, 1.9], max: [1.35, 2.15, 2.6], c: [0.7, 1.0, 2.3], cue: 'door', name: '문 앞' },
-  behind: { ghost: [0.05, 0, 1.02], kind: 'stand', min: [-0.45, 0, 0.62], max: [0.5, 1.7, 1.45], c: [0.05, 1.1, 1.0], cue: 'chair', name: '의자 뒤' },
-  under: { ghost: [0.02, 0.12, 1.55], kind: 'stand', lying: true, min: [-0.35, 0, 0.1], max: [0.4, 0.45, 1.7], c: [0.02, 0.15, 0.8], cue: 'chair', name: '의자 밑' },
+  curtain: { ghost: [-2.1, 0, -1.02], kind: 'stand', min: [-2.35, 0, -1.55], max: [-1.9, 2.2, 0.25], c: [-2.08, 0.9, -0.7], cue: 'curtain', name: $t('커튼 뒤', 'Behind the curtain') },
+  desk: { ghost: [1.95, 0, 0.06], kind: 'crouch', min: [1.45, 0, -0.35], max: [2.2, 0.85, 0.4], c: [1.85, 0.4, 0.05], cue: 'desk', name: $t('책상 밑', 'Under the desk') },
+  shelf: { ghost: [-2.0, 0, 1.92], kind: 'stand', min: [-2.2, 0, 1.55], max: [-1.15, 1.7, 2.5], c: [-1.8, 0.9, 2.0], cue: 'shelf', name: $t('책장 옆', 'By the bookshelf') },
+  tvside: { ghost: [-0.84, 0, -2.18], kind: 'crouch', min: [-1.25, 0, -2.5], max: [-0.45, 0.95, -1.85], c: [-0.82, 0.45, -2.2], cue: 'tv', name: $t('TV 옆', 'Beside the TV') },
+  door: { ghost: [0.7, 0, 2.22], kind: 'stand', min: [0.05, 0, 1.9], max: [1.35, 2.15, 2.6], c: [0.7, 1.0, 2.3], cue: 'door', name: $t('문 앞', 'By the door') },
+  behind: { ghost: [0.05, 0, 1.02], kind: 'stand', min: [-0.45, 0, 0.62], max: [0.5, 1.7, 1.45], c: [0.05, 1.1, 1.0], cue: 'chair', name: $t('의자 뒤', 'Behind the chair') },
+  under: { ghost: [0.02, 0.12, 1.55], kind: 'stand', lying: true, min: [-0.35, 0, 0.1], max: [0.4, 0.45, 1.7], c: [0.02, 0.15, 0.8], cue: 'chair', name: $t('의자 밑', 'Under the chair') },
 };
 const HS = { on: false, round: 0, spot: null, decoys: [], t: 0, real: 0, penalty: 0, phase: 'idle', esc: 0, firstInput: false, turning: null, lastSpot: 'curtain', cctv: false };
 let hsToken = 0;
@@ -449,11 +450,11 @@ function hsAfterVoice(fn, pad = 0.35) {   // run fn once she has finished her li
 function hsNewBeat() { hsToken++; snd.stopVoices(); subQueue = []; }
 // the girl's extra lines (subtitle = spoken words); `quiet` skips it while another line is playing
 const LINES = {
-  an_spawn1: '히히… 이것 좀 봐~', an_spawn2: '또 바꿨다~ 히히.', an_spawn3: '엄마, 이상하지? 이상하지?!', an_spawn4: '뭐가~ 달라졌게~',
-  an_danger: '빨리! 빨리 찾아!! 히..히히히히힛!!', an_rescue: '에이… 히..히히, 아깝다.', an_doll: '내 인형이… 엄마 보고 싶대. 히히힛.',
-  an_lamp: '빨개졌다~ 히..히히히힛!!', crawl_near: '엄마… 거의 다 왔어… 히..히히.', crawl_hurt: '아파!! 왜 밀어내!!',
-  shift_start: '싫어… 싫어!! 방이… 방이 변해!!', hs_found3: '찾았다… 찾았어!! 히..히히히힛!!',
-  amb1: '엄마… 어디 있어…', amb2: '히히… 여기야… 아니, 여기…', amb3: '배고파… 엄마…', amb4: '하나, 둘, 셋… 히히힛.',
+  an_spawn1: $t('히히… 이것 좀 봐~', 'Hehe… look at this~'), an_spawn2: $t('또 바꿨다~ 히히.', 'I changed it again~ hehe.'), an_spawn3: $t('엄마, 이상하지? 이상하지?!', 'Mommy, it\'s weird, right? Isn\'t it?!'), an_spawn4: $t('뭐가~ 달라졌게~', 'Guess~ what\'s different~'),
+  an_danger: $t('빨리! 빨리 찾아!! 히..히히히히힛!!', 'Hurry! Hurry and find it!! Hee..hehehehe!!'), an_rescue: $t('에이… 히..히히, 아깝다.', 'Aww… hee..hehe, so close.'), an_doll: $t('내 인형이… 엄마 보고 싶대. 히히힛.', 'My dolly… says she misses you, Mommy. Hehehe.'),
+  an_lamp: $t('빨개졌다~ 히..히히히힛!!', 'It went all red~ hee..hehehe!!'), crawl_near: $t('엄마… 거의 다 왔어… 히..히히.', 'Mommy… I\'m almost there… hee..hehe.'), crawl_hurt: $t('아파!! 왜 밀어내!!', 'Ow!! Why are you pushing me away!!'),
+  shift_start: $t('싫어… 싫어!! 방이… 방이 변해!!', 'No… no!! The room… the room is changing!!'), hs_found3: $t('찾았다… 찾았어!! 히..히히히힛!!', 'Found… you found me!! Hee..hehehe!!'),
+  amb1: $t('엄마… 어디 있어…', 'Mommy… where are you…'), amb2: $t('히히… 여기야… 아니, 여기…', 'Hehe… over here… no, here…'), amb3: $t('배고파… 엄마…', 'I\'m hungry… Mommy…'), amb4: $t('하나, 둘, 셋… 히히힛.', 'One, two, three… hehehe.'),
 };
 function line(id, pos, { quiet = true, gain = 2.0 } = {}) {
   if (quiet && (snd.voices || []).length) return 0;
@@ -484,7 +485,7 @@ function toChair(then) {
   const L = $('#lids'); L.style.setProperty('--lid-t', '0.35s'); L.className = 'show open'; void L.offsetWidth; L.classList.remove('open');   // a slow blink
   hsAfter(0.5, () => {
     S.flags.chair = 1; seatBeanbag(false); S.shake = Math.max(S.shake, 0.3);
-    snd.play('creak', v3.add(EYE, [0, -0.6, 0])); hsSay('…눈을 떠 보니, 딱딱한 나무 의자. 손목이 묶여 있다.', 3.4);
+    snd.play('creak', v3.add(EYE, [0, -0.6, 0])); hsSay($t('…눈을 떠 보니, 딱딱한 나무 의자. 손목이 묶여 있다.', '…You open your eyes on a hard wooden chair. Your wrists are tied.'), 3.4);
     log('seat_swap', {});
   });
   hsAfter(1.1, () => { L.style.setProperty('--lid-t', '0.9s'); L.classList.add('open'); });
@@ -497,8 +498,8 @@ function hsStart() {
   S.yaw = 0; S.pitch = -0.08;   // waking up: the TV is the first thing in front of you
   wakeUp();
   log('chapter_start', { ch: 1 });
-  hsAfter(3.4, () => { voice('hs_start', HIDE.curtain.c, 2.2); hsSay('“엄마! 일어났다! 우리 숨바꼭질 하자. 엄마가 술래야!”', 4.2); });
-  hsRound(1);
+  hsRound(1);   // (first: a new round resets the timers)
+  hsAfter(3.4, () => { voice('hs_start', HIDE.curtain.c, 2.2); hsSay($t('“엄마! 일어났다! 우리 숨바꼭질 하자. 엄마가 술래야!”', '“Mommy! You\'re awake! Let\'s play hide-and-seek. You\'re it!”'), 4.2); });
 }
 function hsRound(n, retry = false) {
   hsNewBeat();
@@ -507,7 +508,7 @@ function hsRound(n, retry = false) {
   S.lampDim = 0;
   const pickSpot = (pool) => { const c = pool.filter(k => k !== HS.lastSpot); return c[Math.floor(Math.random() * c.length)]; };
   if (n === 1) {   // at first the room is just her studio with the TV on; half a minute later someone is behind the curtain
-    const go = () => { hsHide('curtain', []); HS.phase = 'seek'; hsTip('<b>수아</b>를 찾아 눌러요'); log('round_start', { n, spot: 'curtain' }); };
+    const go = () => { hsHide('curtain', []); HS.phase = 'seek'; hsTip($t('<b>수아</b>를 찾아 눌러요', 'Find <b>Sua</b> and tap her')); log('round_start', { n, spot: 'curtain' }); };
     if (retry) go(); else { HS.phase = 'wait'; hsAfter(30, go); }
     return;
   }
@@ -520,12 +521,12 @@ function hsRound(n, retry = false) {
   HS.phase = 'count'; hsTip('');
   S.blackoutTarget = 1; S.ghost = null;
   const d = retry ? 0.5 : n === 2 ? 1.6 : n === 3 ? 2.0 : 1.2;   // eyes closed: short, long only before the twist
-  hsSay('(눈을 감는다) …타닥타닥, 뛰어가는 발소리', d + 0.6);
+  hsSay($t('(눈을 감는다) …타닥타닥, 뛰어가는 발소리', '(You close your eyes) …pitter-patter, little feet running'), d + 0.6);
   const from = HIDE[HS.lastSpot].ghost, to = HIDE[n === 3 ? 'curtain' : spot].ghost;   // round 3: the footsteps lie
   for (let k = 1; k <= 4; k++) hsAfter(k * d / 4.5, () => snd.play('steps', v3.add(v3.scale(from, 1 - k / 4), v3.scale(to, k / 4))));
   hsAfter(d, () => {
     S.blackoutTarget = 0; hsHide(spot, decoys); HS.phase = 'seek'; HS.t = 0; HS.real = 0;
-    voice('hs_ready', null, 1.8); hsSay('“다 숨었다! 찾아봐~”', 2);
+    voice('hs_ready', null, 1.8); hsSay($t('“다 숨었다! 찾아봐~”', '“Ready! Come find me~”'), 2);
     if (n === 4) hsCctvRound();
     log('round_start', { n, spot, decoys, retry });
     log('input_enabled', { n });
@@ -584,24 +585,24 @@ function hsTap(px, py, dir) {
     const d = v3.sub(h.c, CCTV.pos), z = v3.dot(d, cam.f);
     const sx = (v3.dot(d, cam.r) / z / (CCTV.tanHalf * (R.width / R.height)) * 0.5 + 0.5) * rect.width;
     const sy = (0.5 - v3.dot(d, cam.u) / z / CCTV.tanHalf * 0.5) * rect.height;
-    if (Math.hypot(px - rect.left - sx, py - rect.top - sy) < Math.max(90, rect.width * 0.12)) { tapFx(true, px, py, '찾았다!'); snd.play('right'); hsFound(); return true; }
+    if (Math.hypot(px - rect.left - sx, py - rect.top - sy) < Math.max(90, rect.width * 0.12)) { tapFx(true, px, py, $t('찾았다!', 'Found you!')); snd.play('right'); hsFound(); return true; }
     log('false_tap', { where: 'cctv' }); hsCctvView(false); return true;
   }
   const k = hsPick(px, py, dir);
   if (!k) { log('false_tap', { where: 'nothing' }); return true; }
-  if (k === HS.spot) { tapFx(true, px, py, '찾았다!'); snd.play('right'); hsFound(); return true; }
+  if (k === HS.spot) { tapFx(true, px, py, $t('찾았다!', 'Found you!')); snd.play('right'); hsFound(); return true; }
   // a decoy
   log('false_tap', { where: k });
   if (HS.round === 3 && k === 'curtain' && !HS.cheatDone) {
     HS.cheatDone = true;
-    tapFx(false, px, py, '비어 있다');
+    tapFx(false, px, py, $t('비어 있다', 'Empty'));
     S.curtainTarget = 1; snd.play('curtain', HIDE.curtain.c);
-    hsAfter(0.9, () => { voice('hs_cheat', HIDE.behind.c, 2.2); hsSay('“속았지? 커튼엔 아무도 없었어!”', 3); });
-    hsAfter(3.2, () => { S.curtainTarget = 0; snd.play('creak', HIDE.behind.c); voice('hs_behind', HIDE.behind.c, 2.4); hsSay('…등 뒤에서, 의자가 삐걱.', 3); $('#turnBtn').classList.add('pulse'); log('hint_used', { hint: 'behind' }); });
+    hsAfter(0.9, () => { voice('hs_cheat', HIDE.behind.c, 2.2); hsSay($t('“속았지? 커튼엔 아무도 없었어!”', '“Fooled you! There was nobody behind the curtain!”'), 3); });
+    hsAfter(3.2, () => { S.curtainTarget = 0; snd.play('creak', HIDE.behind.c); voice('hs_behind', HIDE.behind.c, 2.4); hsSay($t('…등 뒤에서, 의자가 삐걱.', '…Behind you, the chair creaks.'), 3); $('#turnBtn').classList.add('pulse'); log('hint_used', { hint: 'behind' }); });
     return true;
   }
-  tapFx(false, px, py, '여기 없다'); snd.play('wrong');
-  voice('hs_wrong', HIDE[HS.spot].c, 1.8); hsSay('“거기 아니야~”', 2);
+  tapFx(false, px, py, $t('여기 없다', 'Not here')); snd.play('wrong');
+  voice('hs_wrong', HIDE[HS.spot].c, 1.8); hsSay($t('“거기 아니야~”', '“Not there~”'), 2);
   HS.t += 3; HS.penalty += 3;   // a wrong guess moves the warnings closer
   return true;
 }
@@ -621,7 +622,7 @@ function hsFound() {
     hsAfter(1.4, () => { if (S.ghost?.mode === 'found') S.ghost.target = 0; });
   }
   S.flash = 0.18; S.flashCol = [1, 0.95, 0.85];
-  const fl = HS.round === 1 ? ['hs_found1', '히히, 들켰다!'] : HS.round === 3 ? ['c_found', '히히히힛! 찾았다.'] : HS.round >= 4 ? ['hs_found3', '찾았다… 찾았어!! 히..히히히힛!!'] : ['hs_found2', '와, 엄마 잘 찾는다! 히히.'];
+  const fl = HS.round === 1 ? ['hs_found1', $t('히히, 들켰다!', 'Hehe, you got me!')] : HS.round === 3 ? ['c_found', $t('히히히힛! 찾았다.', 'Hehehehe! You found me.')] : HS.round >= 4 ? ['hs_found3', $t('찾았다… 찾았어!! 히..히히히힛!!', 'Found… you found me!! Hee..hehehe!!')] : ['hs_found2', $t('와, 엄마 잘 찾는다! 히히.', 'Wow, Mommy\'s good at this! Hehe.')];
   voice(fl[0], h.c, 2.2); hsSay(`“${fl[1]}”`, 2.4);
   if (HS.round === 1) {   // the reward floats to your lap while you can still look around
     hsAfter(1.6, () => toChair(() => {
@@ -629,7 +630,7 @@ function hsFound() {
       hsAfter(1.2, () => anStart(1));
     }));
   } else if (HS.round === 2) {   // one-line story fragment, 3 seconds
-    hsAfter(1.6, () => { S.tape = Math.max(S.tape, 1); hsSay('📼 …책상 위 자동응답기에 빨간 불이 켜졌다. “수아야~ 엄마야…”', 3); snd.play('beep', [1.81, 0.8, 0.12]); });
+    hsAfter(1.6, () => { S.tape = Math.max(S.tape, 1); hsSay($t('📼 …책상 위 자동응답기에 빨간 불이 켜졌다. “수아야~ 엄마야…”', '📼 …On the desk, the answering machine\'s red light blinks on. “Sua~ it\'s Mommy…”'), 3); snd.play('beep', [1.81, 0.8, 0.12]); });
     hsAfter(3.6, () => hsRound(3));
   } else if (HS.round === 3) {
     hsAfterVoice(() => anStart(2));
@@ -645,7 +646,7 @@ function hsFail() {
   // she steps out right in front of you — the only real scare, after two warnings
   const p = v3.add([EYE[0], 0, EYE[2]], v3.scale(flatFwd(), 0.7));
   S.ghost = { p, kind: 'stand', alpha: 0.2, target: 1, mode: 'close' };
-  voice('hs_fail', [p[0], 1.1, p[2]], 2.4); hsSay('“엄마 바보~ 여기 있었지롱.”', 2.5);
+  voice('hs_fail', [p[0], 1.1, p[2]], 2.4); hsSay($t('“엄마 바보~ 여기 있었지롱.”', '“Silly Mommy~ I was right here.”'), 2.5);
   S.shake = 0.6; S.flash = 0.3; S.flashCol = [0.4, 0.05, 0.05];
   touch(12, 'hs_fail');
   hsAfter(1.6, () => { if (S.ghost) S.ghost.target = 0; log('retry', { round: HS.round }); hsRound(HS.round, true); });
@@ -653,7 +654,7 @@ function hsFail() {
 // round 4: the one place your own eyes can't reach — the TV shows it
 function hsCctvRound() {
   S.tv.on = true; S.tv.ch = 7; tvScreen.channel = 7; tvScreen.osd = 3; snd.play('static', O.tvCenter); S.glitch = 0.8;
-  hsAfter(1.2, () => { hsTip('<b>TV</b>를 눌러 봐요'); hsSay('TV가 저절로 켜졌다. …방 구석 카메라 화면.', 3); });
+  hsAfter(1.2, () => { hsTip($t('<b>TV</b>를 눌러 봐요', 'Tap the <b>TV</b>')); hsSay($t('TV가 저절로 켜졌다. …방 구석 카메라 화면.', 'The TV switched itself on. …A camera feed from the corner of the room.'), 3); });
 }
 function hsCctvView(on) {
   HS.cctv = on; $('#cctvOsd').classList.toggle('show', on);
@@ -668,21 +669,21 @@ function hsStory() {
   const p = v3.add([EYE[0], 0, EYE[2]], [0.15, 0, -1.05]);
   S.ghost = { p, kind: 'stand', alpha: 0, target: 1, mode: 'close' };
   S.yaw = 0.05; S.pitch = -0.05;
-  voice('c_rope', [p[0], 1.1, p[2]], 2.2); hsSay('“가지 마!! 또… 가지 마…”', 3.4);
-  hsAfter(3.6, () => { hsSay('그 애가 벽의 가족사진을 가리킨다.', 3); S.flags.photoGlow = 1; });
-  hsAfter(6.8, () => { hsTip('<b>가족사진</b>을 눌러 봐요'); HS.phase = 'photo'; log('input_enabled', { n: 'photo' }); });
+  voice('c_rope', [p[0], 1.1, p[2]], 2.2); hsSay($t('“가지 마!! 또… 가지 마…”', '“Don\'t go!! Not again… don\'t go…”'), 3.4);
+  hsAfter(3.6, () => { hsSay($t('그 애가 벽의 가족사진을 가리킨다.', 'She points at the family photo on the wall.'), 3); S.flags.photoGlow = 1; });
+  hsAfter(6.8, () => { hsTip($t('<b>가족사진</b>을 눌러 봐요', 'Tap the <b>family photo</b>')); HS.phase = 'photo'; log('input_enabled', { n: 'photo' }); });
 }
 function hsPhoto() {
   hsNewBeat();
   HS.phase = 'choice'; hsTip(''); S.flags.photoGlow = 0;
-  showDoc('가족사진', S.decay > 0.5 ? O.familyRuined : O.familyClean,
-    '생일 케이크 앞의 여자와 수아. …사진 속 여자의 얼굴을, 나는 안다. 매일 거울에서 보던 얼굴이다.');
-  record('photo', '가족사진 — 사진 속 엄마는… 나였다.');
+  showDoc($t('가족사진', 'Family photo'), S.decay > 0.5 ? O.familyRuined : O.familyClean,
+    $t('생일 케이크 앞의 여자와 수아. …사진 속 여자의 얼굴을, 나는 안다. 매일 거울에서 보던 얼굴이다.', 'A woman and Sua in front of a birthday cake. …I know that woman\'s face. I see it in the mirror every day.'));
+  record('photo', $t('가족사진 — 사진 속 엄마는… 나였다.', 'Family photo — the mother in the picture… was me.'));
   const close = ui.card.querySelector('[data-close]');
-  close.textContent = '사진을 들고 닫기';
+  close.textContent = $t('사진을 들고 닫기', 'Take the photo and close');
   close.addEventListener('click', () => {
     hsAfter(0.6, () => {
-      hsSay('“엄마… 이번엔 어디 안 갈 거지?”', 4);
+      hsSay($t('“엄마… 이번엔 어디 안 갈 거지?”', '“Mommy… you won\'t go anywhere this time, right?”'), 4);
       ui.hud.classList.add('choosing');
       HS.phase = 'final'; HS.choiceAt = performance.now(); log('input_enabled', { n: 'choice' });
       $('#choice').classList.add('show'); $('#chStay').classList.remove('confirm');
@@ -700,9 +701,9 @@ function hsGive() {
   hsNewBeat(); HS.phase = 'end'; hsTip(''); $('#turnBtn').classList.remove('pulse');
   log('choice', { give: 'photo' }); log('ending_choice', { type: 'release' });
   const g = S.ghost;
-  voice('c_take', g ? [g.p[0], 1.1, g.p[2]] : null, 2.2); hsSay('“이거… 나야? 엄마랑… 나.”', 3.4);
-  hsAfter(3.8, () => { voice('c_bye', g ? [g.p[0], 1.1, g.p[2]] : null, 2.2); hsSay('“엄마… 이제 가도 돼. 문 열어 줄게.”', 3.6); });
-  hsAfter(5.5, () => { snd.play('creak', v3.add(EYE, [0.3, -0.5, 0])); hsSay('손목의 밧줄이 풀린다. …문을 잠근 손은, 내 손이었다.', 4); setVisible(O.nodes.rope_R, false); setVisible(O.nodes.rope_L || [], false); });
+  voice('c_take', g ? [g.p[0], 1.1, g.p[2]] : null, 2.2); hsSay($t('“이거… 나야? 엄마랑… 나.”', '“Is this… me? Mommy and… me.”'), 3.4);
+  hsAfter(3.8, () => { voice('c_bye', g ? [g.p[0], 1.1, g.p[2]] : null, 2.2); hsSay($t('“엄마… 이제 가도 돼. 문 열어 줄게.”', '“Mommy… you can go now. I\'ll open the door for you.”'), 3.6); });
+  hsAfter(5.5, () => { snd.play('creak', v3.add(EYE, [0.3, -0.5, 0])); hsSay($t('손목의 밧줄이 풀린다. …문을 잠근 손은, 내 손이었다.', 'The rope around my wrists falls loose. …The hand that locked that door was mine.'), 4); setVisible(O.nodes.rope_R, false); setVisible(O.nodes.rope_L || [], false); });
   hsAfter(8.2, () => { if (S.ghost) { S.ghost.soft = true; S.ghost.target = 0; } snd.play('unlock', [0.7, 1, 2.45]); S.yaw = PI; S.pitch = -0.05; });
   hsAfter(9.4, () => { snd.play('creak', [0.7, 1, 2.45]); S.doorOpenT = 1; S.doorLight = 0.001; snd.stopMusic(3); });
   hsAfter(12.5, () => ui.fade.classList.add('white'));
@@ -712,8 +713,8 @@ function hsStay() {
   if (!hsChoiceReady()) return;
   const b = $('#chStay');
   if (!b.classList.contains('confirm')) {   // tell the cost before it is paid
-    b.classList.add('confirm'); b.innerHTML = '정말 남기<small>다시는 문이 열리지 않아도?</small>';
-    hsSay('…다시는 문이 열리지 않아도?', 3); log('choice_warn', {}); HS.choiceAt = performance.now(); return;
+    b.classList.add('confirm'); b.innerHTML = $t('정말 남기<small>다시는 문이 열리지 않아도?</small>', 'Really stay<small>Even if the door never opens again?</small>');
+    hsSay($t('…다시는 문이 열리지 않아도?', '…Even if the door never opens again?'), 3); log('choice_warn', {}); HS.choiceAt = performance.now(); return;
   }
   hsPlayAgain();
 }
@@ -722,7 +723,7 @@ function hsPlayAgain() {
   hsNewBeat(); HS.phase = 'end'; hsTip(''); $('#turnBtn').classList.remove('pulse');
   log('choice', { give: 'play' }); log('ending_choice', { type: 'stay' });
   const g = S.ghost;
-  voice('c_stay', g ? [g.p[0], 1.1, g.p[2]] : null, 2.2); hsSay('“같이 있자… 계속.”', 3);
+  voice('c_stay', g ? [g.p[0], 1.1, g.p[2]] : null, 2.2); hsSay($t('“같이 있자… 계속.”', '“Stay with me… forever.”'), 3);
   hsAfter(3, () => { S.blackoutTarget = 1; snd.stopMusic(2); });
   hsAfter(5.5, () => { HS.on = false; showEnding('doll'); });
 }
@@ -730,8 +731,8 @@ function hsEnd() {
   HS.on = false; HS.phase = 'idle'; ui.hud.classList.remove('hs'); hsTip('');
   log('chapter_end', { ch: 1, t: +S.time.toFixed(1) });
   // hand over to the room-and-TV chapter
-  objective('무릎 위 리모컨으로 TV를 켠다');
-  hsSay('숨바꼭질이 끝났다. …무릎 위의 리모컨을 누른다.', 4);
+  objective($t('무릎 위 리모컨으로 TV를 켠다', 'Turn on the TV with the remote in your lap'));
+  hsSay($t('숨바꼭질이 끝났다. …무릎 위의 리모컨을 누른다.', 'Hide-and-seek is over. …I press the remote in my lap.'), 4);
 }
 function hsUpdate(dt) {
   if (!HS.on || S.paused) return;
@@ -740,12 +741,12 @@ function hsUpdate(dt) {
     if (HS.turning) return;
     HS.t += dt; HS.real += dt;
     if (HS.round === 1) {
-      if (HS.t > 9 && !HS.hint1) { HS.hint1 = true; voice('hs_hint', h.c, 2.0); hsSay('“나 여기 있는데~”', 2.5); log('hint_used', { hint: 'voice' }); }
+      if (HS.t > 9 && !HS.hint1) { HS.hint1 = true; voice('hs_hint', h.c, 2.0); hsSay($t('“나 여기 있는데~”', '“I\'m right here~”'), 2.5); log('hint_used', { hint: 'voice' }); }
       return;   // no failure in the tutorial round
     }
-    if (HS.t > 10 && HS.esc < 1) { HS.esc = 1; voice('hs_hint', h.c, 2.0); hsSay('“나 여기 있는데~”', 2.5); log('hint_used', { hint: 'voice' }); }
-    if (HS.t > 20 && HS.esc < 2) { HS.esc = 2; snd.play('creak', v3.add(EYE, [0, 0, 0.6])); S.lampDim = 0.5; hsSay('…의자가 삐걱거린다. 불빛이 한 칸 어두워졌다.', 3); log('escalate', { level: 1 }); }
-    if (HS.t > 30 && HS.esc < 3) { HS.esc = 3; voice('hs_closer', h.c, 2.2); hsSay('“가까이 왔다…”', 2.5); log('escalate', { level: 2 }); if (HS.round === 3) $('#turnBtn').classList.add('pulse'); }
+    if (HS.t > 10 && HS.esc < 1) { HS.esc = 1; voice('hs_hint', h.c, 2.0); hsSay($t('“나 여기 있는데~”', '“I\'m right here~”'), 2.5); log('hint_used', { hint: 'voice' }); }
+    if (HS.t > 20 && HS.esc < 2) { HS.esc = 2; snd.play('creak', v3.add(EYE, [0, 0, 0.6])); S.lampDim = 0.5; hsSay($t('…의자가 삐걱거린다. 불빛이 한 칸 어두워졌다.', '…The chair creaks. The light dims a notch.'), 3); log('escalate', { level: 1 }); }
+    if (HS.t > 30 && HS.esc < 3) { HS.esc = 3; voice('hs_closer', h.c, 2.2); hsSay($t('“가까이 왔다…”', '“I\'m getting closer…”'), 2.5); log('escalate', { level: 2 }); if (HS.round === 3) $('#turnBtn').classList.add('pulse'); }
     if (HS.t > 40) hsFail();
   }
 }
@@ -953,24 +954,24 @@ function modernUpdate() {
 // not looking; three wrong things at once gives you a few seconds to fix one, then she comes for you.
 const AN = { on: false, phase: 0, goal: 0, fixed: 0, act: {}, next: 0, danger: 0, fails: 0, lock: 0, script: [], hintT: 0 };
 const ANOM = {
-  table: { node: 'lowtable', name: '탁자', sfx: 'bang', cue: '…무언가 둥실 떠오르는 소리.', lift: 0.45 },
-  tv: { node: 'tv', name: 'TV', sfx: 'static', cue: '…TV가 저절로 켜졌다.', verb: 'TV를 누르고… 화면을 봐요' },
-  doll: { node: 'item_doll', name: '인형', sfx: 'bang', cue: '…등 뒤에서, 작은 발소리.', to: [-0.7, 0, 2.2], verb: '안 볼 때마다 다가와요. 눌러서 돌려놔요' },   // climbs down, grows, and stands behind you (clear of the chair back) facing you
-  frame: { node: 'item_frame', name: '가족사진', sfx: 'creak', cue: '…액자가 삐걱삐걱 흔들리는 소리.', loopSfx: 3.5 },
-  cushion: { node: 'cushion', name: '방석', sfx: 'whisper', cue: '…누가 속삭인다.', lift: 1.0, verb: '도망치는 방석을 한 번 더 잡아요' },
-  lamp: { node: 'lamp', name: '전등', sfx: 'whisper', cue: '…방 안이 붉게 물들었다. 천장의 전등.' },   // the ceiling light turns deep red
-  curtain: { name: '커튼', sfx: 'giggle', cue: '…커튼 쪽에서 킥킥.', ghost: true },
-  boombox: { node: 'p_boombox', name: '라디오', sfx: 'static', cue: '…어디선가 동요가 흘러나온다.', kind: 'shake', loop: 'song' },
-  phone: { node: 'p_phone', name: '전화기', sfx: 'click', cue: '…전화벨이 울린다.', kind: 'shake', loop: 'ring', answer: 'amb1' },
-  alarm: { node: 'p_alarm', name: '자명종', sfx: 'click', cue: '…삑삑삑삑, 자명종 소리.', kind: 'shake', loop: 'alarm' },
-  mclock: { node: 'p_mclock', name: '탁상시계', sfx: 'tick', cue: '…시계가 미친 듯이 째깍거린다.', kind: 'shake', loop: 'tick' },
-  teddy: { node: 'deco_teddy', name: '곰인형', sfx: 'crack', cue: '…곰인형이 이쪽을 보고 있다.', kind: 'face' },
-  stool: { node: 'p_stool', name: '의자', sfx: 'creak', cue: '…등 뒤에서 나무 의자 끄는 소리.', kind: 'move', to: [0.45, 0, 1.0] },
-  shoes: { node: 'deco_shoes', name: '빨간 구두', sfx: 'steps', cue: '…또각, 또각. 작은 발소리.', kind: 'move', to: [0.3, 0, 0.8] },
-  chalk: { node: 'p_chalk', name: '칠판', sfx: 'bang', cue: '…쿵, 무언가 넘어지는 소리.', kind: 'flip' },
-  frame2: { node: 'p_frame2', name: '그림', sfx: 'creak', cue: '…벽에서 삐걱.', kind: 'flip' },
-  rat: { node: 'p_rat', name: '쥐', sfx: 'steps', cue: '…사각사각, 바닥을 긁는 소리.', kind: 'rat', hidden: true },
-  crawl: { name: '기어오는 아이', sfx: 'steps', cue: '…바닥을 긁으며 기어오는 소리.', ghost: true },
+  table: { node: 'lowtable', name: $t('탁자', 'Table'), sfx: 'bang', cue: $t('…무언가 둥실 떠오르는 소리.', '…The sound of something floating up.'), lift: 0.45 },
+  tv: { node: 'tv', name: 'TV', sfx: 'static', cue: $t('…TV가 저절로 켜졌다.', '…The TV turned itself on.'), verb: $t('TV를 누르고… 화면을 봐요', 'Tap the TV… and watch the screen') },
+  doll: { node: 'item_doll', name: $t('인형', 'Doll'), sfx: 'bang', cue: $t('…등 뒤에서, 작은 발소리.', '…Behind you, tiny footsteps.'), to: [-0.7, 0, 2.2], verb: $t('안 볼 때마다 다가와요. 눌러서 돌려놔요', 'It creeps closer whenever you look away. Tap it to put it back') },   // climbs down, grows, and stands behind you (clear of the chair back) facing you
+  frame: { node: 'item_frame', name: $t('가족사진', 'Family photo'), sfx: 'creak', cue: $t('…액자가 삐걱삐걱 흔들리는 소리.', '…A picture frame creaking as it swings.'), loopSfx: 3.5 },
+  cushion: { node: 'cushion', name: $t('방석', 'Cushion'), sfx: 'whisper', cue: $t('…누가 속삭인다.', '…Someone is whispering.'), lift: 1.0, verb: $t('도망치는 방석을 한 번 더 잡아요', 'Catch the runaway cushion one more time') },
+  lamp: { node: 'lamp', name: $t('전등', 'Ceiling light'), sfx: 'whisper', cue: $t('…방 안이 붉게 물들었다. 천장의 전등.', '…The room is bathed in red. The ceiling light.') },   // the ceiling light turns deep red
+  curtain: { name: $t('커튼', 'Curtain'), sfx: 'giggle', cue: $t('…커튼 쪽에서 킥킥.', '…Giggling, over by the curtain.'), ghost: true },
+  boombox: { node: 'p_boombox', name: $t('라디오', 'Radio'), sfx: 'static', cue: $t('…어디선가 동요가 흘러나온다.', '…A children\'s song is playing from somewhere.'), kind: 'shake', loop: 'song' },
+  phone: { node: 'p_phone', name: $t('전화기', 'Phone'), sfx: 'click', cue: $t('…전화벨이 울린다.', '…The phone is ringing.'), kind: 'shake', loop: 'ring', answer: 'amb1' },
+  alarm: { node: 'p_alarm', name: $t('자명종', 'Alarm clock'), sfx: 'click', cue: $t('…삑삑삑삑, 자명종 소리.', '…Beep-beep-beep-beep — an alarm clock.'), kind: 'shake', loop: 'alarm' },
+  mclock: { node: 'p_mclock', name: $t('탁상시계', 'Desk clock'), sfx: 'tick', cue: $t('…시계가 미친 듯이 째깍거린다.', '…A clock is ticking like mad.'), kind: 'shake', loop: 'tick' },
+  teddy: { node: 'deco_teddy', name: $t('곰인형', 'Teddy bear'), sfx: 'crack', cue: $t('…곰인형이 이쪽을 보고 있다.', '…The teddy bear is looking this way.'), kind: 'face' },
+  stool: { node: 'p_stool', name: $t('의자', 'Stool'), sfx: 'creak', cue: $t('…등 뒤에서 나무 의자 끄는 소리.', '…Behind you, a wooden stool scraping across the floor.'), kind: 'move', to: [0.45, 0, 1.0] },
+  shoes: { node: 'deco_shoes', name: $t('빨간 구두', 'Red shoes'), sfx: 'steps', cue: $t('…또각, 또각. 작은 발소리.', '…Tap, tap. Little footsteps.'), kind: 'move', to: [0.3, 0, 0.8] },
+  chalk: { node: 'p_chalk', name: $t('칠판', 'Chalkboard'), sfx: 'bang', cue: $t('…쿵, 무언가 넘어지는 소리.', '…Thud — something fell over.'), kind: 'flip' },
+  frame2: { node: 'p_frame2', name: $t('그림', 'Painting'), sfx: 'creak', cue: $t('…벽에서 삐걱.', '…A creak from the wall.'), kind: 'flip' },
+  rat: { node: 'p_rat', name: $t('쥐', 'Rat'), sfx: 'steps', cue: $t('…사각사각, 바닥을 긁는 소리.', '…Scritch-scratch, something scraping the floor.'), kind: 'rat', hidden: true },
+  crawl: { name: $t('기어오는 아이', 'Crawling child'), sfx: 'steps', cue: $t('…바닥을 긁으며 기어오는 소리.', '…Something crawling closer, nails dragging on the floor.'), ghost: true },
 };
 function nodeBox(name, pad = 0.08) {
   const mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
@@ -1017,17 +1018,17 @@ function anStart(phase) {
   if (phase === 1) {
     if (S.tv.on) { S.tv.on = false; snd.play('pop', O.tvCenter); }   // the TV clicks off by itself
     AN.script = ['tv', 'doll'];   // taught in order after the table: in front, then behind you
-    voice('an_intro', null, 2.0); hsSay('“이번엔 내가 방을 이상하게 바꿔 놓을게! 엄마가 원래대로 돌려놔~”', 3.6);
+    voice('an_intro', null, 2.0); hsSay($t('“이번엔 내가 방을 이상하게 바꿔 놓을게! 엄마가 원래대로 돌려놔~”', '“This time I\'ll make the room all weird! You put it back, Mommy~”'), 3.6);
     AN.script = ['table', ...AN.script]; AN.next = 1.2;
-    hsAfter(1.2, () => hsTip('<b>이상한 곳</b>을 눌러 원래대로 돌려요'));
+    hsAfter(1.2, () => hsTip($t('<b>이상한 곳</b>을 눌러 원래대로 돌려요', 'Tap <b>whatever\'s wrong</b> to put it back')));
   } else if (phase === 2) {
     AN.script = ['crawl'];
-    hsAfter(bigShift ? 7.5 : 0, () => { voice('an_more', null, 2.0); hsSay('“이번엔… 나도 움직일 거야.”', 3); });
+    hsAfter(bigShift ? 7.5 : 0, () => { voice('an_more', null, 2.0); hsSay($t('“이번엔… 나도 움직일 거야.”', '“This time… I\'m going to move too.”'), 3); });
     AN.next = bigShift ? 10 : 3;
   } else {   // the last night: the bulb dies, only the TV and the moon are left
     AN.script = ['curtain'];
     S.lampDim = AN.baseDim; snd.play('pop', [0, 2.2, -0.6]);
-    voice('an_last', null, 2.0); hsSay('“불이 죽어 간다… 이제 엄마도 나처럼 어둠 속에서 찾아.”', 3.6);
+    voice('an_last', null, 2.0); hsSay($t('“불이 죽어 간다… 이제 엄마도 나처럼 어둠 속에서 찾아.”', '“The light is dying… Now you search in the dark, Mommy. Like me.”'), 3.6);
     AN.next = bigShift ? 10 : 3.5;
   }
   anHud();
@@ -1056,8 +1057,8 @@ function anSpawn(k, force = false) {
     if (!AN.crawlShown) {   // the first one crawls out where you can see her, to teach the rule
       AN.crawlShown = true; s.teach = true;
       s.p = all.map(p => [p, inView([p[0], 0.4, p[2]]).ang]).sort((x, y) => x[1] - y[1])[0][0].slice();
-      hsAfter(1.4, () => { hsTip('보고 있으면 <b>멈춰요</b>. 눈을 떼면… 다가와요'); });
-      hsAfter(5.5, () => { if (AN.act.crawl) hsTip('<b>기어 오는 아이</b>를 눌러 쫓아내요'); });
+      hsAfter(1.4, () => { hsTip($t('보고 있으면 <b>멈춰요</b>. 눈을 떼면… 다가와요', 'While you watch, she <b>stops</b>. Look away… and she comes')); });
+      hsAfter(5.5, () => { if (AN.act.crawl) hsTip($t('<b>기어 오는 아이</b>를 눌러 쫓아내요', 'Tap the <b>crawling child</b> to drive her back')); });
     } else {
       if (!starts.length) { delete AN.act[k]; return false; }
       s.p = pick(starts).slice();
@@ -1093,9 +1094,9 @@ function anFix(k) {
   AN.back = AN.back || {}; AN.back[k] = s;
   if (Object.keys(AN.act).length < 3 && AN.danger > 0) { AN.danger = 0; S.lampDim = AN.baseDim; hsTip(''); log('anom_rescue', {}); hsAfter(0.6, () => line('an_rescue', pos, { quiet: false })); }
   // her reactions: short, never blocking
-  const lines = [['an_fix1', '에이~ 들켰다.'], ['an_fix2', '엄마 눈 좋다~'], ['hs_found1', '헤헤, 들켰다!']];
+  const lines = [['an_fix1', $t('에이~ 들켰다.', 'Aww~ you caught me.')], ['an_fix2', $t('엄마 눈 좋다~', 'Mommy has good eyes~')], ['hs_found1', $t('헤헤, 들켰다!', 'Heehee, caught!')]];
   if (AN.fixed === 1 || Math.random() < 0.35) { const l = pick(lines); voice(l[0], pos, 1.8); hsSay(`“${l[1]}”`, 2); }
-  if (s.nudged || (AN.fixed === 3 && AN.phase === 1)) hsTip(AN.phase === 1 && AN.fixed < 3 ? '<b>이상한 곳</b>을 눌러 원래대로 돌려요' : '');
+  if (s.nudged || (AN.fixed === 3 && AN.phase === 1)) hsTip(AN.phase === 1 && AN.fixed < 3 ? $t('<b>이상한 곳</b>을 눌러 원래대로 돌려요', 'Tap <b>whatever\'s wrong</b> to put it back') : '');
   AN.streak++;
   if (!Object.keys(AN.act).length) AN.next = Math.min(AN.next, AN.script.length ? 1.2 : rnd(2, 3.5));
   if (AN.streak >= 2 && !AN.script.length) { AN.next = Math.max(AN.next, rnd(2.5, 3.5)); AN.streak = 0; }   // two in a row: a breath
@@ -1113,7 +1114,7 @@ function anFail(why) {
   const p = v3.add([EYE[0], 0, EYE[2]], v3.scale(flatFwd(), 0.65));
   S.ghost = { p, kind: 'stand', alpha: 0.3, target: 1, mode: 'close' };
   S.shake = 0.7; S.flash = 0.35; S.flashCol = [0.45, 0.04, 0.04];
-  voice('an_fail', [p[0], 1.1, p[2]], 2.4); hsSay('“엄마 바보~ 하나도 못 고쳤지롱.”', 2.5);
+  voice('an_fail', [p[0], 1.1, p[2]], 2.4); hsSay($t('“엄마 바보~ 하나도 못 고쳤지롱.”', '“Silly Mommy~ you didn\'t fix a single one.”'), 2.5);
   touch(14, 'anom_fail');
   for (const k of Object.keys(AN.act)) { AN.back = AN.back || {}; AN.back[k] = AN.act[k]; if (k === 'tv') S.tv.on = false; if (k === 'door') S.doorOpenT = 0; }
   AN.act = {}; $('#anMark').className = '';
@@ -1126,9 +1127,9 @@ function anEnd() {
   if (!AN.on) return;
   AN.on = false; AN.act = {}; hsTip(''); pzClear(); anHud(); $('#anMark').className = '';
   log('anom_end', { phase: AN.phase, fails: AN.fails, t: +S.time.toFixed(1) });
-  voice('an_done', null, 2.0); hsSay('“와~ 다 찾았다! 엄마 최고!”', 2.4);
-  if (AN.phase === 1) hsAfterVoice(() => { voice('hs_again', null, 2.0); hsSay('“이번엔 진짜 숨을게. 못 찾을걸?”', 2.2); hsAfterVoice(() => hsRound(3)); });
-  else if (AN.phase === 2) hsAfterVoice(() => { voice('hs_under', null, 2.0); hsSay('“이번엔… 진짜 못 찾을걸.”', 2.4); hsAfterVoice(() => hsRound(4)); });
+  voice('an_done', null, 2.0); hsSay($t('“와~ 다 찾았다! 엄마 최고!”', '“Wow~ you found them all! Mommy\'s the best!”'), 2.4);
+  if (AN.phase === 1) hsAfterVoice(() => { voice('hs_again', null, 2.0); hsSay($t('“이번엔 진짜 숨을게. 못 찾을걸?”', '“This time I\'ll really hide. Bet you can\'t find me!”'), 2.2); hsAfterVoice(() => hsRound(3)); });
+  else if (AN.phase === 2) hsAfterVoice(() => { voice('hs_under', null, 2.0); hsSay($t('“이번엔… 진짜 못 찾을걸.”', '“This time… you really won\'t find me.”'), 2.4); hsAfterVoice(() => hsRound(4)); });
   else hsAfter(2.8, () => { S.lampDim = 0; hsStory(); });
 }
 function anTouch(k) {
@@ -1137,14 +1138,14 @@ function anTouch(k) {
     s.fled = true; s.fleeT = 0;
     const spots = [[1.2, 0.9, 1.6], [-1.6, 1.8, -0.4], [1.5, 1.6, -1.6], [-0.3, 2.0, 1.3]].filter(p => !inView(p, 0.9).visible);
     s.to = spots.length ? pick(spots) : [1.2, 0.9, 1.6];
-    snd.play('giggle', c); line('an_spawn1', c, { quiet: false }); hsTip('<b>방석</b>이 도망갔다! 다시 찾아 눌러요'); log('verb_step', { k }); return;
+    snd.play('giggle', c); line('an_spawn1', c, { quiet: false }); hsTip($t('<b>방석</b>이 도망갔다! 다시 찾아 눌러요', 'The <b>cushion</b> ran away! Find it and tap it again')); log('verb_step', { k }); return;
   }
   if (k === 'tv' && !s.stage) {   // the set switches to the corner camera: someone stands behind your chair
     s.stage = 1; s.stageT = 0; S.tv.ch = 7; tvScreen.osd = 2; snd.play('static', O.tvCenter); S.glitch = 0.7;
     S.ghost = { p: [0.05, 0, 1.0], kind: 'stand', alpha: 0, target: 1, mode: 'cctv', camOnly: true };
-    hsSay('…화면 속, 내 의자 뒤에 누가 서 있다.', 2.6); $('#turnBtn').classList.add('pulse'); log('verb_step', { k }); return;
+    hsSay($t('…화면 속, 내 의자 뒤에 누가 서 있다.', '…On the screen, someone is standing behind my chair.'), 2.6); $('#turnBtn').classList.add('pulse'); log('verb_step', { k }); return;
   }
-  if (k === 'tv' && s.stage) { hsSay('…뒤를 봐.', 1.4); return; }
+  if (k === 'tv' && s.stage) { hsSay($t('…뒤를 봐.', '…Look behind you.'), 1.4); return; }
   anFix(k);
 }
 // unmistakable answer at the finger: a green check with what you fixed, or a red cross
@@ -1180,8 +1181,8 @@ function anTap(px, py, dir) {
   if (!best || bd >= 1e8) { log('false_tap', { where: 'nothing' }); return true; }
   if (AN.act[best]) {
     const before = AN.fixed; anTouch(best);
-    if (AN.fixed > before) { tapFx(true, px, py, `${ANOM[best].name} — 원래대로`); snd.play('right'); }
-    else tapFx(true, px, py, '찾았다!');
+    if (AN.fixed > before) { tapFx(true, px, py, `${ANOM[best].name} — ${$t('원래대로', 'put back')}`); snd.play('right'); }
+    else tapFx(true, px, py, $t('찾았다!', 'Found you!'));
     return true;
   }
   // reported something that is fine: it costs you — she laughs, the cold bites
@@ -1189,10 +1190,10 @@ function anTap(px, py, dir) {
   AN.lock = 1.0;
   S.flash = 0.35; S.flashCol = [0.55, 0.03, 0.03]; S.shake = Math.max(S.shake, 0.35); S.glitch = Math.max(S.glitch, 0.5);
   touch(12, 'false_report');
-  tapFx(false, px, py, `${ANOM[best].name} — 이상 없음`); snd.play('wrong');
+  tapFx(false, px, py, `${ANOM[best].name} — ${$t('이상 없음', 'nothing wrong')}`); snd.play('wrong');
   ui.hud.classList.add('hurt'); setTimeout(() => ui.hud.classList.remove('hurt'), 700);
   voice('hs_wrong', anBox(best).c, 2.0);
-  hsSay(`“거기 아니야~” …${ANOM[best].name}엔 이상이 없었다. 몸이 차가워진다.`, 2.2);
+  hsSay($t(`“거기 아니야~” …${ANOM[best].name}엔 이상이 없었다. 몸이 차가워진다.`, `“Not there~” …Nothing was wrong with the ${ANOM[best].name === 'TV' ? 'TV' : ANOM[best].name.toLowerCase()}. A chill runs through me.`), 2.2);
   return true;
 }
 function anUpdate(dt) {
@@ -1208,7 +1209,7 @@ function anUpdate(dt) {
     const c = anBox(k).c;
     if (!s.seen && inView(c, 0.9).visible) { s.seen = true; s.seenAt = s.t; log('anom_seen', { k, after: +s.t.toFixed(1) }); if (s.teachVerb) hsTip(`<b>${ANOM[k].name}</b> — ${ANOM[k].verb}`); }
     // looked at it and did not notice: name it once (only while she is still teaching)
-    if (s.seen && !s.nudged && AN.phase === 1 && s.t - s.seenAt > 8 && inView(c, 0.9).visible) { s.nudged = true; hsTip(`<b>${ANOM[k].name}</b>… 원래 저랬던가? 눌러서 돌려놔요`); log('hint_used', { hint: 'name_' + k }); }
+    if (s.seen && !s.nudged && AN.phase === 1 && s.t - s.seenAt > 8 && inView(c, 0.9).visible) { s.nudged = true; hsTip($t(`<b>${ANOM[k].name}</b>… 원래 저랬던가? 눌러서 돌려놔요`, `<b>${ANOM[k].name}</b>… was it always like that? Tap it to put it back`)); log('hint_used', { hint: 'name_' + k }); }
     if (ANOM[k].loopSfx && s.k > 0.9 && (s.t - dt) % ANOM[k].loopSfx > s.t % ANOM[k].loopSfx) snd.play(ANOM[k].sfx, c);
     // she keeps reminding you of the ones you have not found
     if (!s.seen && s.t > 9 && (s.t - dt) % 9 > s.t % 9) { snd.play(ANOM[k].sfx, c); hsSay(ANOM[k].cue, 2.4); log('hint_used', { hint: k }); if (c[2] > EYE[2] + 0.2) $('#turnBtn').classList.add('pulse'); }
@@ -1225,7 +1226,7 @@ function anUpdate(dt) {
   if (AN.act.tv?.stage) {
     const s = AN.act.tv; s.stageT += dt;
     if (flatFwd()[2] > 0.6) { S.ghost = { p: [0.05, 0, 1.0], kind: 'stand', alpha: 1, target: 0, mode: 'close' }; S.flash = 0.25; S.flashCol = [0.5, 0.05, 0.05]; line('hs_found3', [0.05, 1.1, 1.0], { quiet: false }); anFix('tv'); }
-    else if (s.stageT > 7) { s.stage = 0; S.tv.ch = 13; if (S.ghost?.camOnly) S.ghost = null; hsSay('…화면이 다시 지지직.', 1.6); }
+    else if (s.stageT > 7) { s.stage = 0; S.tv.ch = 13; if (S.ghost?.camOnly) S.ghost = null; hsSay($t('…화면이 다시 지지직.', '…The screen crackles with static again.'), 1.6); }
   }
   // doll: it comes closer every time you look away
   if (AN.act.doll && AN.act.doll.k > 0.9) {
@@ -1265,7 +1266,7 @@ function anUpdate(dt) {
   if (n >= 3) {
     if (AN.danger <= 0) { AN.danger = AN.phase === 1 ? 12 : 8; log('anom_danger', { active: keys }); line('an_danger', null, { quiet: false }); }
     AN.danger -= dt; S.lampDim = Math.max(AN.baseDim, 0.45); S.fear = Math.max(S.fear, 0.4);
-    hsTip(`이상한 곳이 <b>3개</b>! 하나라도 고쳐요 · ${Math.ceil(AN.danger)}`);
+    hsTip($t('이상한 곳이 <b>3개</b>! 하나라도 고쳐요', '<b>3</b> things are wrong! Fix one') + ` · ${Math.ceil(AN.danger)}`);
     if (AN.danger <= 0) { anFail('three'); return; }
   }
   // what to change next (nothing while she knocks: that needs your ears and your fingers)
@@ -1276,7 +1277,7 @@ function anUpdate(dt) {
       const k = AN.script[0];
       if (anSpawn(k, (AN.phase === 1 && k !== 'doll') || k === 'crawl')) {
         AN.script.shift(); AN.recent = [...(AN.recent || []).filter(x => x !== k), k];
-        if (k === 'doll') { hsAfter(0.4, () => { hsSay('…등 뒤, 책장 쪽에서 툭.', 2.6); $('#turnBtn').classList.add('pulse'); }); }
+        if (k === 'doll') { hsAfter(0.4, () => { hsSay($t('…등 뒤, 책장 쪽에서 툭.', '…Behind you, a thump by the bookshelf.'), 2.6); $('#turnBtn').classList.add('pulse'); }); }
       }
       AN.next = !AN.act[k] ? 1.5 : AN.script.length ? 1e9 : 6;   // a taught one waits for its fix
       return;
@@ -1419,9 +1420,9 @@ function pzUpdate(dt) {
 }
 function pzHudText() {
   if (!PZ.kind) return '';
-  if (PZ.done) return ' <span class="pz ok">✓ 퍼즐</span>';
-  if (!PZ.on) return ' <span class="pz">퍼즐 ···</span>';
-  if (PZ.kind === 'knock') return ` <span class="pz">🔔 암호 ${PZ.step}/3</span>`;
+  if (PZ.done) return $t(' <span class="pz ok">✓ 퍼즐</span>', ' <span class="pz ok">✓ Puzzle</span>');
+  if (!PZ.on) return $t(' <span class="pz">퍼즐 ···</span>', ' <span class="pz">Puzzle ···</span>');
+  if (PZ.kind === 'knock') return ` <span class="pz">🔔 ${$t('암호', 'Knock')} ${PZ.step}/3</span>`;
   if (PZ.kind === 'poem') return ` <span class="pz">🌙 ${PZ.step}/${PZ.order.length}</span>`;
   return ` <span class="pz">🔦 ${PZ.digits.map(d => d.found ? d.v : '_').join(' ')}</span>`;
 }
@@ -1449,7 +1450,7 @@ function trackDot(x, ok) { const d = document.createElement('b'); d.className = 
 function trackHide() { const el = $('#knockTrack'); if (el) { el.className = ''; el.querySelectorAll('b').forEach(m => m.remove()); } }
 function pzKnockStart() {
   PZ.step = 0; anHud();
-  const d = voice('pz_knock_intro', DOOR_KNOCK, 2.0); hsSay('“엄마… 우리 암호 기억나? 내가 두드리는 대로… 똑같이 두드려 줘.”', Math.max(4, d + 0.4));
+  const d = voice('pz_knock_intro', DOOR_KNOCK, 2.0); hsSay($t('“엄마… 우리 암호 기억나? 내가 두드리는 대로… 똑같이 두드려 줘.”', '“Mommy… remember our secret knock? Knock it back… just the way I do.”'), Math.max(4, d + 0.4));
   log('puzzle_start', { kind: 'knock' });
   hsAfterVoice(() => pzKnockPlay(), 0.6);
 }
@@ -1458,17 +1459,17 @@ function pzKnockPlay() {
   Object.assign(PZ, { stage: 'listen', hold: true, ts, span, t0: S.time + (PZ.step === 2 ? 1.4 : 0.3), idle: 0, from });
   trackSet(ts, span, '');
   PZ.marks.forEach(m => m.classList.add('wait'));
-  hsTip('🎧 <b>잘 들어요…</b> 쾅 소리의 박자');
-  if (PZ.step === 2) hsSay('…이번엔, 의자 밑에서.', 2.4);
+  hsTip($t('🎧 <b>잘 들어요…</b> 쾅 소리의 박자', '🎧 <b>Listen closely…</b> to the rhythm of the bangs'));
+  if (PZ.step === 2) hsSay($t('…이번엔, 의자 밑에서.', '…This time, from under the chair.'), 2.4);
   const lead = PZ.t0 - S.time;
   ts.forEach((t, j) => hsAfter(lead + t, () => { knockBang(from); PZ.marks[j]?.classList.remove('wait'); PZ.marks[j]?.classList.add('lit'); }));
   // your turn: two counts in the same tempo, then the playhead runs again
   const beat = 0.5, go = lead + span + 0.7;
-  hsAfter(go, () => { PZ.stage = 'count'; hsTip('<b>당신 차례</b> — 하나…'); snd.play('tick'); trackSet(ts, span, PZ.step === 0 || PZ.fails >= 2 ? '' : PZ.step === 1 ? 'dim' : 'hidden'); });
-  hsAfter(go + beat, () => { hsTip('<b>당신 차례</b> — 둘…'); snd.play('tick'); });
+  hsAfter(go, () => { PZ.stage = 'count'; hsTip($t('<b>당신 차례</b> — 하나…', '<b>Your turn</b> — one…')); snd.play('tick'); trackSet(ts, span, PZ.step === 0 || PZ.fails >= 2 ? '' : PZ.step === 1 ? 'dim' : 'hidden'); });
+  hsAfter(go + beat, () => { hsTip($t('<b>당신 차례</b> — 둘…', '<b>Your turn</b> — two…')); snd.play('tick'); });
   hsAfter(go + beat * 2, () => {
     Object.assign(PZ, { stage: 'answer', a0: S.time, hit: ts.map(() => false), strays: 0, offs: [] });
-    hsTip('선이 <b>표시에 닿을 때</b> 화면을 두드려요 · 쾅!');
+    hsTip($t('선이 <b>표시에 닿을 때</b> 화면을 두드려요 · 쾅!', 'Tap the screen <b>as the line hits each mark</b> · BANG!'));
   });
 }
 function pzKnockTap(px, py) {
@@ -1494,50 +1495,50 @@ function pzKnockJudge() {
   const ok = PZ.hit.every(Boolean) && !PZ.strays, [mx, my] = screenMid(), miss = PZ.hit.filter(h => !h).length;
   log('knock_answer', { step: PZ.step, hit: PZ.hit.filter(Boolean).length, of: PZ.hit.length, strays: PZ.strays, ok });
   if (ok) {
-    PZ.step++; anHud(); snd.play('right'); tapFx(true, mx, my, `암호 ${PZ.step}/3`);
+    PZ.step++; anHud(); snd.play('right'); tapFx(true, mx, my, `${$t('암호', 'Knock')} ${PZ.step}/3`);
     hsAfter(0.9, trackHide);
     if (PZ.step >= 3) {
       hsTip(''); PZ.hold = false;
-      const d = voice('pz_knock_done', UNDER_CHAIR, 2.0); hsSay('“엄마다… 진짜 엄마다…”', Math.max(2.6, d + 0.3));
+      const d = voice('pz_knock_done', UNDER_CHAIR, 2.0); hsSay($t('“엄마다… 진짜 엄마다…”', '“It\'s Mommy… it\'s really Mommy…”'), Math.max(2.6, d + 0.3));
       hsAfter(0.8, pzSolved);
       return;
     }
-    voice('pz_knock_ok', PZ.step === 2 ? UNDER_CHAIR : DOOR_KNOCK, 2.0); hsSay('“맞아… 맞아! 한 번 더.”', 2);
+    voice('pz_knock_ok', PZ.step === 2 ? UNDER_CHAIR : DOOR_KNOCK, 2.0); hsSay($t('“맞아… 맞아! 한 번 더.”', '“Yes… yes! One more time.”'), 2);
     hsTip(''); hsAfter(2.4, pzKnockPlay);
   } else {
     const late = PZ.offs.length ? PZ.offs.reduce((a, b) => a + b, 0) / PZ.offs.length : 0;
-    const why = !PZ.hit.some(Boolean) && !PZ.strays ? '두드리지 않았다' : miss && !PZ.strays ? `${miss}번 놓쳤다` : Math.abs(late) > 0.05 ? (late > 0 ? '박자가 늦었다' : '박자가 빨랐다') : '박자가 틀렸다';
+    const why = !PZ.hit.some(Boolean) && !PZ.strays ? $t('두드리지 않았다', 'You didn\'t knock') : miss && !PZ.strays ? $t(`${miss}번 놓쳤다`, `Missed ${miss}`) : Math.abs(late) > 0.05 ? (late > 0 ? $t('박자가 늦었다', 'Too late') : $t('박자가 빨랐다', 'Too early')) : $t('박자가 틀렸다', 'Wrong rhythm');
     pzWrong(mx, my, why, 8);
     snd.play('bang', PZ.from); knockBang(PZ.from, 2.5); hsAfter(0.15, () => knockBang(PZ.from, 2.5));
-    voice('pz_knock_bad', PZ.from, 2.2); hsSay('“아니야!! 그거 아니잖아!!”', 2.2);
+    voice('pz_knock_bad', PZ.from, 2.2); hsSay($t('“아니야!! 그거 아니잖아!!”', '“No!! That\'s not it!!”'), 2.2);
     hsTip(''); hsAfter(1.2, trackHide); hsAfter(3.0, pzKnockPlay);
   }
 }
 
 // ---- 2. 자장가: tap her friends in the order the riddle lullaby names them
 const POEM = {
-  teddy: { node: 'deco_teddy', riddle: '복슬복슬한 내 친구가', midi: 72 },
-  shoes: { node: 'deco_shoes', riddle: '문 쪽만 보던 빨간 두 짝이', midi: 74 },
-  clock: { node: 'clock_body', nodes: ['clock_body', 'clock_face'], riddle: '일곱 시 오십오 분에 멈춘 애가', midi: 76 },
-  doll: { node: 'item_doll', riddle: '배 속에 비밀을 삼킨 애가', midi: 79 },
-  musicbox: { node: 'deco_musicbox', riddle: '노래하는 작은 상자가', midi: 77 },
-  backpack: { node: 'deco_backpack', riddle: '학교에 못 간 가방이', midi: 71 },
+  teddy: { node: 'deco_teddy', riddle: $t('복슬복슬한 내 친구가', 'my soft and fuzzy friend'), midi: 72 },
+  shoes: { node: 'deco_shoes', riddle: $t('문 쪽만 보던 빨간 두 짝이', 'the red pair that only watched the door'), midi: 74 },
+  clock: { node: 'clock_body', nodes: ['clock_body', 'clock_face'], riddle: $t('일곱 시 오십오 분에 멈춘 애가', 'the one who stopped at 7:55'), midi: 76 },
+  doll: { node: 'item_doll', riddle: $t('배 속에 비밀을 삼킨 애가', 'the one with a secret in her belly'), midi: 79 },
+  musicbox: { node: 'deco_musicbox', riddle: $t('노래하는 작은 상자가', 'the little box that sings'), midi: 77 },
+  backpack: { node: 'deco_backpack', riddle: $t('학교에 못 간 가방이', 'the bag that never got to go to school'), midi: 71 },
 };
-const POEM_ORD = ['제일 먼저', '그다음엔', '그리고', '마지막으로'];
+const POEM_ORD = [$t('제일 먼저', 'First of all,'), $t('그다음엔', 'After that,'), $t('그리고', 'And then,'), $t('마지막으로', 'Last of all,')];
 function pzPoemStart() {
   const avail = Object.keys(POEM).filter(k => O.nodes[POEM[k].node]?.[0]?.visible);
   PZ.order = avail.sort(() => Math.random() - 0.5).slice(0, 4);
   PZ.step = 0; PZ.slept = {}; PZ.idle = 0;
-  PZ.lines = PZ.order.map((k, i) => `${POEM_ORD[i]}|${POEM[k].riddle} 잠들고…`);
-  PZ.lines[PZ.lines.length - 1] = PZ.lines[PZ.lines.length - 1].replace('잠들고…', '잠들면 — 끝.');
+  PZ.lines = PZ.order.map((k, i) => `${POEM_ORD[i]}|${POEM[k].riddle} ${$t('잠들고…', 'falls asleep…')}`);
+  PZ.lines[PZ.lines.length - 1] = PZ.lines[PZ.lines.length - 1].replace($t('잠들고…', 'falls asleep…'), $t('잠들면 — 끝.', 'falls asleep — the end.'));
   PZ.poemCanvas = TX.poemTex(PZ.lines);
-  addMemo('<b>수아의 자장가</b> — ' + PZ.lines.map(l => l.replace('|', ' ')).join(' / '));
+  addMemo($t('<b>수아의 자장가</b> — ', '<b>Sua\'s Lullaby</b> — ') + PZ.lines.map(l => l.replace('|', ' ')).join(' / '));
   log('puzzle_start', { kind: 'poem', order: PZ.order });
-  const d = voice('pz_poem_intro', null, 2.0); hsSay('“엄마, 자장가 불러 줘. 내 친구들… 순서대로 재워 줘야 해.”', Math.max(4, d + 0.4));
+  const d = voice('pz_poem_intro', null, 2.0); hsSay($t('“엄마, 자장가 불러 줘. 내 친구들… 순서대로 재워 줘야 해.”', '“Mommy, sing me the lullaby. My friends… you have to put them to sleep in the right order.”'), Math.max(4, d + 0.4));
   anHud();
   hsAfterVoice(() => {
-    showDoc('수아의 자장가', PZ.poemCanvas, '가사대로, 친구들을 <b>순서대로 눌러</b> 재운다. 순서가 틀리면 다 깬다. (메모에서 다시 볼 수 있다)');
-    hsTip('<b>자장가</b> 순서대로 친구들을 눌러 재워요');
+    showDoc($t('수아의 자장가', 'Sua\'s Lullaby'), PZ.poemCanvas, $t('가사대로, 친구들을 <b>순서대로 눌러</b> 재운다. 순서가 틀리면 다 깬다. (메모에서 다시 볼 수 있다)', 'Follow the words: <b>tap her friends in order</b> to put them to sleep. Get the order wrong and they all wake up. (You can read it again in Notes.)'));
+    hsTip($t('<b>자장가</b> 순서대로 친구들을 눌러 재워요', 'Tap her friends in <b>lullaby</b> order to put them to sleep'));
   }, 0.3);
 }
 function pzPoemBox(k) { return nodeBox(POEM[k].node, 0.12); }
@@ -1551,26 +1552,26 @@ function pzPoemTap(px, py, dir) {
     if (score < bd) { bd = score; best = k; }
   }
   if (!best || bd >= 1e8) return false;   // not one of hers: the usual rules
-  if (PZ.slept[best]) { hsSay('…이미 잠들었다.', 1.4); return true; }
+  if (PZ.slept[best]) { hsSay($t('…이미 잠들었다.', '…Already asleep.'), 1.4); return true; }
   const want = PZ.order[PZ.step], c = pzPoemBox(best).c;
   if (best === want) {
     PZ.slept[best] = S.time; PZ.step++; PZ.idle = 0; PZ.hintShown = false; anHud();
     snd.note(POEM[best].midi, c, 1.2); snd.play('right');
-    tapFx(true, px, py, `${PZ.step}/${PZ.order.length} — 잠들었다`);
+    tapFx(true, px, py, `${PZ.step}/${PZ.order.length} — ${$t('잠들었다', 'asleep')}`);
     log('poem_step', { k: best, step: PZ.step });
     if (PZ.step >= PZ.order.length) {
       hsTip('');
-      hsAfter(0.8, () => { snd.musicBox(c, 9); const d = voice('pz_poem_done', null, 1.8); hsSay('“잘 자… 다들, 잘 자.”', Math.max(3, d + 0.4)); });
+      hsAfter(0.8, () => { snd.musicBox(c, 9); const d = voice('pz_poem_done', null, 1.8); hsSay($t('“잘 자… 다들, 잘 자.”', '“Night night… everyone, sleep tight.”'), Math.max(3, d + 0.4)); });
       hsAfter(1.6, pzSolved);
     }
     return true;
   }
   // out of order: everyone wakes — and looks at you
-  pzWrong(px, py, `순서가 틀렸다 — 다 깼다`, 10);
+  pzWrong(px, py, $t('순서가 틀렸다 — 다 깼다', 'Wrong order — they all woke up'), 10);
   for (const k of Object.keys(PZ.slept)) PZ.woke = { ...(PZ.woke || {}), [k]: S.time };
   PZ.slept = {}; PZ.step = 0; anHud();
   snd.play('giggle', c);
-  voice('pz_poem_bad', c, 2.2); hsSay('“순서가 틀렸잖아!! 다 깼어!!”', 2.4);
+  voice('pz_poem_bad', c, 2.2); hsSay($t('“순서가 틀렸잖아!! 다 깼어!!”', '“That\'s the wrong order!! Now they\'re all awake!!”'), 2.4);
   return true;
 }
 function pzPoemUpdate() {
@@ -1578,8 +1579,8 @@ function pzPoemUpdate() {
     PZ.idle = 20; PZ.hints++;
     const k = PZ.order[PZ.step], c = pzPoemBox(k).c;
     snd.note(POEM[k].midi, c, 0.9); hsAfter(0.5, () => snd.note(POEM[k].midi + 3, c, 0.7));
-    if (PZ.hints >= 2) hsTip(`자장가: <b>${PZ.lines[PZ.step].replace('|', ' ')}</b>`);
-    else { voice('pz_hint', c, 1.8); hsSay('“히히… 여기야. 여기.”', 2); }
+    if (PZ.hints >= 2) hsTip(`${$t('자장가', 'Lullaby')}: <b>${PZ.lines[PZ.step].replace('|', ' ')}</b>`);
+    else { voice('pz_hint', c, 1.8); hsSay($t('“히히… 여기야. 여기.”', '“Hehe… over here. Here.”'), 2); }
     log('hint_used', { hint: 'poem_' + k });
   }
 }
@@ -1603,9 +1604,9 @@ function pzCodeStart() {
   });
   PZ.step = 0; PZ.idle = 0;
   log('puzzle_start', { kind: 'code', code: PZ.code.join('') });
-  const d = voice('pz_code_intro', null, 2.0); hsSay('“불 꺼지면 보여… 서랍 비밀번호, 내가 방에 숨겨 놨어.”', Math.max(4, d + 0.4));
+  const d = voice('pz_code_intro', null, 2.0); hsSay($t('“불 꺼지면 보여… 서랍 비밀번호, 내가 방에 숨겨 놨어.”', '“You can see them when the lights go out… I hid the drawer\'s code all around the room.”'), Math.max(4, d + 0.4));
   hsAfterVoice(() => {
-    hsTip('<b>🔦 손전등</b>으로 방을 비춰 숨은 숫자 4개를 찾고, <b>책상 서랍</b>을 눌러 열어요');
+    hsTip($t('<b>🔦 손전등</b>으로 방을 비춰 숨은 숫자 4개를 찾고, <b>책상 서랍</b>을 눌러 열어요', 'Sweep the room with the <b>🔦 flashlight</b> to find 4 hidden digits, then tap the <b>desk drawer</b> to open it'));
     if (!TORCH.on) ui.torchBtn.classList.add('nudge');
   }, 0.3);
   anHud();
@@ -1622,17 +1623,17 @@ function pzCodeUpdate(dt) {
       if (d.seen > 0.45) {
         d.found = true; PZ.step++; PZ.idle = 0; anHud();
         const sp = toScreen(d.p) || screenMid();
-        tapFx(true, sp[0], sp[1], `${['첫', '둘', '셋', '넷'][d.i]}째 숫자 = ${d.v}`); snd.play('right');
-        addMemo(`<b>야광 숫자</b> — ${['첫', '둘', '셋', '넷'][d.i]}째 자리는 <b>${d.v}</b>`);
+        tapFx(true, sp[0], sp[1], $t(`${['첫', '둘', '셋', '넷'][d.i]}째 숫자 = ${d.v}`, `${['1st', '2nd', '3rd', '4th'][d.i]} digit = ${d.v}`)); snd.play('right');
+        addMemo($t(`<b>야광 숫자</b> — ${['첫', '둘', '셋', '넷'][d.i]}째 자리는 <b>${d.v}</b>`, `<b>Glowing digits</b> — the ${['1st', '2nd', '3rd', '4th'][d.i]} digit is <b>${d.v}</b>`));
         log('glow_found', { i: d.i, v: d.v });
-        if (PZ.step === 4) hsTip('숫자 4개를 다 찾았다 — <b>책상 서랍</b> 자물쇠를 눌러요');
+        if (PZ.step === 4) hsTip($t('숫자 4개를 다 찾았다 — <b>책상 서랍</b> 자물쇠를 눌러요', 'All 4 digits found — tap the lock on the <b>desk drawer</b>'));
       }
     }
   }
   if (PZ.idle > 50 && PZ.step < 4) {   // stuck: she giggles from where one still hides
     PZ.idle = 25; PZ.hints++;
     const d = PZ.digits.find(x => !x.found);
-    voice('pz_hint', d.p, 2.0); hsSay(d.p[1] > 2.4 ? '“히히… 여기야. 여기.” …위쪽에서.' : d.p[2] > 1 ? '“히히… 여기야. 여기.” …등 뒤에서.' : '“히히… 여기야. 여기.”', 2.4);
+    voice('pz_hint', d.p, 2.0); hsSay(d.p[1] > 2.4 ? $t('“히히… 여기야. 여기.” …위쪽에서.', '“Hehe… over here. Here.” …from up high.') : d.p[2] > 1 ? $t('“히히… 여기야. 여기.” …등 뒤에서.', '“Hehe… over here. Here.” …from behind you.') : $t('“히히… 여기야. 여기.”', '“Hehe… over here. Here.”'), 2.4);
     if (!TORCH.on) ui.torchBtn.classList.add('nudge');
     log('hint_used', { hint: 'glow_' + d.i });
   }
@@ -1646,8 +1647,8 @@ function pzCodeTap(px, py, dir) {
 // the dial: four wheels you roll with a finger (or the arrows)
 function pzDial(px, py) {
   const d = [0, 0, 0, 0];
-  openModal(`<h2>서랍 자물쇠</h2><div class="dials wheel">${d.map((_, i) => `<div data-w="${i}"><button data-u="${i}">▲</button><b id="dl${i}"><i>9</i><em>0</em><i>1</i></b><button data-dn="${i}">▼</button></div>`).join('')}</div>
-    <p class="hint">숫자를 위아래로 굴려 맞춘다 · 아래 점이 자리 순서</p><div class="row"><button class="ghostbtn" data-close>닫기</button><button class="primary" id="dialOk">열기</button></div>`, 'keypadCard');
+  openModal(`<h2>${$t('서랍 자물쇠', 'Drawer lock')}</h2><div class="dials wheel">${d.map((_, i) => `<div data-w="${i}"><button data-u="${i}">▲</button><b id="dl${i}"><i>9</i><em>0</em><i>1</i></b><button data-dn="${i}">▼</button></div>`).join('')}</div>
+    <p class="hint">${$t('숫자를 위아래로 굴려 맞춘다 · 아래 점이 자리 순서', 'Roll each wheel up or down · the dot underneath shows its place')}</p><div class="row"><button class="ghostbtn" data-close>${$t('닫기', 'Close')}</button><button class="primary" id="dialOk">${$t('열기', 'Open')}</button></div>`, 'keypadCard');
   const draw = () => d.forEach((v, i) => { const el = $('#dl' + i); el.innerHTML = `<i>${(v + 9) % 10}</i><em>${v}</em><i>${(v + 1) % 10}</i>`; });
   const roll = (i, s) => { d[i] = (d[i] + s + 10) % 10; snd.play('tick'); draw(); };
   ui.card.querySelectorAll('[data-u]').forEach(b => b.addEventListener('click', () => roll(+b.dataset.u, 1)));
@@ -1662,14 +1663,14 @@ function pzDial(px, py) {
   $('#dialOk').addEventListener('click', () => {
     if (d.join('') === PZ.code.join('')) {
       closeModal(); snd.play('unlock', nodeBox('drawer_lock').c); PZ.drawerOpen = S.time;
-      tapFx(true, px, py, '딸깍 — 열렸다'); snd.play('right');
-      hsTip(''); const dv = voice('pz_code_ok', null, 2.0); hsSay('“열렸다… 거기 있지? 우리 사진.”', Math.max(3, dv + 0.4));
-      addMemo('<b>책상 서랍</b> — 열렸다. 안에는 사진을 뺀 빈 액자 뒤판.');
+      tapFx(true, px, py, $t('딸깍 — 열렸다', 'Click — it\'s open')); snd.play('right');
+      hsTip(''); const dv = voice('pz_code_ok', null, 2.0); hsSay($t('“열렸다… 거기 있지? 우리 사진.”', '“It\'s open… it\'s in there, right? Our picture.”'), Math.max(3, dv + 0.4));
+      addMemo($t('<b>책상 서랍</b> — 열렸다. 안에는 사진을 뺀 빈 액자 뒤판.', '<b>Desk drawer</b> — open. Inside: the back of an empty frame, its photo taken out.'));
       hsAfter(0.6, pzSolved);
     } else {
       snd.play('wrong'); ui.card.classList.remove('shake'); void ui.card.offsetWidth; ui.card.classList.add('shake');
       PZ.fails++; touch(10, 'puzzle_code'); log('puzzle_wrong', { kind: 'code', tried: d.join('') });
-      $('.keypadCard .hint').textContent = PZ.step < 4 ? `틀렸다. (몸이 차가워진다) …아직 못 찾은 숫자가 ${4 - PZ.step}개.` : '틀렸다. (몸이 차가워진다) …자리 순서는 숫자 밑의 점.';
+      $('.keypadCard .hint').textContent = PZ.step < 4 ? $t(`틀렸다. (몸이 차가워진다) …아직 못 찾은 숫자가 ${4 - PZ.step}개.`, `Wrong. (A chill runs through you) …${4 - PZ.step} digit${4 - PZ.step > 1 ? 's' : ''} still not found.`) : $t('틀렸다. (몸이 차가워진다) …자리 순서는 숫자 밑의 점.', 'Wrong. (A chill runs through you) …The dot under each digit shows its place.');
       voice('pz_code_bad', null, 2.2);
     }
   });
@@ -1697,12 +1698,12 @@ function pzApply(dt, time) {
 }
 
 // ---------------------------------------------------------------- stages
-const ACT_NAMES = ['1999년 12월, 저녁', '멈춘 시계', '기다림', '문'];
+const ACT_NAMES = [$t('1999년 12월, 저녁', 'December 1999, evening'), $t('멈춘 시계', 'The stopped clock'), $t('기다림', 'Waiting'), $t('문', 'Door')];
 function setAct(a) {
   S.act = a;
   if (a === 1) {
     S.decayTarget = 0.15; S.rain = 0; snd.playMusic('music_room', 8);
-    objective('오르골을 살펴본다');
+    objective($t('오르골을 살펴본다', 'Examine the music box'));
   }
   if (a === 2) { S.decayTarget = 0.78; snd.playMusic('music_room', 4); }
   if (a === 3) { S.decayTarget = 1; S.warmth = Math.max(S.warmth, 75); }
@@ -1712,70 +1713,70 @@ function setAct(a) {
 const STORY = {
   intro() {
     S.blackout = 1; S.blackoutTarget = 0;
-    after(1.2, () => say('…익숙한 방이다. 어디서 많이 본.', 4));
-    after(5.4, () => say('몸이 의자에 묶여 있다. 고개만 돌릴 수 있다.', 4));
-    after(9.8, () => say('밖엔 비가 온다. 시계는 7시 55분.', 3.5));
+    after(1.2, () => say($t('…익숙한 방이다. 어디서 많이 본.', '…A familiar room. I\'ve seen it somewhere before.'), 4));
+    after(5.4, () => say($t('몸이 의자에 묶여 있다. 고개만 돌릴 수 있다.', 'I\'m tied to a chair. I can only turn my head.'), 4));
+    after(9.8, () => say($t('밖엔 비가 온다. 시계는 7시 55분.', 'Rain outside. The clock says 7:55.'), 3.5));
     after(14, () => {
-      objective('TV 리모컨을 가만히 바라본다');
+      objective($t('TV 리모컨을 가만히 바라본다', 'Stare at the TV remote'));
       const touch = matchMedia('(pointer: coarse)').matches;
-      say(`손이 닿지 않는 물건은… 확대해서(${touch ? '👁 버튼' : '우클릭·휠'}) 오래 바라본다.`, 6);
+      say($t(`손이 닿지 않는 물건은… 확대해서(${touch ? '👁 버튼' : '우클릭·휠'}) 오래 바라본다.`, `Things out of reach… zoom in (${touch ? '👁 button' : 'right-click · wheel'}) and stare at them for a while.`), 6);
     });
   },
   remoteArrived() {
-    after(0.4, () => girl('c_first', '엄마, 이거 보고 싶었어? 내가 갖다 줄게.', [0.3, 1.0, -0.4]));
-    after(4.5, () => say('…아이 목소리. 방에는 아무도 없다.', 3.5));
-    after(8.5, () => say('손끝이 얼어붙는다. 무언가 닿을 때마다 온기가 빠져나간다. (❄ 온기)', 5.5));
-    after(9, () => { objective('무릎 위 리모컨으로 TV를 켠다'); S.flags.trayTip = 1; say('아래의 물건을 눌러서 쓴다.', 4); });
+    after(0.4, () => girl('c_first', $t('엄마, 이거 보고 싶었어? 내가 갖다 줄게.', 'Mommy, did you want this? I\'ll bring it to you.'), [0.3, 1.0, -0.4]));
+    after(4.5, () => say($t('…아이 목소리. 방에는 아무도 없다.', '…A child\'s voice. There\'s nobody in the room.'), 3.5));
+    after(8.5, () => say($t('손끝이 얼어붙는다. 무언가 닿을 때마다 온기가 빠져나간다. (❄ 온기)', 'My fingertips go numb. Every time something touches me, warmth drains away. (❄ warmth)'), 5.5));
+    after(9, () => { objective($t('무릎 위 리모컨으로 TV를 켠다', 'Turn on the TV with the remote in your lap')); S.flags.trayTip = 1; say($t('아래의 물건을 눌러서 쓴다.', 'Tap the items below to use them.'), 4); });
   },
   tvOn() {
     if (S.flags.tvOnce) return;
     S.flags.tvOnce = 1;
-    after(1.5, () => say('1999년의 어린이 방송… 채널을 돌려 본다.', 4));
-    objective('채널을 돌려 본다');
+    after(1.5, () => say($t('1999년의 어린이 방송… 채널을 돌려 본다.', 'A kids\' show from 1999… Let\'s flip through the channels.'), 4));
+    objective($t('채널을 돌려 본다', 'Flip through the channels'));
   },
   cctvFirst() {
     if (S.flags.cctvOnce) return;
     S.flags.cctvOnce = 1;
-    after(0.8, () => say('방 구석에서 찍는 화면. …의자에 아무도 없다?', 4.5));
-    after(5.5, () => say('의자 밑에 무언가 있다. 화면 속 물건도… 바라보면 되지 않을까.', 5));
-    after(6, () => objective('TV 화면 속, 의자 밑의 물건을 바라본다'));
+    after(0.8, () => say($t('방 구석에서 찍는 화면. …의자에 아무도 없다?', 'A camera in the corner of the room. …Nobody in the chair?'), 4.5));
+    after(5.5, () => say($t('의자 밑에 무언가 있다. 화면 속 물건도… 바라보면 되지 않을까.', 'Something is under the chair. Maybe things on the screen… can be stared at too.'), 5));
+    after(6, () => objective($t('TV 화면 속, 의자 밑의 물건을 바라본다', 'On the TV screen, stare at the thing under the chair')));
   },
   musicboxArrived() {
-    after(0.5, () => girl('c_bring1', '가져왔어.', [0.2, 0.6, 0.6]));
+    after(0.5, () => girl('c_bring1', $t('가져왔어.', 'I brought it.'), [0.2, 0.6, 0.6]));
     after(2.5, () => {
       setAct(1);
       // the first sighting: only on the CCTV, right behind the chair
       S.ghost = { p: [0.15, 0, 0.72], kind: 'stand', alpha: 0, target: 1, mode: 'cctv', camOnly: true };
       snd.play('whisper', [0.2, 1.2, 0.8]);
-      after(1.2, () => { if (S.tv.on && S.tv.ch === 7) girl('c_cctv', '엄마 뒤에 있어.', [0.2, 1.2, 0.8]); });
+      after(1.2, () => { if (S.tv.on && S.tv.ch === 7) girl('c_cctv', $t('엄마 뒤에 있어.', 'I\'m right behind you, Mommy.'), [0.2, 1.2, 0.8]); });
       after(4.5, () => { if (S.ghost?.mode === 'cctv') S.ghost.target = 0; S.bulbBurst = 1.2; snd.play('static', O.tvCenter); });
-      after(5, () => { stopClock(); say('…시계가 멈췄다. 빗소리도.', 3.5); });
+      after(5, () => { stopClock(); say($t('…시계가 멈췄다. 빗소리도.', '…The clock has stopped. So has the rain.'), 3.5); });
     });
   },
   noteFound() {
-    objective('달력을 찾는다 — 엄마가 오는 날');
-    after(18, () => { if (!S.fetched.has('curtain')) say('달력… 창문에 붙여 뒀었는데. 커튼 뒤에.', 4.5); });
+    objective($t('달력을 찾는다 — 엄마가 오는 날', 'Find the calendar — the day Mommy comes home'));
+    after(18, () => { if (!S.fetched.has('curtain')) say($t('달력… 창문에 붙여 뒀었는데. 커튼 뒤에.', 'The calendar… it was taped to the window. Behind the curtain.'), 4.5); });
   },
   calendarRead() {
     if (S.flags.calRead) return;
     S.flags.calRead = 1;
-    objective(`서랍을 가져오게 하고, 자물쇠를 연다 (12월 ${SOL.day}일)`);
+    objective($t(`서랍을 가져오게 하고, 자물쇠를 연다 (12월 ${SOL.day}일)`, `Have her bring the drawer, then open its lock (December ${SOL.day})`));
   },
   drawerOpened() {
     invAdd('scissors'); invAdd('crank');
-    after(0.6, () => say('가위와… 태엽 열쇠.', 3));
-    objective('태엽 열쇠를 오르골에 끼운다 (열쇠를 누른 뒤 오르골)');
+    after(0.6, () => say($t('가위와… 태엽 열쇠.', 'Scissors… and a winding key.'), 3));
+    objective($t('태엽 열쇠를 오르골에 끼운다 (열쇠를 누른 뒤 오르골)', 'Fit the winding key into the music box (tap the key, then the music box)'));
   },
   musicPlayed() {
     // she comes to listen, sitting in front of the TV
     S.ghost = { p: [0.05, 0, -1.3], kind: 'crouch', alpha: 0, target: 1, mode: 'sit' };
-    after(1.5, () => girl('c_song', '이 노래… 엄마가 불러 줬던 거.', [0.05, 0.7, -1.3]));
+    after(1.5, () => girl('c_song', $t('이 노래… 엄마가 불러 줬던 거.', 'This song… you used to sing it to me.'), [0.05, 0.7, -1.3]));
     after(15, () => { if (S.ghost?.mode === 'sit') { S.ghost.target = 0; } });
     after(16, () => {
       setAct(2);
-      say('…방이, 뒤틀려 간다.', 3.5);
-      after(4, () => girl('c_wait', '나 착하게 기다렸어. 소리도 안 냈어.', null));
-      after(10, () => { objective('가위로 오른손 밧줄을 끊는다 (가위를 누른 뒤 아래를 본다)'); });
+      say($t('…방이, 뒤틀려 간다.', '…The room is twisting.'), 3.5);
+      after(4, () => girl('c_wait', $t('나 착하게 기다렸어. 소리도 안 냈어.', 'I waited like a good girl. I didn\'t make a sound.'), null));
+      after(10, () => { objective($t('가위로 오른손 밧줄을 끊는다 (가위를 누른 뒤 아래를 본다)', 'Cut the rope on your right hand with the scissors (tap the scissors, then look down)')); });
     });
   },
   ropeCut() {
@@ -1783,18 +1784,18 @@ const STORY = {
   setVisible(O.nodes.rope_R, false);
     const p = v3.add(EYE, v3.add(v3.scale(flatFwd(), 0.7), [0, -1.15, 0]));
     S.ghost = { p, kind: 'stand', alpha: 0.6, target: 1, mode: 'close' };
-    girl('c_rope', '가지 마… 또 가지 마.', [p[0], 1.2, p[2]]);
+    girl('c_rope', $t('가지 마… 또 가지 마.', 'Don\'t go… don\'t go again.'), [p[0], 1.2, p[2]]);
     touch(10, 'rope');
     after(2.5, () => { if (S.ghost?.mode === 'close') S.ghost.target = 0; });
-    after(4, () => say('오른손이 풀렸다. …발목은 쇠사슬로 의자에 묶여 있다. 자물쇠가 달렸다.', 5));
-    after(9.5, () => objective('발목 자물쇠의 열쇠를 찾는다'));
-    after(30, () => { if (!S.inv.includes('anklekey') && !S.fetched.has('doll')) say('책장 위의 인형… 배가 불룩했던 것 같다.', 4.5); });
+    after(4, () => say($t('오른손이 풀렸다. …발목은 쇠사슬로 의자에 묶여 있다. 자물쇠가 달렸다.', 'My right hand is free. …My ankles are chained to the chair. There\'s a padlock.'), 5));
+    after(9.5, () => objective($t('발목 자물쇠의 열쇠를 찾는다', 'Find the key to the ankle padlock')));
+    after(30, () => { if (!S.inv.includes('anklekey') && !S.fetched.has('doll')) say($t('책장 위의 인형… 배가 불룩했던 것 같다.', 'The doll on the bookshelf… its belly looked swollen.'), 4.5); });
   },
   freed() {
     S.flags.feet = 1;
   setVisible(O.nodes.chain, false); setVisible(O.nodes.padlock, false);
     snd.play('unlock', [0, 0.1, 0.1]);
-    say('철컥. …발이 자유롭다.', 3);
+    say($t('철컥. …발이 자유롭다.', 'Clunk. …My feet are free.'), 3);
     after(3, () => STORY.final());
   },
   final() {
@@ -1805,23 +1806,23 @@ const STORY = {
       snd.play('pop', [0, 2.1, -0.6]); S.bulbDead = true; S.flash = 0.35; S.flashCol = [1, 0.8, 0.5];
       snd.playMusic('music_chase', 1.5);
       S.ghost = { p: [-1.65, 0, -0.6], kind: 'stand', alpha: 0, target: 1, mode: 'chase', stepT: 0 };
-      after(1, () => girl('c_turn', '이번엔… 엄마가 기다려.', [-1.65, 1.2, -0.6]));
+      after(1, () => girl('c_turn', $t('이번엔… 엄마가 기다려.', 'Now… it\'s your turn to wait, Mommy.'), [-1.65, 1.2, -0.6]));
       after(4, () => {
         const touchUI = matchMedia('(pointer: coarse)').matches;
-        objective(`문으로 간다 — ${touchUI ? '[걷기]를 누르고 있으면' : 'W 키/[걷기]를 누르고 있으면'} 앞으로. 그 애를 보면 멈춘다`);
-        say('엄마…? 나를 보고 하는 말이다.', 3.5);
+        objective($t(`문으로 간다 — ${touchUI ? '[걷기]를 누르고 있으면' : 'W 키/[걷기]를 누르고 있으면'} 앞으로. 그 애를 보면 멈춘다`, `Go to the door — ${touchUI ? 'hold [Walk]' : 'hold W / [Walk]'} to move forward. She freezes while you watch her`));
+        say($t('엄마…? 나를 보고 하는 말이다.', 'Mommy…? She means me.'), 3.5);
       });
     });
   },
   atDoor() {
     if (S.final) return;
     S.final = { t: 0 };
-    say('문이… 밖에서 잠겨 있다.', 3);
+    say($t('문이… 밖에서 잠겨 있다.', 'The door… is locked from the outside.'), 3);
     after(1.6, () => {
       const p = v3.add(EYE, v3.scale(flatFwd(), -0.8)); p[1] = 0;
       S.ghost = { p, kind: 'stand', alpha: 0, target: 1, mode: 'final' };
-      girl('c_door', '문은… 밖에서 잠겼어. 엄마가 잠갔잖아.', [p[0], 1.2, p[2]]);
-      after(5, () => { objective('뒤를 돌아, 그 애에게 무언가를 건넨다'); say('그 애에게… 돌려줘야 할 것이 있다.', 4); });
+      girl('c_door', $t('문은… 밖에서 잠겼어. 엄마가 잠갔잖아.', 'The door… is locked from outside. You locked it, Mommy.'), [p[0], 1.2, p[2]]);
+      after(5, () => { objective($t('뒤를 돌아, 그 애에게 무언가를 건넨다', 'Turn around and give her something')); say($t('그 애에게… 돌려줘야 할 것이 있다.', 'There\'s something… I have to give back to her.'), 4); });
       after(40, () => { if (!S.ending) endingBad('grab'); });
     });
   },
@@ -1877,7 +1878,7 @@ function startFetch(w) {
     if (w.id === 'curtain') {
       snd.play('curtain', [-2.1, 1.5, -0.6]); S.curtainTarget = 1;
       if (S.act >= 2) ghostFlash([-1.7, 0, -0.1]);
-      after(2.5, () => say('커튼이 스르르 걷혔다. 유리창에… 달력이 붙어 있다.', 4));
+      after(2.5, () => say($t('커튼이 스르르 걷혔다. 유리창에… 달력이 붙어 있다.', 'The curtain slides open. Taped to the glass… a calendar.'), 4));
     }
     return;
   }
@@ -1889,10 +1890,10 @@ function startFetch(w) {
   if (!carry) snd.play('whisper', w.c);
   if (w.heavy) after(0.8, () => voice('c_heavy', w.c));
   if (w.angry) {
-    girl('c_doll', '내 인형 만지지 마!', [w.c[0], 1.2, w.c[2]]);
+    girl('c_doll', $t('내 인형 만지지 마!', 'Don\'t touch my doll!'), [w.c[0], 1.2, w.c[2]]);
     after(0.3, () => jumpscare());
   }
-  if (w.knife) after(0.5, () => say('…칼날이 이쪽을 향해 날아온다.', 3));
+  if (w.knife) after(0.5, () => say($t('…칼날이 이쪽을 향해 날아온다.', '…The blade comes flying straight at me.'), 3));
 }
 function updateJob(dt) {
   const j = S.job; if (!j) return;
@@ -1948,10 +1949,10 @@ function arrive(j) {
   S.fetched.add(w.id);
   if (!j.free) touch(w.cost, w.id);
   if (w.item) invAdd(w.item);
-  const lines = [['c_bring1', '가져왔어.'], ['c_bring2', '이것도 줄게, 엄마.'], ['c_bring3', '엄마 거야. 만져 봐.']];
+  const lines = [['c_bring1', $t('가져왔어.', 'I brought it.')], ['c_bring2', $t('이것도 줄게, 엄마.', 'You can have this too, Mommy.')], ['c_bring3', $t('엄마 거야. 만져 봐.', 'It\'s yours, Mommy. Touch it.')]];
   if (w.id === 'remote' && !j.free) STORY.remoteArrived();
   else if (w.id === 'musicbox') STORY.musicboxArrived();
-  else if (w.knife) say('손바닥이 베였다. 피가 무릎으로 떨어진다.', 4);
+  else if (w.knife) say($t('손바닥이 베였다. 피가 무릎으로 떨어진다.', 'My palm is cut. Blood drips onto my knees.'), 4);
   else if (!w.angry && Math.random() < 0.6) after(0.3, () => { const [id, t] = pick(lines); girl(id, t, [EYE[0] + 0.4, 1.0, EYE[2] - 0.5]); });
   if (w.id === 'drawer') { snd.play('drawer', LAP()); }
   checkpoint();
@@ -1961,7 +1962,7 @@ function touch(cost, why) {
   S.warmth = Math.max(0, S.warmth - cost);
   S.lastTouch = S.time; S.frost = Math.min(1, S.frost + 0.35 + cost / 50);
   snd.play('whisper', v3.add(EYE, [0, -0.2, -0.3]));
-  if (S.warmth < 35 && !S.flags.coldLine) { S.flags.coldLine = 1; after(1, () => girl('c_cold', '엄마 손… 차갑다. 나처럼.', v3.add(EYE, [0.3, -0.1, -0.4]))); }
+  if (S.warmth < 35 && !S.flags.coldLine) { S.flags.coldLine = 1; after(1, () => girl('c_cold', $t('엄마 손… 차갑다. 나처럼.', 'Your hands are… cold, Mommy. Like mine.'), v3.add(EYE, [0.3, -0.1, -0.4]))); }
   if (S.warmth <= 0) collapse();
 }
 function collapse() {
@@ -1969,10 +1970,10 @@ function collapse() {
   S.collapsing = true;
   if (S.act >= 3) { endingBad('cold'); return; }
   S.blackoutTarget = 1; S.job = null;
-  say('…너무 춥다. 눈앞이 하얗게 얼어붙는다.', 3);
+  say($t('…너무 춥다. 눈앞이 하얗게 얼어붙는다.', '…So cold. Everything freezes white.'), 3);
   after(4, () => {
     S.warmth = 50; S.frost = 0.4; S.decayTarget = Math.min(1, S.decayTarget + 0.08); S.blackoutTarget = 0; S.collapsing = false;
-    say('…정신을 잃었었다. 방이 조금 더 변해 있다.', 4);
+    say($t('…정신을 잃었었다. 방이 조금 더 변해 있다.', '…I blacked out. The room has changed a little more.'), 4);
   });
 }
 function ghostFlash(p) { S.ghost = { p, kind: 'stand', alpha: 0.9, target: 0, mode: 'flash' }; }
@@ -1985,7 +1986,7 @@ function openInspect(id) {
   ui.inspTitle.textContent = it.name; ui.inspDesc.textContent = it.desc || '';
   ui.inspect.classList.add('show'); ui.hud.classList.add('inspecting');
   ui.inspUse.style.display = ['scissors', 'crank', 'anklekey', 'knife', 'doll'].includes(id) ? '' : 'none';
-  if (id === 'doll') ui.inspUse.textContent = '건네기용으로 들기'; else ui.inspUse.textContent = '사용';
+  if (id === 'doll') ui.inspUse.textContent = $t('건네기용으로 들기', 'Hold it out to give'); else ui.inspUse.textContent = $t('사용', 'Use');
   S.lidTarget = 0;
 }
 function closeInspect() {
@@ -2004,68 +2005,68 @@ function inspectObjs(id) {
 }
 const HOT = {
   musicbox: [
-    { p: [0, -0.04, 0.05], label: '밑면', fn() { S.insp.pitch = -2.6; say('밑면에 새겨진 글씨 — “수아에게. 일곱 번째 생일 축하해. 엄마가.”', 5); } },
-    { p: [0, 0.045, 0], label: '뚜껑', fn() { S.lidTarget = S.lidTarget ? 0 : 1; if (S.lidTarget) after(0.6, () => childNote()); } },
-    { p: [0.076, 0, 0], label: '태엽', fn() { if (S.inv.includes('crank')) combine('crank', 'musicbox'); else say('태엽 구멍이 비어 있다. 감을 열쇠가 필요하다.', 3.5); } },
+    { p: [0, -0.04, 0.05], label: $t('밑면', 'Bottom'), fn() { S.insp.pitch = -2.6; say($t('밑면에 새겨진 글씨 — “수아에게. 일곱 번째 생일 축하해. 엄마가.”', 'Engraved on the bottom — “To Sua. Happy 7th birthday. Love, Mommy.”'), 5); } },
+    { p: [0, 0.045, 0], label: $t('뚜껑', 'Lid'), fn() { S.lidTarget = S.lidTarget ? 0 : 1; if (S.lidTarget) after(0.6, () => childNote()); } },
+    { p: [0.076, 0, 0], label: $t('태엽', 'Winder'), fn() { if (S.inv.includes('crank')) combine('crank', 'musicbox'); else say($t('태엽 구멍이 비어 있다. 감을 열쇠가 필요하다.', 'The winding hole is empty. It needs a key.'), 3.5); } },
   ],
-  drawer: [{ p: [-0.03, -0.03, 0.16], label: '자물쇠', fn: () => openDial() }],
-  machine: [{ p: [0.0, 0.05, 0.04], label: '재생', fn: () => playTape() }],
-  doll: [{ p: [0, -0.03, 0.045], label: '배의 실밥', fn() {
+  drawer: [{ p: [-0.03, -0.03, 0.16], label: $t('자물쇠', 'Lock'), fn: () => openDial() }],
+  machine: [{ p: [0.0, 0.05, 0.04], label: $t('재생', 'Play'), fn: () => playTape() }],
+  doll: [{ p: [0, -0.03, 0.045], label: $t('배의 실밥', 'Belly stitches'), fn() {
     if (S.inv.includes('scissors') || S.inv.includes('knife')) cutDoll();
-    else say('서툴게 꿰맨 배 속에 딱딱한 게 만져진다. 자를 것이 필요하다.', 4);
+    else say($t('서툴게 꿰맨 배 속에 딱딱한 게 만져진다. 자를 것이 필요하다.', 'Something hard inside the clumsily stitched belly. I need something to cut it with.'), 4);
   } }],
 };
 function childNote() {
   if (!S.flags.childNote) {
     S.flags.childNote = 1;
-    addMemo('<b>오르골 속 쪽지</b> — “서랍 비밀번호는 엄마가 오는 날 (월 두 자리 + 일 두 자리)”');
+    addMemo($t('<b>오르골 속 쪽지</b> — “서랍 비밀번호는 엄마가 오는 날 (월 두 자리 + 일 두 자리)”', '<b>Note in the music box</b> — “The drawer code is the day Mommy comes home (2-digit month + 2-digit day)”'));
     STORY.noteFound();
   }
-  showDoc('오르골 속 쪽지', O.docCanvas.childnote, '아이 글씨. 뚜껑 안쪽 거울 뒤에 접혀 있었다.');
+  showDoc($t('오르골 속 쪽지', 'Note in the music box'), O.docCanvas.childnote, $t('아이 글씨. 뚜껑 안쪽 거울 뒤에 접혀 있었다.', 'A child\'s handwriting. It was folded up behind the mirror inside the lid.'));
 }
 function cutDoll() {
   if (S.inv.includes('anklekey')) return;
   snd.play('creak', LAP()); S.glitch = 0.8;
-  say('실밥을 끊자… 솜 사이로 작은 열쇠와, 젖니 하나가 떨어진다.', 5);
+  say($t('실밥을 끊자… 솜 사이로 작은 열쇠와, 젖니 하나가 떨어진다.', 'I cut the stitches… out of the stuffing drop a small key and a baby tooth.'), 5);
   invAdd('anklekey');
-  addMemo('<b>인형 배 속</b> — 작은 열쇠, 그리고 젖니 하나.');
-  objective('작은 열쇠를 발목 자물쇠에 쓴다 (열쇠를 누른 뒤 아래를 본다)');
+  addMemo($t('<b>인형 배 속</b> — 작은 열쇠, 그리고 젖니 하나.', '<b>Inside the doll</b> — a small key, and a baby tooth.'));
+  objective($t('작은 열쇠를 발목 자물쇠에 쓴다 (열쇠를 누른 뒤 아래를 본다)', 'Use the small key on the ankle padlock (tap the key, then look down)'));
 }
 function openDocItem(id) {
   const map = {
-    calendar: ['1999년 12월', `4일부터 매일 크레용으로 X. ${SOL.day}일에 동그라미 — “엄마 오는 날?” 그 뒤로는 파란 X.`],
-    note: ['엄마의 쪽지', '어른의 글씨. 맨 아래에 크레용으로 작게 — “안 두드릴게 빨리 와”'],
-    drawing: ['크레용 그림', '의자에 앉아 우는 여자아이, TV, 자물쇠가 걸린 문. 문밖으로 걸어가는 빨간 옷의 여자.'],
-    news: ['신문 조각', '2000년 1월 14일자. 사진 속 현관문의 번호는… 303.'],
-    photo: ['가족사진', S.decay > 0.5 ? '엄마의 얼굴이 새까맣게 긁혀 있다. “거짓말쟁이”' : '생일 케이크 앞의 엄마와 수아. 둘 다 웃고 있다.'],
+    calendar: [$t('1999년 12월', 'December 1999'), $t(`4일부터 매일 크레용으로 X. ${SOL.day}일에 동그라미 — “엄마 오는 날?” 그 뒤로는 파란 X.`, `A crayon X on every day from the 4th. December ${SOL.day} is circled — “Mommy comes home?” After it, only blue X's. Along the bottom: “Mommy Mommy Mommy Mommy Mommy Mommy”`)],
+    note: [$t('엄마의 쪽지', "Mommy's note"), $t('어른의 글씨. 맨 아래에 크레용으로 작게 — “안 두드릴게 빨리 와”', "An adult's handwriting: “Sua — Mommy's off to work. Watch TV and wait quietly. If you bang on the door, Mommy will get really mad. Have the cup noodles for dinner. Don't watch channel 11 (the news) — it's scary. — Mommy”<br>Squeezed in at the bottom, in crayon — “I won't knock come home fast”")],
+    drawing: [$t('크레용 그림', 'Crayon drawing'), $t('의자에 앉아 우는 여자아이, TV, 자물쇠가 걸린 문. 문밖으로 걸어가는 빨간 옷의 여자.', 'A little girl crying on a chair, a TV, a padlocked door. A woman in red walking out through the door. Underneath, in red crayon: “When is Mommy coming?”')],
+    news: [$t('신문 조각', 'Newspaper clipping'), $t('2000년 1월 14일자. 사진 속 현관문의 번호는… 303.', 'Dated January 14, 2000. “GIRL, 7, FOUND DEAD IN UNIT 303 — The room was locked from the outside; every date on the calendar was crossed out with an X. Police search for the mother, out of contact for three weeks.” The number on the front door in the photo… 303.')],
+    photo: [$t('가족사진', 'Family photo'), S.decay > 0.5 ? $t('엄마의 얼굴이 새까맣게 긁혀 있다. “거짓말쟁이”', 'Mommy\'s face has been scratched out, black. Scrawled beneath: “LIAR”') : $t('생일 케이크 앞의 엄마와 수아. 둘 다 웃고 있다.', 'Mommy and Sua in front of a birthday cake. Both smiling. “Sua\'s 7th birthday ♥”')],
   };
   const [title, cap] = map[id];
   const canvas = id === 'photo' ? (S.decay > 0.5 ? O.familyRuined : O.familyClean) : O.docCanvas[id];
   showDoc(title, canvas, cap, id === 'news', id === 'photo' && S.act >= 3);
-  if (id === 'calendar') { record('calendar', `달력 — 12월 ${SOL.day}일 “엄마 오는 날?”`); STORY.calendarRead(); }
-  if (id === 'note') record('note', '엄마의 쪽지 — “문 두드리면 엄마 진짜 화낸다. 11번(뉴스)은 보지 마.”');
-  if (id === 'drawing') record('drawing', '크레용 그림 — 자물쇠가 걸린 문, 떠나는 여자.');
-  if (id === 'news') record('newspaper', '신문 — “빌라 303호 7세 여아 숨진 채 발견”');
+  if (id === 'calendar') { record('calendar', $t(`달력 — 12월 ${SOL.day}일 “엄마 오는 날?”`, `Calendar — December ${SOL.day}: “Mommy comes home?”`)); STORY.calendarRead(); }
+  if (id === 'note') record('note', $t('엄마의 쪽지 — “문 두드리면 엄마 진짜 화낸다. 11번(뉴스)은 보지 마.”', 'Mommy\'s note — “If you bang on the door Mommy will get really mad. Don\'t watch channel 11 (the news).”'));
+  if (id === 'drawing') record('drawing', $t('크레용 그림 — 자물쇠가 걸린 문, 떠나는 여자.', 'Crayon drawing — a padlocked door, a woman leaving.'));
+  if (id === 'news') record('newspaper', $t('신문 — “빌라 303호 7세 여아 숨진 채 발견”', 'Newspaper — “Girl, 7, found dead in Unit 303”'));
 }
 function showDoc(title, canvas, caption, wide = false, give = false) {
   openModal(`<h2>${title}</h2><img class="docimg${wide ? ' wide' : ''}" src="${canvas.toDataURL('image/jpeg', 0.85)}" alt="">
-    <p class="hint doc">${caption}</p><div class="row">${give ? '<button class="primary" id="docUse">들고 있기 (건네기)</button>' : ''}<button class="${give ? 'ghostbtn' : 'primary'}" data-close>닫기</button></div>`, 'docCard');
-  if (give) $('#docUse').addEventListener('click', () => { closeModal(); S.useItem = 'photo'; renderTray(); say('사진을 든다. 그 애를 바라보고 누른다.', 3.5); });
+    <p class="hint doc">${caption}</p><div class="row">${give ? $t('<button class="primary" id="docUse">들고 있기 (건네기)</button>', '<button class="primary" id="docUse">Hold it (to give)</button>') : ''}<button class="${give ? 'ghostbtn' : 'primary'}" data-close>${$t('닫기', 'Close')}</button></div>`, 'docCard');
+  if (give) $('#docUse').addEventListener('click', () => { closeModal(); S.useItem = 'photo'; renderTray(); say($t('사진을 든다. 그 애를 바라보고 누른다.', 'I hold up the photo. Look at her and tap.'), 3.5); });
 }
 function openDial() {
   const d = [0, 0, 0, 0];
-  openModal(`<h2>서랍 자물쇠</h2><div class="dials">${d.map((_, i) => `<div><button data-u="${i}">▲</button><b id="dl${i}">0</b><button data-dn="${i}">▼</button></div>`).join('')}</div>
-    <p class="hint">월 두 자리 + 일 두 자리</p><div class="row"><button class="ghostbtn" data-close>닫기</button><button class="primary" id="dialOk">열기</button></div>`, 'keypadCard');
+  openModal(`<h2>${$t('서랍 자물쇠', 'Drawer lock')}</h2><div class="dials">${d.map((_, i) => `<div><button data-u="${i}">▲</button><b id="dl${i}">0</b><button data-dn="${i}">▼</button></div>`).join('')}</div>
+    <p class="hint">${$t('월 두 자리 + 일 두 자리', '2-digit month + 2-digit day')}</p><div class="row"><button class="ghostbtn" data-close>${$t('닫기', 'Close')}</button><button class="primary" id="dialOk">${$t('열기', 'Open')}</button></div>`, 'keypadCard');
   const draw = () => d.forEach((v, i) => { $('#dl' + i).textContent = v; });
   ui.card.querySelectorAll('[data-u]').forEach(b => b.addEventListener('click', () => { d[+b.dataset.u] = (d[+b.dataset.u] + 1) % 10; snd.play('tick'); draw(); }));
   ui.card.querySelectorAll('[data-dn]').forEach(b => b.addEventListener('click', () => { d[+b.dataset.dn] = (d[+b.dataset.dn] + 9) % 10; snd.play('tick'); draw(); }));
   $('#dialOk').addEventListener('click', () => {
     if (d.join('') === CODE.join('')) {
       closeModal(); snd.play('unlock', LAP()); closeInspect(); invRemove('drawer');
-      say('딸깍. 자물쇠가 열렸다.', 2.5); after(1, () => STORY.drawerOpened());
+      say($t('딸깍. 자물쇠가 열렸다.', 'Click. The lock opens.'), 2.5); after(1, () => STORY.drawerOpened());
     } else {
       snd.play('wrong'); ui.card.classList.remove('shake'); void ui.card.offsetWidth; ui.card.classList.add('shake');
-      if (!S.flags.calRead) $('.keypadCard .hint').textContent = '…엄마가 오는 날. 어디에 적혀 있었을까.';
+      if (!S.flags.calRead) $('.keypadCard .hint').textContent = $t('…엄마가 오는 날. 어디에 적혀 있었을까.', '…The day Mommy comes home. Where was that written?');
     }
   });
 }
@@ -2076,33 +2077,33 @@ function beginUse() {
   const id = S.insp.id;
   closeInspect();
   S.useItem = id; renderTray();
-  const tip = { scissors: '가위 — 밧줄이나 인형에', crank: '태엽 열쇠 — 오르골에', anklekey: '열쇠 — 발목 자물쇠에', knife: '칼 — 밧줄에', doll: '인형 — 그 애에게' }[id] || ITEMS[id].name;
-  say(`${tip}. 대상을 바라보고 누르거나, 아래 물건을 누른다.`, 4);
+  const tip = { scissors: $t('가위 — 밧줄이나 인형에', 'Scissors — for the rope or the doll'), crank: $t('태엽 열쇠 — 오르골에', 'Winding key — for the music box'), anklekey: $t('열쇠 — 발목 자물쇠에', 'Key — for the ankle padlock'), knife: $t('칼 — 밧줄에', 'Knife — for the rope'), doll: $t('인형 — 그 애에게', 'Doll — for her') }[id] || ITEMS[id].name;
+  say(`${tip}. ` + $t('대상을 바라보고 누르거나, 아래 물건을 누른다.', 'Look at the target and tap, or tap an item below.'), 4);
 }
 function combine(a, b) {
   const pair = [a, b].sort().join('+');
   S.useItem = null; renderTray();
   if (pair === 'crank+musicbox') { windMusicBox(); return; }
   if ((pair === 'doll+scissors') || (pair === 'doll+knife')) { cutDoll(); return; }
-  say('…어울리지 않는다.', 2);
+  say($t('…어울리지 않는다.', '…That doesn\'t go together.'), 2);
 }
 function windMusicBox() {
-  if (S.flags.musicPlayed) { snd.musicBox(LAP(), 10); S.insanity = Math.max(0, S.insanity - 0.4); say('태엽을 감는다. 그 애가… 조용해진다.', 3); return; }
+  if (S.flags.musicPlayed) { snd.musicBox(LAP(), 10); S.insanity = Math.max(0, S.insanity - 0.4); say($t('태엽을 감는다. 그 애가… 조용해진다.', 'I wind it. She… goes quiet.'), 3); return; }
   S.flags.musicPlayed = 1;
   invRemove('crank');
   closeInspect();
-  say('끼릭, 끼릭… 태엽을 감는다.', 2.5);
+  say($t('끼릭, 끼릭… 태엽을 감는다.', 'Creak, creak… I wind it up.'), 2.5);
   after(1.6, () => { snd.musicBox(LAP(), 16); STORY.musicPlayed(); });
 }
 const USE_TARGETS = [
-  { id: 'rope', label: '오른손 밧줄', min: [0.15, 0.58, 0.12], max: [0.3, 0.74, 0.42] },
-  { id: 'padlock', label: '발목 자물쇠', min: [-0.12, 0, -0.1], max: [0.12, 0.14, 0.2] },
-  { id: 'door', label: '문', min: [0.12, 0, 2.4], max: [1.28, 2.12, 2.62] },
+  { id: 'rope', label: $t('오른손 밧줄', 'Right-hand rope'), min: [0.15, 0.58, 0.12], max: [0.3, 0.74, 0.42] },
+  { id: 'padlock', label: $t('발목 자물쇠', 'Ankle padlock'), min: [-0.12, 0, -0.1], max: [0.12, 0.14, 0.2] },
+  { id: 'door', label: $t('문', 'Door'), min: [0.12, 0, 2.4], max: [1.28, 2.12, 2.62] },
 ];
 function useTarget(dir) {
   if (S.ghost && ['final', 'chase'].includes(S.ghost.mode) && S.ghost.alpha > 0.5) {
     const g = S.ghost, t = rayAABB(EYE, dir, [g.p[0] - 0.3, 0, g.p[2] - 0.3], [g.p[0] + 0.3, 1.5, g.p[2] + 0.3]);
-    if (t >= 0) return { id: 'ghost', label: '그 애' };
+    if (t >= 0) return { id: 'ghost', label: $t('그 애', 'Her') };
   }
   let best = null, bd = 1e9;
   for (const u of USE_TARGETS) { const t = rayAABB(EYE, dir, u.min, u.max); if (t >= 0 && t < bd) { bd = t; best = u; } }
@@ -2115,9 +2116,9 @@ function applyUse(tgt) {
     snd.play('creak', v3.add(EYE, [0.3, -0.5, 0])); STORY.ropeCut(); return;
   }
   if (tgt.id === 'padlock' && id === 'anklekey' && S.flags.hand && !S.flags.feet) { invRemove('anklekey'); STORY.freed(); return; }
-  if (tgt.id === 'padlock' && id === 'anklekey' && !S.flags.hand) { say('손이 묶여 있어서 닿지 않는다.', 3); return; }
+  if (tgt.id === 'padlock' && id === 'anklekey' && !S.flags.hand) { say($t('손이 묶여 있어서 닿지 않는다.', 'My hands are tied. I can\'t reach it.'), 3); return; }
   if (tgt.id === 'ghost' && S.final) { giveTo(id); return; }
-  say('…아무 일도 일어나지 않는다.', 2);
+  say($t('…아무 일도 일어나지 않는다.', '…Nothing happens.'), 2);
 }
 function giveTo(id) {
   if (S.ending) return;
@@ -2125,7 +2126,7 @@ function giveTo(id) {
   if (id === 'doll') { endingDoll(); return; }
   invRemove(id);
   touch(6, 'give');
-  say('그 애는 고개를 젓는다. 그게 아니야.', 3);
+  say($t('그 애는 고개를 젓는다. 그게 아니야.', 'She shakes her head. Not that.'), 3);
 }
 
 // ---------------------------------------------------------------- remote control / TV
@@ -2137,7 +2138,7 @@ function togglePad(force) {
 function padPress(k) {
   snd.play('beep', LAP());
   if (k === 'power') { S.tv.on = !S.tv.on; if (S.tv.on) { STORY.tvOn(); } }
-  else if (!S.tv.on) { say('TV가 꺼져 있다.', 2); return; }
+  else if (!S.tv.on) { say($t('TV가 꺼져 있다.', 'The TV is off.'), 2); return; }
   else if (k === 'up') S.tv.ch = S.tv.ch % 12 + 1;
   else if (k === 'down') S.tv.ch = (S.tv.ch + 10) % 12 + 1;
   else S.tv.ch = +k;
@@ -2152,34 +2153,34 @@ function tvContent() {
   if (!S.tv.on) return { mode: 'off' };
   tvScreen.showFace = !!AN.act.tv;
   if (AN.act.tv?.stage) return { mode: 'cctv' };
-  if (AN.act.tv) return { mode: 'text', lines: ['엄마', '보지 마'] };
+  if (AN.act.tv) return { mode: 'text', lines: [$t('엄마', 'MOMMY'), $t('보지 마', 'DON\'T LOOK')] };
   if (ch === 7) return { mode: 'cctv' };
   if (ch === 3) return { mode: 'kids', bad: S.act >= 2 };
-  if (ch === 5) return { mode: 'text', lines: S.act >= 2 ? ['2000년 1월 14일', '(금)'] : ['1999년 12월 24일', '(금) 오후 7:55'] };
-  if (ch === 11) return S.act >= 2 ? { mode: 'text', lines: ['뉴스 속보', '303호 여아…'] } : { mode: 'text', lines: ['정규 방송이', '끝났습니다'] };
+  if (ch === 5) return { mode: 'text', lines: S.act >= 2 ? [$t('2000년 1월 14일', 'January 14, 2000'), $t('(금)', '(Fri)')] : [$t('1999년 12월 24일', 'December 24, 1999'), $t('(금) 오후 7:55', '(Fri) 7:55 PM')] };
+  if (ch === 11) return S.act >= 2 ? { mode: 'text', lines: [$t('뉴스 속보', 'BREAKING NEWS'), $t('303호 여아…', 'Girl in Unit 303…')] } : { mode: 'text', lines: [$t('정규 방송이', 'Regular programming'), $t('끝났습니다', 'has ended')] };
   return { mode: 'static' };
 }
 function playNews() {
   S.flags.news = 1;
   const d = voice('n_news', O.tvCenter, 1.2);
-  sayNow('📺 “…빌라 303호에서 일곱 살 여자아이가 숨진 채 발견됐습니다. 아이는 밖에서 잠긴 방 안에 혼자 있었으며, 경찰은 3주째 연락이 닿지 않는 아이의 어머니를 찾고 있습니다.”', Math.max(9, d + 1));
-  record('news', 'TV 11번 뉴스 — 밖에서 잠긴 방, 연락이 끊긴 어머니.');
+  sayNow($t('📺 “…빌라 303호에서 일곱 살 여자아이가 숨진 채 발견됐습니다. 아이는 밖에서 잠긴 방 안에 혼자 있었으며, 경찰은 3주째 연락이 닿지 않는 아이의 어머니를 찾고 있습니다.”', '📺 “…A seven-year-old girl has been found dead in Unit 303 of a low-rise apartment building. The child was alone in a room locked from the outside. Police are searching for her mother, who has not been reachable for three weeks.”'), Math.max(9, d + 1));
+  record('news', $t('TV 11번 뉴스 — 밖에서 잠긴 방, 연락이 끊긴 어머니.', 'Channel 11 news — a room locked from outside, a mother nobody can reach.'));
 }
 const TAPES = [
-  ['m_tape0', '“수아야~ 엄마야. 오늘 일 끝나고 케이크 사 갈게. 저녁 꼭 챙겨 먹고, TV 보고 있어. 사랑해!”'],
-  ['m_tape1', '“수아야, 엄마야. 엄마 오늘도 좀 늦어. TV 켜 놨지? 채널 돌리지 말고… 얌전히 보고 있어.”'],
-  ['m_tape2', '“문 두드리지 말라고 했지. 옆집에서 또 뭐라 그러잖아. …금방 갈게. 금방.”'],
-  ['m_tape3', '“수아야… 엄마 너무 힘들어. …조금만, 조금만 더 기다려. 미안해.”'],
+  ['m_tape0', $t('“수아야~ 엄마야. 오늘 일 끝나고 케이크 사 갈게. 저녁 꼭 챙겨 먹고, TV 보고 있어. 사랑해!”', '“Sua~ it\'s Mommy. I\'ll bring a cake home after work tonight. Make sure you eat your dinner, and watch TV. Love you!”')],
+  ['m_tape1', $t('“수아야, 엄마야. 엄마 오늘도 좀 늦어. TV 켜 놨지? 채널 돌리지 말고… 얌전히 보고 있어.”', '“Sua, it\'s Mommy. Mommy\'s going to be late again today. The TV\'s on, right? Don\'t change the channel… just sit and watch quietly.”')],
+  ['m_tape2', $t('“문 두드리지 말라고 했지. 옆집에서 또 뭐라 그러잖아. …금방 갈게. 금방.”', '“I told you not to bang on the door. The neighbours are complaining again. …I\'ll be home soon. Soon.”')],
+  ['m_tape3', $t('“수아야… 엄마 너무 힘들어. …조금만, 조금만 더 기다려. 미안해.”', '“Sua… Mommy\'s so tired. …Just a little, just a little longer. I\'m sorry.”')],
 ];
 function playTape() {
   const i = Math.min(S.tape, TAPES.length - 1);
   const [id, text] = TAPES[i];
   snd.play('click', LAP());
-  after(0.4, () => { const d = voice(id, LAP(), 1.1); sayNow(`📼 ${i + 1}번째 메시지 — ${text}`, Math.max(5, d + 1)); });
+  after(0.4, () => { const d = voice(id, LAP(), 1.1); sayNow($t(`📼 ${i + 1}번째 메시지 — ${text}`, `📼 Message ${i + 1} — ${text}`), Math.max(5, d + 1)); });
   if (S.tape < TAPES.length) {
     S.tape++;
-    if (S.tape === 1) record('tape', '자동응답기 — 케이크를 사 오겠다던 엄마의 목소리가, 메시지마다 무너져 간다.');
-    if (S.tape === 4) after(11, () => say('…마지막 메시지의 날짜는 12월 24일.', 4));
+    if (S.tape === 1) record('tape', $t('자동응답기 — 케이크를 사 오겠다던 엄마의 목소리가, 메시지마다 무너져 간다.', 'Answering machine — the mother who promised a cake falls apart a little more with every message.'));
+    if (S.tape === 4) after(11, () => say($t('…마지막 메시지의 날짜는 12월 24일.', '…The last message is dated December 24.'), 4));
   }
 }
 
@@ -2188,19 +2189,19 @@ const RECORD_TOTAL = 7;
 function record(key, html) {
   if (S.records.has(key)) return false;
   S.records.add(key);
-  addMemo(`<b class="rec">기록 ${S.records.size}/${RECORD_TOTAL}</b> — ${html}`);
+  addMemo(`<b class="rec">${$t('기록', 'Record')} ${S.records.size}/${RECORD_TOTAL}</b> — ${html}`);
   return true;
 }
 // things you can only examine by looking closely
 const EXAMINE = [
-  { id: 'scratch', min: [0.4, 0.05, 2.4], max: [0.85, 0.85, 2.6], when: () => S.decay > 0.45, text: '문 안쪽, 아이 키 높이까지 손톱자국이 빼곡하다. …문은 밖에서 잠겨 있었다.',
-    rec: ['scratch', '문 안쪽의 손톱자국 — 아이 키 높이.'] },
-  { id: 'dollbelly', min: [-1.7, 1.18, 2.2], max: [-1.4, 1.5, 2.4], when: () => S.act >= 2 && !S.fetched.has('doll'), text: '책장 위의 헝겊 인형. 배가 불룩하고, 서툴게 꿰매져 있다.' },
-  { id: 'photo0', min: [-0.98, 1.3, -2.5], max: [-0.58, 1.8, -2.4], when: () => S.decay < 0.5 && !S.fetched.has('frame'), text: '가족사진. 생일 케이크 앞에서 웃는 엄마와 여자아이.' },
-  { id: 'photo1', min: [-0.98, 1.3, -2.5], max: [-0.58, 1.8, -2.4], when: () => S.decay >= 0.5 && !S.fetched.has('frame'), text: '사진 속 엄마의 얼굴이… 새까맣게 긁혀 있다.' },
-  { id: 'clock', min: [2.05, 1.62, -0.53], max: [2.2, 2.08, -0.07], when: () => S.clockStopped, text: '시계가 7시 59분에서 멈춰 있다.' },
-  { id: 'chain', min: [-0.3, 0, -0.1], max: [0.3, 0.2, 0.22], when: () => S.flags.hand && !S.flags.feet, text: '의자 다리에 감긴 쇠사슬. 작은 자물쇠가 달려 있다.' },
-  { id: 'window', min: [-2.35, 0.9, -1.2], max: [-2.1, 2.0, 0.0], when: () => S.curtainOpen > 0.6 && S.act >= 2, text: '유리창 안쪽에 작은 손자국들. 밖에서가 아니라… 안에서.' },
+  { id: 'scratch', min: [0.4, 0.05, 2.4], max: [0.85, 0.85, 2.6], when: () => S.decay > 0.45, text: $t('문 안쪽, 아이 키 높이까지 손톱자국이 빼곡하다. …문은 밖에서 잠겨 있었다.', 'The inside of the door is covered in fingernail scratches, up to a child\'s height. …It was locked from the outside.'),
+    rec: ['scratch', $t('문 안쪽의 손톱자국 — 아이 키 높이.', 'Scratches inside the door — at a child\'s height.')] },
+  { id: 'dollbelly', min: [-1.7, 1.18, 2.2], max: [-1.4, 1.5, 2.4], when: () => S.act >= 2 && !S.fetched.has('doll'), text: $t('책장 위의 헝겊 인형. 배가 불룩하고, 서툴게 꿰매져 있다.', 'A rag doll on the bookshelf. Its belly bulges, clumsily stitched shut.') },
+  { id: 'photo0', min: [-0.98, 1.3, -2.5], max: [-0.58, 1.8, -2.4], when: () => S.decay < 0.5 && !S.fetched.has('frame'), text: $t('가족사진. 생일 케이크 앞에서 웃는 엄마와 여자아이.', 'A family photo. A mother and a little girl smiling over a birthday cake.') },
+  { id: 'photo1', min: [-0.98, 1.3, -2.5], max: [-0.58, 1.8, -2.4], when: () => S.decay >= 0.5 && !S.fetched.has('frame'), text: $t('사진 속 엄마의 얼굴이… 새까맣게 긁혀 있다.', 'The mother\'s face in the photo… has been scratched out, black.') },
+  { id: 'clock', min: [2.05, 1.62, -0.53], max: [2.2, 2.08, -0.07], when: () => S.clockStopped, text: $t('시계가 7시 59분에서 멈춰 있다.', 'The clock has stopped at 7:59.') },
+  { id: 'chain', min: [-0.3, 0, -0.1], max: [0.3, 0.2, 0.22], when: () => S.flags.hand && !S.flags.feet, text: $t('의자 다리에 감긴 쇠사슬. 작은 자물쇠가 달려 있다.', 'A chain wound around the chair leg, with a small padlock.') },
+  { id: 'window', min: [-2.35, 0.9, -1.2], max: [-2.1, 2.0, 0.0], when: () => S.curtainOpen > 0.6 && S.act >= 2, text: $t('유리창 안쪽에 작은 손자국들. 밖에서가 아니라… 안에서.', 'Small handprints on the glass. Not from outside… from inside.') },
 ];
 let examineT = 0, examineId = null;
 
@@ -2208,9 +2209,9 @@ let examineT = 0, examineId = null;
 function endingGood() {
   S.ending = true; objective(''); invRemove('photo');
   const g = S.ghost;
-  say('사진을 내민다. 그 애가… 받아 든다.', 3.5);
-  after(3, () => girl('c_take', '이거… 나야? 엄마랑… 나.', g ? [g.p[0], 1.1, g.p[2]] : null));
-  after(8, () => girl('c_bye', '엄마… 이제 가도 돼. 문 열어 줄게.', g ? [g.p[0], 1.1, g.p[2]] : null));
+  say($t('사진을 내민다. 그 애가… 받아 든다.', 'I hold out the photo. She… takes it.'), 3.5);
+  after(3, () => girl('c_take', $t('이거… 나야? 엄마랑… 나.', 'Is this… me? Mommy and… me.'), g ? [g.p[0], 1.1, g.p[2]] : null));
+  after(8, () => girl('c_bye', $t('엄마… 이제 가도 돼. 문 열어 줄게.', 'Mommy… you can go now. I\'ll open the door for you.'), g ? [g.p[0], 1.1, g.p[2]] : null));
   after(12, () => { if (S.ghost) S.ghost.target = 0; snd.play('unlock', [0.7, 1, 2.45]); snd.stopMusic(3); });
   after(13.5, () => { snd.play('creak', [0.7, 1, 2.45]); S.doorOpenT = 1; S.doorLight = 0.001; });
   after(16, () => ui.fade.classList.add('white'));
@@ -2219,8 +2220,8 @@ function endingGood() {
 function endingDoll() {
   S.ending = true; objective(''); invRemove('doll');
   const g = S.ghost;
-  say('인형을 내민다. 그 애가 웃는다.', 3);
-  after(2.5, () => girl('c_stay', '같이 있자… 계속.', g ? [g.p[0], 1.1, g.p[2]] : null));
+  say($t('인형을 내민다. 그 애가 웃는다.', 'I hold out the doll. She smiles.'), 3);
+  after(2.5, () => girl('c_stay', $t('같이 있자… 계속.', 'Stay with me… forever.'), g ? [g.p[0], 1.1, g.p[2]] : null));
   after(5.5, () => { S.blackoutTarget = 1; snd.stopMusic(2); });
   after(8, () => showEnding('doll'));
 }
@@ -2231,28 +2232,43 @@ function endingBad(kind) {
   after(1.3, () => { S.blackoutTarget = 1; snd.stopMusic(1); });
   after(3, () => showEnding(kind));
 }
-function showEnding(kind) {
-  S.paused = true; clearSave();
-  const mins = Math.floor(S.time / 60), secs = Math.floor(S.time % 60);
-  const body = {
+// the endings' text, per language
+const ENDINGS = {
+  ko: (truth) => ({
     good: `<p>1999년 12월 24일 밤, 이 문을 밖에서 잠근 손은 내 손이었다.</p>
       <p>그 애는 사진을 안고, 처음으로 먼저 문을 열어 주었다.</p>
-      ${S.records.size >= RECORD_TOTAL ? '<p class="truth">1999년 12월 24일 밤, 나는 밖에서 문을 잠그고 나갔다. 금방 올 생각이었다.</p>' : ''}
+      ${truth ? '<p class="truth">1999년 12월 24일 밤, 나는 밖에서 문을 잠그고 나갔다. 금방 올 생각이었다.</p>' : ''}
       <p class="ch">CH 07</p><p class="whisper">“엄마… 또 와줘.”</p>`,
     doll: `<p>그 애가 내 무릎에 머리를 기댔다. 문은 다시 열리지 않았다.</p><p>이번에는, 내가 기다리기로 했다.</p>
       <p class="ch">CH 07</p><p class="whisper">화면 속 의자에, 늙은 여자가 묶여 있다.</p>`,
     grab: `<p>작은 손이 내 손목을 잡았다.</p><p>얼음처럼 차가웠다.</p><p class="ch">CH 07</p><p class="whisper">“이번엔 엄마가 기다려.”</p>`,
     cold: `<p>온기가 모두 빠져나갔다.</p><p>의자에 앉은 채로, 나는 TV를 바라보았다. 영원히.</p><p class="ch">CH 03</p><p class="whisper">“엄마가 오면은 문을 열어 줄 거야…”</p>`,
-  }[kind];
-  const title = { good: '엔딩 — 놓아주기', doll: '엔딩 — 함께 남기', grab: '엔딩 — 기다림', cold: '엔딩 — 차가운 손' }[kind];
+  }),
+  en: (truth) => ({
+    good: `<p>On the night of December 24, 1999, the hand that locked this door from the outside was mine.</p>
+      <p>She held the photo close — and for the first time, she was the one who opened the door.</p>
+      ${truth ? '<p class="truth">On the night of December 24, 1999, I locked the door from the outside and left. I meant to be back soon.</p>' : ''}
+      <p class="ch">CH 07</p><p class="whisper">“Mommy… come back again.”</p>`,
+    doll: `<p>She laid her head in my lap. The door never opened again.</p><p>This time, I was the one who chose to wait.</p>
+      <p class="ch">CH 07</p><p class="whisper">On the screen, an old woman is tied to the chair.</p>`,
+    grab: `<p>A small hand closed around my wrist.</p><p>It was cold as ice.</p><p class="ch">CH 07</p><p class="whisper">“Now it's your turn to wait, Mommy.”</p>`,
+    cold: `<p>All the warmth drained out of me.</p><p>Still in the chair, I watched the TV. Forever.</p><p class="ch">CH 03</p><p class="whisper">“When Mommy comes, she'll open the door…”</p>`,
+  }),
+};
+function showEnding(kind) {
+  S.paused = true; clearSave();
+  const mins = Math.floor(S.time / 60), secs = Math.floor(S.time % 60);
+  const truth = S.records.size >= RECORD_TOTAL;
+  const body = (ENDINGS[LANG] || ENDINGS.ko)(truth)[kind];
+  const title = { good: $t('엔딩 — 놓아주기', 'Ending — Letting Go'), doll: $t('엔딩 — 함께 남기', 'Ending — Staying Together'), grab: $t('엔딩 — 기다림', 'Ending — The Wait'), cold: $t('엔딩 — 차가운 손', 'Ending — Cold Hands') }[kind];
   log('ending_shown', { type: kind });
   ui.sub.classList.remove('show'); subQueue = []; subTimer = 0; hsTip(''); ui.hud.classList.remove('show');
   ui.ending.innerHTML = `
     <div class="endtext">
       ${body}
-      <h1>응시</h1>
-      <p class="stat">${title} · ${mins}분 ${String(secs).padStart(2, '0')}초</p>
-      <button class="primary again" onclick="localStorage.removeItem('${SAVE_KEY}'); location.reload()">↻ 다시 시작</button>
+      <h1>${$t('응시', 'THE GAZE')}</h1>
+      <p class="stat">${title} · ${$t(`${mins}분 ${String(secs).padStart(2, '0')}초`, `${mins}m ${String(secs).padStart(2, '0')}s`)}</p>
+      <button class="primary again" onclick="localStorage.removeItem('${SAVE_KEY}'); location.reload()">${$t('↻ 다시 시작', '↻ Play again')}</button>
     </div>`;
   ui.ending.classList.add('show');
   snd.play('static');
@@ -2270,24 +2286,27 @@ function openModal(html, cls = '') {
 function closeModal() { ui.modal.classList.remove('show'); S.paused = !S.started; snd.play('click'); }
 function openMemo() {
   ui.memoBtn.classList.remove('new');
-  openModal(`<h2>메모</h2>${S.memo.length ? '<ul class="memo">' + S.memo.map(m => `<li>${m}</li>`).join('') + '</ul>' : '<p class="hint">아직 아무것도 없다.</p>'}
-    <div class="row"><button class="primary" data-close>닫기</button></div>`, 'memoCard');
+  openModal(`<h2>${$t('메모', 'Notes')}</h2>${S.memo.length ? '<ul class="memo">' + S.memo.map(m => `<li>${m}</li>`).join('') + '</ul>' : $t('<p class="hint">아직 아무것도 없다.</p>', '<p class="hint">Nothing yet.</p>')}
+    <div class="row"><button class="primary" data-close>${$t('닫기', 'Close')}</button></div>`, 'memoCard');
 }
 function openPause() {
-  openModal(`<h2>일시정지</h2>
-    <p class="hint">드래그 / 방향키 / 📱 자이로: 둘러보기 · ↻ 버튼: 뒤돌아보기<br>숨은 아이, 이상하게 바뀐 곳을 눌러 원래대로 돌려놓는다</p>
-    <div class="gfx"><span>그래픽</span>${IS_MOBILE ? '<button class="on" disabled>낮음 (모바일 고정)</button>' : [['auto', '자동'], ['low', '낮음'], ['medium', '중간'], ['high', '높음']].map(([k, l]) =>
+  openModal(`<h2>${$t('일시정지', 'Paused')}</h2>
+    <p class="hint">${$t('드래그 / 방향키 / 📱 자이로: 둘러보기 · ↻ 버튼: 뒤돌아보기<br>숨은 아이, 이상하게 바뀐 곳을 눌러 원래대로 돌려놓는다', 'Drag / arrow keys / 📱 gyro: look around · ↻ button: turn around<br>Tap the hidden girl — and anything that has changed — to put it right')}</p>
+    <div class="gfx"><span>${$t('그래픽', 'Graphics')}</span>${IS_MOBILE ? $t('<button class="on" disabled>낮음 (모바일 고정)</button>', '<button class="on" disabled>Low (fixed on mobile)</button>') : [['auto', $t('자동', 'Auto')], ['low', $t('낮음', 'Low')], ['medium', $t('중간', 'Medium')], ['high', $t('높음', 'High')]].map(([k, l]) =>
       `<button class="${k === gfxChoice ? 'on' : ''}" data-gfx="${k}">${l}</button>`).join('')}<small id="gfxFps"></small></div>
-    <div class="vols">${[['master', '전체'], ['music', '음악'], ['sfx', '효과음']].map(([k, l]) =>
+    <div class="vols">${[['master', $t('전체', 'Master')], ['music', $t('음악', 'Music')], ['sfx', $t('효과음', 'Effects')]].map(([k, l]) =>
       `<label><span>${l}</span><input type="range" min="0" max="1" step="0.05" value="${snd.vol[k]}" data-vol="${k}"></label>`).join('')}</div>
-    <div class="row"><button class="ghostbtn" id="restartBtn">처음부터</button><button class="primary" data-close>계속</button></div>`);
+    <div class="gfx lang"><span>${$t('언어 — 바꾸면 다시 불러온다', 'Language — switching reloads the game')}</span>${[['ko', '한국어'], ['en', 'English']].map(([k, l]) =>
+      `<button class="${k === LANG ? 'on' : ''}" data-lang="${k}" lang="${k}">${l}</button>`).join('')}</div>
+    <div class="row"><button class="ghostbtn" id="restartBtn">${$t('처음부터', 'Start over')}</button><button class="primary" data-close>${$t('계속', 'Continue')}</button></div>`);
   $('#restartBtn').addEventListener('click', () => { clearSave(); location.reload(); });
+  ui.card.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
   ui.card.querySelectorAll('[data-vol]').forEach(r => r.addEventListener('input', () => snd.setVolume(r.dataset.vol, +r.value)));
   ui.card.querySelectorAll('[data-gfx]').forEach(b => b.addEventListener('click', () => {
     const texBefore = gfxPreset().tex;
     applyGfx(b.dataset.gfx);
     ui.card.querySelectorAll('[data-gfx]').forEach(x => x.classList.toggle('on', x === b));
-    if (gfxPreset().tex !== texBefore) $('#gfxFps').textContent = '텍스처 해상도는 다시 시작하면 적용';
+    if (gfxPreset().tex !== texBefore) $('#gfxFps').textContent = $t('텍스처 해상도는 다시 시작하면 적용', 'Texture resolution applies after a restart');
   }));
 }
 
@@ -2345,16 +2364,16 @@ function onOrientation(e) {
 async function setGyro(on) {
   if (on && typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
     try {
-      if (await DeviceOrientationEvent.requestPermission() !== 'granted') { say('자이로 센서 권한이 거부되었다.', 3); on = false; }
-    } catch { say('자이로 센서를 켤 수 없다.', 3); on = false; }
+      if (await DeviceOrientationEvent.requestPermission() !== 'granted') { say($t('자이로 센서 권한이 거부되었다.', 'Gyro sensor permission was denied.'), 3); on = false; }
+    } catch { say($t('자이로 센서를 켤 수 없다.', 'Can\'t turn on the gyro sensor.'), 3); on = false; }
   }
   gyro.on = on; gyro.last = null;
   ui.gyroBtn.classList.toggle('on', on); ui.gyroBtn.setAttribute('aria-pressed', String(on));
   try { localStorage.setItem(GYRO_KEY, on ? '1' : '0'); } catch { }
   if (on) {
     gyro.got = false;
-    say('자이로 켜짐 — 폰을 움직여 둘러본다. 드래그도 함께 쓸 수 있다.', 3.5);
-    setTimeout(() => { if (gyro.on && !gyro.got) { say('이 기기에서는 자이로 센서 값이 들어오지 않는다.', 3.5); setGyro(false); } }, 1500);
+    say($t('자이로 켜짐 — 폰을 움직여 둘러본다. 드래그도 함께 쓸 수 있다.', 'Gyro on — move your phone to look around. Dragging still works too.'), 3.5);
+    setTimeout(() => { if (gyro.on && !gyro.got) { say($t('이 기기에서는 자이로 센서 값이 들어오지 않는다.', 'No gyro sensor data is coming from this device.'), 3.5); setGyro(false); } }, 1500);
   }
 }
 function setupGyro() {
@@ -2372,7 +2391,7 @@ function worldTap(dir, px, py) {
   if (S.useItem) { applyUse(useTarget(dir)); return; }
   // a tap on something she could bring explains the rule
   const ft = fetchTarget(dir);
-  if (ft?.w) say(`${ft.w.name} — 손이 닿지 않는다. 확대해서 오래 바라보면… (❄ -${ft.w.cost})`, 3.5);
+  if (ft?.w) say(`${ft.w.name} — ` + $t('손이 닿지 않는다. 확대해서 오래 바라보면…', 'out of reach. Zoom in and stare at it…') + ` (❄ -${ft.w.cost})`, 3.5);
 }
 function setupInput() {
   const cv = ui.canvas;
@@ -2514,14 +2533,14 @@ function update(dt) {
       const zoomOK = S.zoom > 1.6;
       if (zoomOK) S.stareT += dt; else S.stareT = Math.max(0, S.stareT - dt);
       ringV = S.stareT / 1.4;
-      hint = zoomOK ? `${w.name}… 그 애가 가져다준다 (❄ -${w.cost})` : `${w.name} — 확대해서 바라보면`;
+      hint = zoomOK ? `${w.name}… ${$t('그 애가 가져다준다', "she'll bring it to you")} (❄ -${w.cost})` : `${w.name} — ${$t('확대해서 바라보면', 'zoom in and stare')}`;
       if (ft.via === 'cctv') hint = '📺 ' + hint;
       if (S.stareT >= 1.4) startFetch(w);
     } else { S.stareId = null; S.stareT = 0; }
   }
   if (live && S.useItem) {
     const t = useTarget(f);
-    hint = t ? `${ITEMS[S.useItem].name} → ${t.label} (누르기)` : `${ITEMS[S.useItem].name} — 쓸 곳을 바라본다`;
+    hint = t ? `${ITEMS[S.useItem].name} → ${t.label} (${$t('누르기', 'tap')})` : `${ITEMS[S.useItem].name} — ${$t('쓸 곳을 바라본다', 'look at where to use it')}`;
     hintUse = true;
   }
   updateJob(dt);
@@ -2602,7 +2621,7 @@ function update(dt) {
   if (S.standing > 0 && S.standing < 1) {
     S.standing = Math.min(1, S.standing + dt / 2.2);
     EYE[1] = lerp(SEAT[1], 1.58, smooth(0, 1, S.standing));
-    if (S.standing >= 1) { ui.action.textContent = '걷기 (길게)'; }
+    if (S.standing >= 1) { ui.action.textContent = $t('걷기 (길게)', 'Walk (hold)'); }
   }
   if (S.act >= 3 && S.standing >= 1 && !S.final && !S.paused) {
     if (S.walking || walkKey) {
@@ -2626,7 +2645,7 @@ function update(dt) {
       S.hallucT -= dt;
       if (S.hallucT <= 0) {
         S.hallucT = rnd(2, 4.5) * (1.4 - I);
-        ui.halluc.textContent = pick(['보지 마', '뒤에 있어', '나를 봐', '같이 있자', '엄마', '수아야', '여기야', '왜 안 왔어']);
+        ui.halluc.textContent = pick($t(['보지 마', '뒤에 있어', '나를 봐', '같이 있자', '엄마', '수아야', '여기야', '왜 안 왔어'], ["don't look", 'behind you', 'look at me', 'stay with me', 'mommy', 'sua…', 'over here', "why didn't you come"]));
         ui.halluc.style.left = rnd(18, 82) + '%'; ui.halluc.style.top = rnd(18, 78) + '%';
         ui.halluc.classList.remove('go'); void ui.halluc.offsetWidth; ui.halluc.classList.add('go');
         if (Math.random() < 0.35) voice(pick(['c_look', 'c_stay']), v3.add(EYE, [rnd(-1, 1), 0, rnd(-1, 1)]), 1.8);
@@ -2687,7 +2706,7 @@ function update(dt) {
   put(ui.hint, 'textContent', hint); cls(ui.hint, 'show', !!hint); cls(ui.hint, 'use', hintUse);
   const showAct = live && ((S.act >= 3 && S.standing >= 1 && !S.final) || (S.useItem && useTarget(f)));
   cls(ui.action, 'show', !!showAct);
-  if (showAct) put(ui.action, 'textContent', S.useItem ? `${ITEMS[S.useItem].name} 사용` : '걷기 (길게)');
+  if (showAct) put(ui.action, 'textContent', S.useItem ? $t(`${ITEMS[S.useItem].name} 사용`, `Use ${ITEMS[S.useItem].name}`) : $t('걷기 (길게)', 'Walk (hold)'));
   put(ui.fear.style, 'transform', `scaleX(${S.fear.toFixed(2)})`);
   put(ui.warm.style, 'transform', `scaleX(${(S.warmth / 100).toFixed(2)})`);
   cls(ui.hud, 'fear', S.fear > 0.65); cls(ui.hud, 'cold', S.warmth < 30); cls(ui.cross, 'hot', !!hint);
@@ -2699,7 +2718,7 @@ function caught() {
   touch(15, 'caught');
   S.walk = Math.max(0, S.walk - 0.3);
   if (S.ghost) { S.ghost.p = [-1.65, 0, -0.6]; S.ghost.alpha = 0; }
-  after(1.3, () => say('작은 손이 목덜미를 스쳤다. …뒷걸음질쳤다. 그 애를 봐야 멈춘다.', 4.5));
+  after(1.3, () => say($t('작은 손이 목덜미를 스쳤다. …뒷걸음질쳤다. 그 애를 봐야 멈춘다.', 'A small hand brushed the back of my neck. …I stumbled back. She only stops while I look at her.'), 4.5));
 }
 
 // ---------------------------------------------------------------- render
@@ -2880,7 +2899,7 @@ function frame(dt) {
   G.set([...shadowLight, moonOwns ? 1 : 0], 60);
   G.set([...SHIFT.o, SHIFT.on ? SHIFT.r : 99], 64);
   // flashlight: switches itself on the first time the room goes dark (then it is the player's to toggle)
-  if (!TORCH.auto && S.decay > 0.45 && S.started) { TORCH.auto = true; if (!TORCH.on) { setTorch(true); hsSay('어두워졌다. 손전등을 켰다. (🔦 버튼 / F)', 3); } }
+  if (!TORCH.auto && S.decay > 0.45 && S.started) { TORCH.auto = true; if (!TORCH.on) { setTorch(true); hsSay($t('어두워졌다. 손전등을 켰다. (🔦 버튼 / F)', 'It\'s gone dark. I switched on the flashlight. (🔦 button / F)'), 3); } }
   TORCH.k = damp(TORCH.k, TORCH.on ? 1 : 0, 10, dt);
   G.set([f[0], f[1], f[2], TORCH.k * (2.2 + S.decay * 1.2)], 72);
   G.set([gfxPreset() === GFX.low ? 1 : 0, 0, 0, 0], 76);
@@ -2983,11 +3002,11 @@ function restore(sv) {
   S.decayTarget = S.decay = [0, 0.15, 0.78, 1][S.act];
   snd.playMusic(S.act >= 1 ? 'music_room' : null, 4);
   S.blackout = 1; S.blackoutTarget = 0;
-  say('…다시, 이 방이다.', 3);
-  if (S.act === 0) objective(S.inv.includes('remote') ? '채널을 돌려 본다' : 'TV 리모컨을 가만히 바라본다');
-  if (S.act === 1) objective(S.flags.calRead ? `서랍을 가져오게 하고, 자물쇠를 연다 (12월 ${SOL.day}일)` : S.flags.childNote ? '달력을 찾는다 — 엄마가 오는 날' : '오르골을 살펴본다');
-  if (S.act === 2) objective(S.flags.hand ? '발목 자물쇠의 열쇠를 찾는다' : '가위로 오른손 밧줄을 끊는다');
-  if (S.act >= 3) { S.act = 2; S.flags.feet = 0; objective('작은 열쇠를 발목 자물쇠에 쓴다'); if (!S.inv.includes('anklekey')) invAdd('anklekey'); }
+  say($t('…다시, 이 방이다.', '…This room. Again.'), 3);
+  if (S.act === 0) objective(S.inv.includes('remote') ? $t('채널을 돌려 본다', 'Flip through the channels') : $t('TV 리모컨을 가만히 바라본다', 'Stare at the TV remote'));
+  if (S.act === 1) objective(S.flags.calRead ? $t(`서랍을 가져오게 하고, 자물쇠를 연다 (12월 ${SOL.day}일)`, `Have her bring the drawer, then open its lock (December ${SOL.day})`) : S.flags.childNote ? $t('달력을 찾는다 — 엄마가 오는 날', 'Find the calendar — the day Mommy comes home') : $t('오르골을 살펴본다', 'Examine the music box'));
+  if (S.act === 2) objective(S.flags.hand ? $t('발목 자물쇠의 열쇠를 찾는다', 'Find the key to the ankle padlock') : $t('가위로 오른손 밧줄을 끊는다', 'Cut the rope on your right hand with the scissors'));
+  if (S.act >= 3) { S.act = 2; S.flags.feet = 0; objective($t('작은 열쇠를 발목 자물쇠에 쓴다', 'Use the small key on the ankle padlock')); if (!S.inv.includes('anklekey')) invAdd('anklekey'); }
 }
 
 // ---------------------------------------------------------------- main
@@ -3046,9 +3065,9 @@ function perfState() {
 // graphics presets: auto = low on phones/tablets, high on PC (dynamic resolution still guards the frame rate)
 const GFX_KEY = 'gaze-gfx';
 const GFX = {
-  low: { name: '낮음', px: 0.9e6, shadow: 512, skip: true, aniso: 1, tex: 512, cap: 60, min: 0.5 },
-  medium: { name: '중간', px: 1.6e6, shadow: 1024, skip: false, aniso: 4, tex: 1024, cap: 60, min: 0.6 },
-  high: { name: '높음', px: 4.2e6, shadow: 2048, skip: false, aniso: 16, tex: 0, cap: 0, min: 0.75 },
+  low: { name: $t('낮음', 'Low'), px: 0.9e6, shadow: 512, skip: true, aniso: 1, tex: 512, cap: 60, min: 0.5 },
+  medium: { name: $t('중간', 'Medium'), px: 1.6e6, shadow: 1024, skip: false, aniso: 4, tex: 1024, cap: 60, min: 0.6 },
+  high: { name: $t('높음', 'High'), px: 4.2e6, shadow: 2048, skip: false, aniso: 16, tex: 0, cap: 0, min: 0.75 },
 };
 let gfxChoice = 'auto';
 try { gfxChoice = localStorage.getItem(GFX_KEY) || 'auto'; } catch { }
@@ -3089,7 +3108,7 @@ async function main() {
   const gp = gfxPreset();
   try { R = await Renderer.create(ui.canvas, { shadowSize: gp.shadow, maxTex: gp.tex, aniso: gp.aniso }); }
   catch (e) { ui.nogpu.classList.add('show'); ui.title.classList.add('hidden'); console.error(e); return; }
-  R.device.lost.then(info => { console.error('device lost', info); TEL?.event('device_lost', { reason: info.reason, msg: info.message }); TEL?.flush(); ui.nogpu.querySelector('p').textContent = 'GPU 장치가 초기화되었습니다. 새로고침 해주세요.'; ui.nogpu.classList.add('show'); });
+  R.device.lost.then(info => { console.error('device lost', info); TEL?.event('device_lost', { reason: info.reason, msg: info.message }); TEL?.flush(); ui.nogpu.querySelector('p').textContent = $t('GPU 장치가 초기화되었습니다. 새로고침 해주세요.', 'The GPU device was reset. Please reload the page.'); ui.nogpu.classList.add('show'); });
   startTelemetry();
   const tl = performance.now();
   await loadAll();
@@ -3103,10 +3122,10 @@ async function main() {
   resize(); addEventListener('resize', resize);
   // warm-up: draw every object once (ghost, trash, blood, flakes... all hidden at the start) so shaders,
   // pipelines and textures are ready before play, instead of stalling the first time each one appears
-  ui.load.textContent = '준비 중…';
+  ui.load.textContent = $t('준비 중…', 'Getting ready…');
   R.warm = true; try { frame(1 / 60); frame(1 / 60); } catch (e) { console.warn(e); } R.warm = false;
   await R.device.queue.onSubmittedWorkDone();
-  ui.load.textContent = '헤드폰을 권장합니다';
+  ui.load.textContent = $t('헤드폰을 권장합니다', 'Headphones recommended');
   ui.start.disabled = false;
   ui.start.addEventListener('click', () => {
     snd.lite = matchMedia('(pointer: coarse)').matches; snd.init(); snd.decodeAll();
@@ -3114,16 +3133,16 @@ async function main() {
     snd.setPos(snd.tvPan, O.tvCenter);   // the set's sound comes from where the set is
     let pref = null; try { pref = localStorage.getItem(GYRO_KEY); } catch { }
     if (document.documentElement.classList.contains('has-gyro') && pref === '1') setGyro(true);
-    else if (document.documentElement.classList.contains('has-gyro') && pref === null) after(24, () => say('📱 위의 [자이로] 버튼을 누르면 폰을 움직여 둘러볼 수 있다.', 5));
+    else if (document.documentElement.classList.contains('has-gyro') && pref === null) after(24, () => say($t('📱 위의 [자이로] 버튼을 누르면 폰을 움직여 둘러볼 수 있다.', '📱 Tap [Gyro] at the top to look around by moving your phone.'), 5));
     ui.title.classList.add('hidden'); ui.hud.classList.add('show');
     S.started = true; S.paused = false; TEL?.event('start', {});
     try { document.documentElement.requestFullscreen?.({ navigationUI: 'hide' }).catch(() => { }); } catch { }
     if (SAVE && ui.start.dataset.resume === '1') restore(SAVE); else { clearSave(); hsStart(); }
   }, { once: true });
   if (SAVE) {
-    ui.start.textContent = '이어하기'; ui.start.dataset.resume = '1';
+    ui.start.textContent = $t('이어하기', 'Continue'); ui.start.dataset.resume = '1';
     const nb = document.createElement('button');
-    nb.className = 'ghostbtn newgame'; nb.textContent = '처음부터';
+    nb.className = 'ghostbtn newgame'; nb.textContent = $t('처음부터', 'Start over');
     nb.addEventListener('click', () => { clearSave(); location.reload(); });
     ui.start.after(nb);
   }
