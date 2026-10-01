@@ -129,6 +129,30 @@ def world_uv(ob, tile=1.2):
             uv[li].uv = (u / tile, v / tile)
 
 
+def fill_missing_uvs(tile=1.0):
+    """procedural parts (and procedural pieces joined into textured models) have no UVs: every polygon whose
+    loops all sit at (0, 0) gets a world box projection, so tiled PBR textures and normal maps work on it"""
+    n = 0
+    for ob in bpy.data.objects:
+        if ob.type != 'MESH' or ob.name.startswith('ghost'):
+            continue
+        me = ob.data
+        if not me.uv_layers:
+            me.uv_layers.new(name='UVMap')
+            for d in me.uv_layers.active.data: d.uv = (0.0, 0.0)
+        uv = me.uv_layers.active.data
+        mw = ob.matrix_world; nm = mw.to_3x3().inverted().transposed()
+        for poly in me.polygons:
+            if any(abs(uv[li].uv.x) + abs(uv[li].uv.y) > 1e-7 for li in poly.loop_indices):
+                continue
+            nrm = (nm @ poly.normal).normalized(); ax = max(range(3), key=lambda i: abs(nrm[i])); n += 1
+            for li in poly.loop_indices:
+                p = mw @ me.vertices[me.loops[li].vertex_index].co
+                u, v = (p.y, p.z) if ax == 0 else (p.x, p.z) if ax == 1 else (p.x, p.y)
+                uv[li].uv = (u / tile, v / tile)
+    print('UV filled', n, 'polygons')
+
+
 def plane_uv01(ob):
     """planar 0..1 UVs from local bounds (u along local x, v along local z or y)"""
     me = ob.data
@@ -1209,6 +1233,7 @@ if MODE in ('room', 'all'):
         preview('room', [(eye, (PI / 2, 0, a)) for a in (0, PI / 2, PI, -PI / 2)] + [(eye, (PI / 2 - 0.9, 0, -PI / 2))])
     if not NOBAKE:
         bake_ao()
+    fill_missing_uvs()
     export('room.glb')
 if MODE in ('ghost', 'all'):
     reset()

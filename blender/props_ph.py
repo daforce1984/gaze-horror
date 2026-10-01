@@ -832,8 +832,8 @@ def add_young_woman():
     ph('modern_arm_chair_01', 'yw_armchair', 0.9, (-1.6, 0, 1.05), rotz=PI / 2 - 0.5)
     ph('potted_plant_02', 'yw_plant', 1.0, (1.45, 0, -2.15), faces=4000)
     ph('potted_plant_04', 'yw_succulent', 1.0, (-1.55, top('mod_shelf'), 2.33), faces=1500)   # on top of her shelf (the doll comes later)
-    ph('ceramic_vase_01', 'yw_vase1', 0.6, (-0.55, top('mod_tvstand'), -2.25), faces=1500)
-    ph('ceramic_vase_03', 'yw_vase2', 0.6, (-0.42, top('mod_tvstand'), -2.2), faces=1500)
+    ph('ceramic_vase_01', 'yw_vase1', 0.6, (-0.63, top('mod_tvstand'), -2.25), faces=1500)   # at the console's ends, clear of the screen
+    ph('ceramic_vase_03', 'yw_vase2', 0.6, (0.62, top('mod_tvstand'), -2.22), faces=1500)
     ph('standing_picture_frame_02', 'yw_frame', 0.9, (1.95, 0.74 + 0.013, -0.62), rotz=PI + 0.3, faces=1000)
     objaverse_bed('yw_bed')
     objaverse_mirror('yw_mirror')

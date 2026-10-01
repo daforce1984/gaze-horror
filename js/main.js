@@ -18,7 +18,10 @@ const SEAT = [0, 1.15, 0.3];
 const EYE = SEAT.slice();                 // mutable: rises when you finally stand up
 const RX = 2.2, RZ = 2.5, RH = 2.6;
 const PI = Math.PI;
+// Poly Haven (CC0) PBR sets for everything that was a flat colour (tools/pbrget.py): albedo, normal, ARM
+const PBR_SETS = ['rough_linen', 'wool_boucle', 'oak_veneer_01', 'marble_01', 'metal_plate', 'white_plaster_02', 'velour_velvet', 'cotton_jersey', 'wood_table'];
 const ASSETS = {
+  ...Object.fromEntries(PBR_SETS.flatMap(id => ['d', 'n', 'a'].map(k => [`pbr_${id}_${k}`, `assets/pbr/${id}_${k}.webp`]))),
   wall: 'assets/wall.webp', wallClean: 'assets/wall_modern.webp', floor: 'assets/floor.webp', floorClean: 'assets/floor_modern.webp',
   ceiling: 'assets/ceiling_rot.webp', ceilClean: 'assets/ceil_modern.webp', rug: 'assets/rug.webp',
   // PBR maps derived from the Codex albedo (tools/pbrmaps.py): _n normal, _m occlusion/roughness/metal
@@ -224,9 +227,68 @@ function buildScene() {
   // PBR maps that came inside the GLB (Poly Haven props, retextured pieces): one GPU texture per image
   const texCache = new Map();
   const gpuTex = (img, srgb) => { if (!img) return null; const k = img; if (!texCache.has(k)) texCache.set(k, R.texture(img, { mips: true, srgb })); return texCache.get(k); };
+  // ---- full PBR for every material: albedo + normal + ARM (occlusion, roughness, metal)
+  const avgLum = (img) => { const c = TX.canvas(16, 16), g = c.getContext('2d'); g.drawImage(img, 0, 0, 16, 16); const d = g.getImageData(0, 0, 16, 16).data; let s = 0; for (let i = 0; i < d.length; i += 4) s += (d[i] + d[i + 1] + d[i + 2]) / 765; return s / 256; };
+  const PBR = Object.fromEntries(PBR_SETS.filter(id => IMG[`pbr_${id}_d`]).map(id => [id, {
+    d: R.texture(IMG[`pbr_${id}_d`], { mips: true, srgb: true }), n: R.texture(IMG[`pbr_${id}_n`], { mips: true, srgb: false }),
+    a: R.texture(IMG[`pbr_${id}_a`], { mips: true, srgb: false }), lum: avgLum(IMG[`pbr_${id}_d`]) }]));
+  const armSolid = new Map(), arm = (rough, metal) => { const k = `${rough.toFixed(2)}_${metal.toFixed(2)}`; if (!armSolid.has(k)) armSolid.set(k, R.solidTexture([255, Math.round(rough * 255), Math.round(metal * 255), 255], false)); return armSolid.get(k); };
+  // material name -> [set, uv scale, roughness override (glossy things keep the set's normal but their own sheen)]
+  const PBR_BY = [
+    [/beanbag|M_rug_modern/, 'rough_linen', 2], [/FABRIC_sofa|^Mat\.2$|^Cube_3__0$|pillow|M_mod_sheet/, 'rough_linen', 3],
+    [/M_velvet|M_cushion|M_book\d/, 'velour_velvet', 3], [/M_rag|M_mod_wick/, 'cotton_jersey', 3],
+    [/M_mod_oak|M_tray/, 'oak_veneer_01', 1.5], [/M_mod_reed/, 'wood_table', 4], [/marble/, 'marble_01', 2],
+    [/M_mod_silver|M_mod_lampblack|M_brass|^Metal$|M_mod_pad|hands/, 'white_plaster_02', 6, 0.32],
+    [/M_mod_white|M_mod_matte|M_mod_opal/, 'white_plaster_02', 1, 0.55], [/M_ceramic|M_cup|M_mod_ceramic|M_mod_wax/, 'white_plaster_02', 2, 0.3],
+    [/M_mod_black|M_mod_key|M_redplastic|M_hy_remote|plastic/i, 'white_plaster_02', 3, 0.35],
+  ];
+  const GLASSY = /M_mod_screen|mirrorglass|M_glassgreen|M_mod_amber|^M_mirror$|_glass$/;
+  const SKIP = /M_led|M_bulb|M_window|M_tvscreen|M_clockface|M_corridor|M_ghost|M_dress|M_skin|M_hair|M_eye|flame/;
+  const derived = new Map();
+  const derivedNormal = (img) => {   // a normal map from the albedo's relief (luminance Sobel), for textures that came without one
+    if (derived.has(img)) return derived.get(img);
+    const S = 512, c = TX.canvas(S, S), g = c.getContext('2d'); g.drawImage(img, 0, 0, S, S);
+    const src = g.getImageData(0, 0, S, S), d = src.data, L = new Float32Array(S * S), out = g.createImageData(S, S);
+    for (let i = 0; i < S * S; i++) L[i] = (d[i * 4] * 0.3 + d[i * 4 + 1] * 0.59 + d[i * 4 + 2] * 0.11) / 255;
+    const at = (x, y) => L[((y + S) % S) * S + ((x + S) % S)];
+    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+      const dx = (at(x + 1, y - 1) + 2 * at(x + 1, y) + at(x + 1, y + 1)) - (at(x - 1, y - 1) + 2 * at(x - 1, y) + at(x - 1, y + 1));
+      const dy = (at(x - 1, y + 1) + 2 * at(x, y + 1) + at(x + 1, y + 1)) - (at(x - 1, y - 1) + 2 * at(x, y - 1) + at(x + 1, y - 1));
+      let nx = -dx * 1.6, ny = dy * 1.6, nz = 1; const l = Math.hypot(nx, ny, nz); nx /= l; ny /= l; nz /= l;
+      const o = (y * S + x) * 4; out.data[o] = (nx * 0.5 + 0.5) * 255; out.data[o + 1] = (ny * 0.5 + 0.5) * 255; out.data[o + 2] = (nz * 0.5 + 0.5) * 255; out.data[o + 3] = 255;
+    }
+    g.putImageData(out, 0, 0);
+    const t = R.texture(c, { mips: true, srgb: false }); derived.set(img, t); return t;
+  };
+  const pbrFor = (mat) => {
+    const name = mat.name || '', c = mat.color || [1, 1, 1, 1], maps = mat.maps || {};
+    if (SKIP.test(name)) return null;
+    if (maps.base) {   // textured already: complete what is missing
+      if (maps.normal && maps.mr) return null;
+      return { n: maps.normal ? null : derivedNormal(maps.base), mr: maps.mr ? null : arm(mat.rough ?? 0.7, mat.metal ?? 0), keepTex: true };
+    }
+    if (GLASSY.test(name)) return { n: R.flatNormal, mr: arm(0.06, 0), tint: c.slice(0, 3), noTex: true };
+    const hit = PBR_BY.find(([re]) => re.test(name)) || [null, 'white_plaster_02', 2, mat.rough];
+    const set = PBR[hit[1]]; if (!set) return null;
+    // wood and marble keep the set's own colour; everything else keeps its colour and takes only the set's
+    // relief (normal map) and roughness, so no foreign pattern lands on it
+    const metal = /M_mod_silver|M_mod_lampblack|M_brass|^Metal$|M_mod_pad|hands/.test(name) ? 1 : 0;
+    const mr = hit[3] != null ? arm(hit[3], metal) : set.a;
+    if (/oak_veneer|wood_table|marble/.test(hit[1])) { const k = 1 / Math.max(0.15, set.lum); return { t: set.d, n: set.n, mr, tint: [c[0] * k, c[1] * k, c[2] * k], uv: hit[2] }; }
+    return { n: set.n, mr, tint: c.slice(0, 3), uv: hit[2] };
+  };
   const addNode = (node, pipe = 'opaque', ghost = false) => {
     const list = node.prims.map(pr => {
-      const m = MAT[pr.material.name] || {};
+      let m = MAT[pr.material.name];
+      if (!m && !ghost) {   // full PBR for everything the room shell table does not cover
+        const q = pbrFor(pr.material);
+        m = !q ? {} : q.keepTex ? { n: q.n || undefined, mr: q.mr || undefined, mrKeep: true } : q.noTex ? { n: q.n, mr: q.mr, tint: q.tint } : q;
+      }
+      else if (m && !ghost && !m.unlit && (!m.n || !m.mr)) {   // a hand-tuned entry without maps: add relief + roughness
+        const q = pbrFor({ ...pr.material, maps: { ...(pr.material.maps || {}), base: null } });
+        if (q) m = { ...m, n: m.n || q.n, mr: m.mr || q.mr, uv: m.uv || (m.t ? undefined : q.uv) };
+      }
+      m = m || {};
       const c = pr.material.color, maps = pr.material.maps || {};
       const base = m.t || gpuTex(maps.base, true);
       const tint = m.tint ? [...m.tint, 1] : base ? [c[0], c[1], c[2], 1].map((v, k) => maps.base && !m.t ? v : 1) : [c[0], c[1], c[2], 1];

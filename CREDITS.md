@@ -86,3 +86,8 @@ MiniMax H3 (tools/h3_tv.py).
 ### TV kids' show video
 assets/kids_show.mp4 and kids_show_bad.mp4: MiniMax H3 (ComfyUI, standard FL2VA i2v, not adult) from the kids' show stills with
 the kids' song as audio guide; first frame = last frame for a seamless loop (tools/h3_tv.py), the tail cross-faded into the head.
+
+### PBR surface sets (Poly Haven, CC0)
+rough_linen, wool_boucle, oak_veneer_01, marble_01, metal_plate, white_plaster_02, velour_velvet, cotton_jersey, wood_table —
+albedo / normal / ARM at 1k (tools/pbrget.py -> assets/pbr). Untextured materials take their relief and roughness (wood and marble
+also their colour); textured models without a normal map get one derived from their albedo.
